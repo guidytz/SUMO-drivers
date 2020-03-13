@@ -26,7 +26,7 @@ class Environment(object):
     
     #run an entire episode
     @abc.abstractmethod
-    def run_episode(self, max_steps=-1):
+    def run_episode(self, max_steps=-1, mv_avg_gap=100):
         pass
     
     #run a single step within an episode

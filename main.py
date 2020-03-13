@@ -5,7 +5,8 @@ Author: Guilherme Dytz dos Santos
 Last Modified: Wednesday, March 4th 2020, 11:15 am
 Modified By: guilhermedytz
 '''
-import os, sys
+# pylint: disable=fixme, line-too-long, invalid-name, missing-docstring
+import sys
 import argparse
 from environment.sumo import SUMO
 from agent.q_learning import QLearner
@@ -16,17 +17,17 @@ if __name__ == '__main__':
     parse = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
 
     parse.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
-                          help="define the config SUMO file (mandatory)")
+                       help="define the config SUMO file (mandatory)")
     parse.add_argument("-d", "--driver-number", action="store", type=int, dest="numveh",
-                          default=500, help="desired network load (default = 500)")
+                       default=500, help="desired network load (default = 500)")
     parse.add_argument("-s", "--steps", action="store", type=int, default=10000,
-                          help="number of max steps (default = 10000)", dest="steps")
+                       help="number of max steps (default = 10000)", dest="steps")
     parse.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
-                          help="Time steps before agents start the learning (default = 3000)")
+                       help="Time steps before agents start the learning (default = 3000)")
     parse.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
-                          help="uses SUMO GUI instead of CLI")
+                       help="uses SUMO GUI instead of CLI")
     parse.add_argument("-m", "--mav", action="store",type=int, dest="mav", default=100,
-                          help="Moving gap size (default = 100 steps)")
+                       help="Moving gap size (default = 100 steps)")
 
     options = parse.parse_args()
     if not options.cfgfile:
