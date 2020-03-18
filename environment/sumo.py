@@ -2,7 +2,7 @@
 Created Date: Wednesday, January 22nd 2020, 10:29:59 am
 Author: Guilherme Dytz dos Santos
 -----
-Last Modified: Wednesday, March 4th 2020, 4:12 pm
+Last Modified: Wednesday, March 18th 2020, 2:41 pm
 Modified By: guilhermedytz
 '''
 # pylint: disable=fixme, line-too-long, invalid-name, missing-docstring
@@ -28,7 +28,15 @@ class SUMO(Environment):
       time spent on traveling on such a link multiplied by -1 (the lower the travel time the better)
     * the transitions between states are deterministic
     '''
-    def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000):
+    def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30):
+        self.__flags = {
+            'C2I': False,
+            'over5k_log': False,
+            'teleport_log': False,
+            'plot': True,
+            'plot_over5k': False
+        }
+
 
         super(SUMO, self).__init__()
 
@@ -43,6 +51,8 @@ class SUMO(Environment):
         self._net_file = self._cfg_file[:self._cfg_file.rfind("/")+1] + minidom.parse(self._cfg_file).getElementsByTagName('net-file')[0].attributes['value'].value
         self._rou_file = self._cfg_file[:self._cfg_file.rfind("/")+1] + minidom.parse(self._cfg_file).getElementsByTagName('route-files')[0].attributes['value'].value
         self._port = port
+        self.__vehicles_to_process_feedback = {}
+        self.__vehicles_to_process_act = {}
 
         self.time_before_learning = time_before_learning
         self.max_veh = max_veh
@@ -51,11 +61,17 @@ class SUMO(Environment):
         self.od_pair_set = set()
         self.od_pair_load = dict()
         self.od_pair_min = dict()
+        self.comm_devices = dict()
+        self.max_queue = max_queue_val
 
         #..............................
 
         #read the network file
         self._net = sumolib.net.readNet(self._net_file)
+
+        # create structure to handle C2I communication
+        for edge in self._net.getEdges():
+            self.comm_devices[edge.getID()] = list()
 
         self._env = {}
         for s in self._net.getNodes(): #current states (current nodes)
@@ -232,14 +248,12 @@ class SUMO(Environment):
         sys.stdout = saved_stdout
 
     def run_episode(self, max_steps=-1, mv_avg_gap=100):
-        # start = time.time()
-
         self._has_episode_ended = False
         self._episodes += 1
         self.reset_episode()
-        travel_times = np.array([])
+        self.travel_times = np.array([])
         travel_avg_df = pd.DataFrame({"Step":[], "Travel moving average times from arrived cars":[]})
-        cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]})
+        cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]}) if self.__flags['plot_over5k'] else None
         not_switched = True
         higher_count = 0
         total_count = 0
@@ -247,19 +261,9 @@ class SUMO(Environment):
         log_path = os.getcwd() + '/log/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
         over_5k = log_path + '/over_5k'
         teleport = log_path + '/teleports.txt'
-        try:
-            os.mkdir(log_path)
-        except OSError:
-            print ("Creation of the directory %s failed" % log_path)
-            traci.close()
-            sys.exit()
 
-        try:
-            os.mkdir(over_5k)
-        except OSError:
-            print ("Creation of the directory %s failed" % over_5k)
-            traci.close()
-            sys.exit()
+        self.__make_log_folder(log_path)
+        self.__make_log_folder(over_5k)
 
         for vehID in self.get_vehicles_ID_list():
             routeID = 'r_' + vehID
@@ -269,134 +273,26 @@ class SUMO(Environment):
 
         while traci.simulation.getTime() < max_steps:
             current_time = traci.simulation.getTime()
-            vehicles_to_process_feedback = {}
-            vehicles_to_process_act = {}
-            count_over_5k = 0
+            self.__vehicles_to_process_feedback = {}
+            self.__vehicles_to_process_act = {}
+            higher_per_step = 0
 
-            for vehID in traci.simulation.getStartingTeleportIDList():
-                try:
-                    with open(teleport, 'a') as txt_file:
-                        teleport_str = "Vehicle " + vehID
-                        teleport_str += " in link " + traci.vehicle.getRoadID(vehID)
-                        teleport_str += " teleported in step " + str(current_time) + "\n"
-                        txt_file.write(teleport_str)
-                        txt_file.close()
-                except IOError:
-                    print("Unable to open " + teleport + " file")
+            if self.__flags['teleport_log'] : self.__update_teleport_log(teleport, current_time)
 
-            for vehID in traci.simulation.getArrivedIDList():
-                self.__check_min_load(vehID)
+            [total_count, higher_per_step] = self.__process_arrived(current_time, total_count, higher_per_step)
 
-                self._vehicles[vehID]["arrival_time"] = current_time
-                self._vehicles[vehID]["travel_time"] = self._vehicles[vehID]["arrival_time"] - self._vehicles[vehID]["departure_time"]
-
-                travel_times = np.append(travel_times, [self._vehicles[vehID]["travel_time"]])
-                total_count += 1
-
-                if self._vehicles[vehID]["travel_time"] > 5000:
-                    higher_count += 1
-                    count_over_5k += 1
-
-                reward = current_time - self._vehicles[vehID]['time_last_link']
-                reward *= -1
-
-                if traci.simulation.getTime() > self.time_before_learning:
-                    vehicles_to_process_feedback[vehID] = [
-                        reward,
-                        self.__get_edge_destination(self._vehicles[vehID]['current_link']),
-                        self.__get_edge_origin(self._vehicles[vehID]['current_link']),
-                        self._vehicles[vehID]['current_link']
-                    ]
-
-            if count_over_5k > 0:
+            if higher_per_step > 0 and self.__flags['plot_over5k']:
                 df = pd.DataFrame({"Step": [traci.simulation.getTime()],
-                                   "Number of arrived cars over 5k": [count_over_5k]})
+                                   "Number of arrived cars over 5k": [higher_per_step]})
                 cars_over_5k = cars_over_5k.append(df, ignore_index=True)
 
-            for vehID in traci.simulation.getLoadedIDList():
-                self._vehicles[vehID]['current_link'] = None
-                self._vehicles[vehID]['previous_node'] = self._vehicles[vehID]['origin']
-                self._vehicles[vehID]['departure_time'] = -1.0
-                self._vehicles[vehID]['arrival_time'] = -1.0
-                self._vehicles[vehID]['travel_time'] = -1.0
-                self._vehicles[vehID]['time_last_link'] = -1.0
-                self._vehicles[vehID]['route'] = [self._vehicles[vehID]['origin']]
-                self._vehicles[vehID]['initialized'] = False
-                self._vehicles[vehID]['n_of_traversed_links'] = 0
-                od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
-                self.od_pair_load[od_pair] += 1
-                routeID = 'r_' + vehID
-                traci.vehicle.setRouteID(vehID, routeID)
+            self.__update_loaded_info()
 
             # departed vehicles (those that are entering the network)
-            for vehID in traci.simulation.getDepartedIDList():
-                self._vehicles[vehID]["departure_time"] = current_time
-
-            for vehID in self.get_vehicles_ID_list(): # all vehicles
-                # who have departed but not yet arrived
-                if self._vehicles[vehID]["departure_time"] != -1.0 and self._vehicles[vehID]["arrival_time"] == -1.0:
-                    road = traci.vehicle.getRoadID(vehID)
-                    if road != self._vehicles[vehID]["current_link"] and self.__is_link(road): #but have just leaved a node
-                        #update info of previous link
-                        if self._vehicles[vehID]['time_last_link'] > -1.0:
-                            reward = current_time - self._vehicles[vehID]['time_last_link']
-                            reward *= -1
-
-                            if traci.simulation.getTime() > self.time_before_learning:
-                                vehicles_to_process_feedback[vehID] = [
-                                    reward,
-                                    self.__get_edge_destination(self._vehicles[vehID]['current_link']),
-                                    self.__get_edge_origin(self._vehicles[vehID]['current_link']),
-                                    self._vehicles[vehID]['current_link']
-                                ]
-
-                        self._vehicles[vehID]['time_last_link'] = current_time
-                        self._vehicles[vehID]['travel_time'] = current_time - self._vehicles[vehID]['departure_time']
-
-                        if self._vehicles[vehID]['travel_time'] > 5000:
-                            filename = over_5k + '/' + vehID + '.txt'
-                            try:
-                                with open(filename, 'a') as txt_file:
-                                    log_str = "time step " + str(traci.simulation.getTime()) + ": "
-                                    log_str += "Current state is " + self._vehicles[vehID]['route'][-1] + ", "
-                                    log_str += "took action " + self._vehicles[vehID]['current_link'] + ", "
-                                    log_str += "with a reward of " + str(reward) + '\n'
-                                    txt_file.write(log_str)
-                                    txt_file.close()
-                            except IOError:
-                                print("Couldn't open file " + filename)
-
-                        #update current_link
-                        self._vehicles[vehID]['current_link'] = road
-                        self._vehicles[vehID]['n_of_traversed_links'] += 1
-
-                        #get the next node, and add it to the route
-                        node = self.__get_edge_destination(self._vehicles[vehID]["current_link"])
-                        self._vehicles[vehID]['route'].append(self.__get_edge_destination(self._vehicles[vehID]['current_link']))
-
-                        if node != self._vehicles[vehID]['destination']:
-                            if traci.simulation.getTime() > self.time_before_learning:
-                                outgoing = self._net.getEdge(self._vehicles[vehID]['current_link']).getOutgoing()
-                                possible_actions = [edge.getID() for edge in outgoing if len(edge.getOutgoing(
-                                )) > 0 or self.__get_edge_destination(edge.getID()) == self._vehicles[vehID]['destination']]
-                                # for edge in self._net.getEdge(self._vehicles[vehID]['current_link']).getOutgoing():
-                                #     if len(edge.getOutgoing()) > 0:
-                                #         possible_actions.append(edge.getID())
-                                #     elif :
-                                #         possible_actions.append(edge.getID())
-                                vehicles_to_process_act[vehID] = [
-                                    node, #next state
-                                    possible_actions #available actions
-                                ]
-                            else:
-                                vehicles_to_process_act[vehID] = [
-                                    node, #next state
-                                    [self._vehicles[vehID]['original_route'][len(self._vehicles[vehID]['route']) - 1]] #available actions
-                                ]
-
-
-            self.__process_vehicles_feedback(vehicles_to_process_feedback)
-            self.__process_vehicles_act(vehicles_to_process_act, current_time)
+            self.__update_departed_info(current_time)
+            self.__process_all(current_time, over_5k)
+            self.__process_vehicles_feedback(self.__vehicles_to_process_feedback)
+            self.__process_vehicles_act(self.__vehicles_to_process_act, current_time)
 
             if traci.simulation.getTime() > (max_steps / 2) and not_switched:
                 for vehID in traci.vehicle.getIDList():
@@ -406,39 +302,29 @@ class SUMO(Environment):
             step = traci.simulation.getTime()
             if step % mv_avg_gap == 0 and step > 0:
                 df = pd.DataFrame({"Step": [step],
-                                   "Travel moving average times from arrived cars": [travel_times.mean()]})
+                                   "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
-                travel_times = np.array([])
+                self.travel_times = np.array([])
 
+            higher_count += higher_per_step
             traci.simulationStep()
 
-
         traci.close()
-        try:
-            with open('sims_log.txt', 'a') as logfile:
-                end_time = datetime.now()
-                log_str = "-----------------------------------------------\n"
-                log_str += "Simulation with " + str(max_steps) + " steps run in " + start_time.strftime("%d/%m/%y") + "\n"
-                log_str += "Start time: " + start_time.strftime("%H:%M") + "\n"
-                log_str += "End time: " + end_time.strftime("%H:%M") + "\n"
-                log_str += "Total trips ended: " + str(total_count) + "\n"
-                log_str += "Trips that ended with more than 5k steps: " + str(higher_count) + "\n"
-                log_str += "Percentage (higher / total): " + "{:.2f} %\n\n".format(higher_count / total_count * 100)
-
-                logfile.write(log_str)
-                logfile.close()
-        except IOError:
-            print("Unable to open simulations log file")
-        travel_avg_df.plot(kind="scatter", x="Step", y="Travel moving average times from arrived cars")
-        plt.show()
-        # start_time = datetime.now()
+        self.__write_sim_logfile(max_steps, start_time, total_count, higher_count)
+        
+        if self.__flags['plot']:
+            travel_avg_df.plot(kind="scatter", x="Step", y="Travel moving average times from arrived cars")
+            plt.show()
         sim_name = 'csv/MovingAverage/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M") + ".csv"
         travel_avg_df.to_csv(sim_name, index=False)
 
-        cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
-        plt.show()
-        plot_name = 'csv/CarsOver5k/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M") + ".csv"
-        cars_over_5k.to_csv(plot_name, index=False)
+        if self.__flags['plot_over5k']:
+            cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
+            plt.show()
+            plot_name = 'csv/CarsOver5k/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M") + ".csv"
+            cars_over_5k.to_csv(plot_name, index=False)
+
+        print()
 
     def __process_vehicles_feedback(self, vehicles):
         # feedback_last
@@ -449,10 +335,9 @@ class SUMO(Environment):
 
         # act_last
         for vehID in vehicles.keys():
-            #~ print vehID,  vehicles[vehID][1]
+            if self.__flags['C2I'] : self.__upd_c2i_info(vehID, vehicles[vehID][0])
+
             _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1])
-            #~ print vehID, action
-            #print "%s is in state %s and chosen action %s among %s" % (vehID, vehicles[vehID][0], action, vehicles[vehID][1])
 
             if not vehicles[vehID][1]:
                 traci.vehicle.remove(vehID, traci.constants.REMOVE_ARRIVED)
@@ -462,24 +347,20 @@ class SUMO(Environment):
 
             #update route
             cur_route = list(traci.vehicle.getRoute(vehID))
-            #~ print 'route', traci.route.getEdges('R-%s'%vehID)
-            #~ print vehID, traci.vehicle.getRoute(vehID)
             cur_route.append(action)
-            #~ print 'current ', vehID, self._vehicles[vehID]['current_link']
 
             # remove traversed links from the route
             # (this is necessary because otherwise the driver will try
             # to reach the first link of such route from its current link)
             cur_route = cur_route[self._vehicles[vehID]['n_of_traversed_links']-1:]
 
-            #~ print vehID, cur_route
             traci.vehicle.setRoute(vehID, cur_route)
 
     def __is_link(self, edge_id):
         try:
             _ = self._net.getEdge(edge_id)
             return True
-        except NameError:
+        except:
             return False
 
     def run_step(self):
@@ -509,6 +390,169 @@ class SUMO(Environment):
                 traci.route.add(routeID, [action])
             traci.vehicle.add(vehID, routeID)
 
+    def __update_loaded_info(self):
+        for vehID in traci.simulation.getLoadedIDList():
+                self._vehicles[vehID]['current_link'] = None
+                self._vehicles[vehID]['previous_node'] = self._vehicles[vehID]['origin']
+                self._vehicles[vehID]['departure_time'] = -1.0
+                self._vehicles[vehID]['arrival_time'] = -1.0
+                self._vehicles[vehID]['travel_time'] = -1.0
+                self._vehicles[vehID]['time_last_link'] = -1.0
+                self._vehicles[vehID]['route'] = [self._vehicles[vehID]['origin']]
+                self._vehicles[vehID]['initialized'] = False
+                self._vehicles[vehID]['n_of_traversed_links'] = 0
+                od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
+                self.od_pair_load[od_pair] += 1
+                routeID = 'r_' + vehID
+                traci.vehicle.setRouteID(vehID, routeID)
+
+    def __update_departed_info(self, current_time):
+        for vehID in traci.simulation.getDepartedIDList():
+                self._vehicles[vehID]["departure_time"] = current_time
+
+    def __process_arrived(self, current_time, total_count, higher_per_step):
+        for vehID in traci.simulation.getArrivedIDList():
+                self.__check_min_load(vehID)
+
+                self._vehicles[vehID]["arrival_time"] = current_time
+                self._vehicles[vehID]["travel_time"] = self._vehicles[vehID]["arrival_time"] - self._vehicles[vehID]["departure_time"]
+
+                if self._vehicles[vehID]["travel_time"] < 5000:
+                    self.travel_times = np.append(self.travel_times, [self._vehicles[vehID]["travel_time"]])
+                total_count += 1
+
+                if self._vehicles[vehID]["travel_time"] >= 5000 : higher_per_step += 1
+
+                reward = current_time - self._vehicles[vehID]['time_last_link']
+                reward *= -1
+
+                if traci.simulation.getTime() > self.time_before_learning:
+                    self.__vehicles_to_process_feedback[vehID] = [
+                        reward,
+                        self.__get_edge_destination(self._vehicles[vehID]['current_link']),
+                        self.__get_edge_origin(self._vehicles[vehID]['current_link']),
+                        self._vehicles[vehID]['current_link']
+                    ]
+        
+        return [total_count, higher_per_step]
+
+    def __process_all(self, current_time, over5k_path):
+        for vehID in self.get_vehicles_ID_list(): # all vehicles
+                # who have departed but not yet arrived
+                if self._vehicles[vehID]["departure_time"] != -1.0 and self._vehicles[vehID]["arrival_time"] == -1.0:
+                    road = traci.vehicle.getRoadID(vehID)
+                    if road != self._vehicles[vehID]["current_link"] and self.__is_link(road): #but have just leaved a node
+                        #update info of previous link
+                        if self._vehicles[vehID]['time_last_link'] > -1.0:
+                            reward = current_time - self._vehicles[vehID]['time_last_link']
+                            if self.__flags['C2I'] : self.__update_inf_value(self._vehicles[vehID]['current_link'], reward)
+                            reward *= -1
+
+                            if traci.simulation.getTime() > self.time_before_learning:
+                                self.__vehicles_to_process_feedback[vehID] = [
+                                    reward,
+                                    self.__get_edge_destination(self._vehicles[vehID]['current_link']),
+                                    self.__get_edge_origin(self._vehicles[vehID]['current_link']),
+                                    self._vehicles[vehID]['current_link']
+                                ]
+
+                        self._vehicles[vehID]['time_last_link'] = current_time
+                        self._vehicles[vehID]['travel_time'] = current_time - self._vehicles[vehID]['departure_time']
+
+                        if self._vehicles[vehID]['travel_time'] > 5000 and self.__flags['over5k_log']:
+                            print('wrote over 5k log')
+                            self.__write_over5k_log(over5k_path, vehID, reward)
+
+                        #update current_link
+                        self._vehicles[vehID]['current_link'] = road
+                        self._vehicles[vehID]['n_of_traversed_links'] += 1
+
+                        #get the next node, and add it to the route
+                        node = self.__get_edge_destination(self._vehicles[vehID]["current_link"])
+                        self._vehicles[vehID]['route'].append(self.__get_edge_destination(self._vehicles[vehID]['current_link']))
+
+                        if node != self._vehicles[vehID]['destination']:
+                            if traci.simulation.getTime() > self.time_before_learning:
+                                outgoing = self._net.getEdge(self._vehicles[vehID]['current_link']).getOutgoing()
+                                possible_actions = list()
+                                # possible_actions = [edge.getID() for edge in outgoing if len(edge.getOutgoing()) > 0 or self.__get_edge_destination(edge.getID()) == self._vehicles[vehID]['destination']]
+                                for edge in outgoing:
+                                    if len(edge.getOutgoing()) > 0 or self.__get_edge_destination(edge.getID()) == self._vehicles[vehID]['destination']:
+                                        possible_actions.append(edge.getID())
+                                self.__vehicles_to_process_act[vehID] = [
+                                    node, #next state
+                                    possible_actions #available actions
+                                ]
+                            else:
+                                self.__vehicles_to_process_act[vehID] = [
+                                    node, #next state
+                                    [self._vehicles[vehID]['original_route'][len(self._vehicles[vehID]['route']) - 1]] #available actions
+                                ]
+
+    def __update_inf_value(self, link_id, travel_time):
+        self.comm_devices[link_id].append(travel_time)
+        if len(self.comm_devices[link_id]) > self.max_queue:
+            self.comm_devices[link_id].pop(0)
+    
+    def __upd_c2i_info(self, vehID, node):
+        state = self._net.getNode(node)
+        for edge in state.getOutgoing():
+            edge_id = edge.getID()
+            if len(self.comm_devices[edge_id]) > 0:
+                possible_reward = np.array(self.comm_devices[edge.getID()]).mean()
+                origin = self.__get_edge_origin(edge_id)
+                destination = self.__get_edge_destination(edge_id)
+                self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id)
+
+    def __make_log_folder(self, folder_name):
+        try:
+            os.mkdir(folder_name)
+        except OSError:
+            print ("Creation of the directory %s failed" % folder_name)
+            traci.close()
+            sys.exit()
+    
+    def __update_teleport_log(self, path, current_time):
+        for vehID in traci.simulation.getStartingTeleportIDList():
+                try:
+                    with open(path, 'a') as txt_file:
+                        teleport_str = "Vehicle " + vehID
+                        teleport_str += " in link " + traci.vehicle.getRoadID(vehID)
+                        teleport_str += " teleported in step " + str(current_time) + "\n"
+                        txt_file.write(teleport_str)
+                        txt_file.close()
+                except IOError:
+                    print("Unable to open " + path + " file")
+
+    def __write_over5k_log(self, path,vehID, reward):
+        filename = path + '/' + vehID + '.txt'
+        try:
+            with open(filename, 'a') as txt_file:
+                log_str = "time step " + str(traci.simulation.getTime()) + ": "
+                log_str += "Current state is " + self._vehicles[vehID]['route'][-1] + ", "
+                log_str += "took action " + self._vehicles[vehID]['current_link'] + ", "
+                log_str += "with a reward of " + str(reward) + '\n'
+                txt_file.write(log_str)
+                txt_file.close()
+        except IOError:
+            print("Couldn't open file " + filename)
+
+    def __write_sim_logfile(self, total_steps, start_time, total_count, higher_count):
+        try:
+            with open('sims_log.txt', 'a') as logfile:
+                end_time = datetime.now()
+                log_str = "-----------------------------------------------\n"
+                log_str += "Simulation with " + str(total_steps) + " steps run in " + start_time.strftime("%d/%m/%y") + "\n"
+                log_str += "Start time: " + start_time.strftime("%H:%M") + "\n"
+                log_str += "End time: " + end_time.strftime("%H:%M") + "\n"
+                log_str += "Total trips ended: " + str(total_count) + "\n"
+                log_str += "Trips that ended with more than 5k steps: " + str(higher_count) + "\n"
+                log_str += "Percentage (higher / total): " + "{:.2f} %\n\n".format(higher_count / total_count * 100)
+
+                logfile.write(log_str)
+                logfile.close()
+        except IOError:
+            print("Unable to open simulations log file")
 
 
 
