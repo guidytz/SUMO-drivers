@@ -2,7 +2,7 @@
 Created Date: Wednesday, January 22nd 2020, 10:29:59 am
 Author: Guilherme Dytz dos Santos
 -----
-Last Modified: Wednesday, March 18th 2020, 2:41 pm
+Last Modified: Wednesday, March 18th 2020, 3:08 pm
 Modified By: guilhermedytz
 '''
 # pylint: disable=fixme, line-too-long, invalid-name, missing-docstring
@@ -539,7 +539,7 @@ class SUMO(Environment):
 
     def __write_sim_logfile(self, total_steps, start_time, total_count, higher_count):
         try:
-            with open('sims_log.txt', 'a') as logfile:
+            with open('log/sims_log.txt', 'a') as logfile:
                 end_time = datetime.now()
                 log_str = "-----------------------------------------------\n"
                 log_str += "Simulation with " + str(total_steps) + " steps run in " + start_time.strftime("%d/%m/%y") + "\n"
