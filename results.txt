@@ -1,0 +1,107 @@
+log/sim_100000_steps_24-03-20_16-12/ WITHOUT C2I
+bottom0top4: 30 62 35 30 52 Avg: 41.8 
+bottom1top3: 83 38 119 16 46 Avg: 60.4 
+bottom2top2: 687 144 23 682 187 Avg: 344.6 
+bottom3top1: 7 312 200 5 23 Avg: 109.4 
+bottom4top0: 27 78 39 18 58 Avg: 44.0 
+left0right4: 40 110 104 82 45 Avg: 76.2 
+left1right3: 11 55 42 28 94 Avg: 46.0 
+left2right2: 50 62 19 62 69 Avg: 52.4 
+left3right1: 57 43 27 42 70 Avg: 47.8 
+left4right0: 62 26 28 22 38 Avg: 35.2 
+
+log/sim_100000_steps_24-03-20_17-46/ WITH C2I
+bottom0top4: 85 52 42 68 38 Avg: 57.0 
+bottom1top3: 110 115 88 53 147 Avg: 102.6 
+bottom2top2: 35 37 35 28 42 Avg: 35.4 
+bottom3top1: 44 61 40 32 48 Avg: 45.0 
+bottom4top0: 33 18 21 35 34 Avg: 28.2 
+left0right4: 59 105 40 40 42 Avg: 57.2 
+left1right3: 23 74 36 31 63 Avg: 45.4 
+left2right2: 60 60 56 69 38 Avg: 56.6 
+left3right1: 50 48 61 59 52 Avg: 54.0 
+left4right0: 77 77 90 66 59 Avg: 73.8 
+
+log/sim_100000_steps_25-03-20_10-07/ WITHOUT C2I
+bottom0top4: 160 13 66 15 74 Avg: 65.6 
+bottom1top3: 45 218 33 8 191 Avg: 99.0 
+bottom2top2: 90 3 548 47 301 Avg: 197.8 
+bottom3top1: 9 93 2 10 45 Avg: 31.8 
+bottom4top0: 3 1 15 4 1 Avg: 4.8 
+left0right4: 20 12 23 37 47 Avg: 27.8 
+left1right3: 32 13 28 21 14 Avg: 21.6 
+left2right2: 30 26 40 18 63 Avg: 35.4 
+left3right1: 37 26 66 34 21 Avg: 36.8 
+left4right0: 9 36 139 61 24 Avg: 53.8 
+
+log/sim_100000_steps_26-03-20_09-25/ WITHOUT C2I
+bottom0top4: 15 26 80 12 49 Avg: 36.4 
+bottom1top3: 52 55 70 19 87 Avg: 56.6 
+bottom2top2: 575 581 92 12 206 Avg: 293.2 
+bottom3top1: 90 103 24 24 3 Avg: 48.8 
+bottom4top0: 17 16 1 3 1 Avg: 7.6 
+left0right4: 87 23 24 32 50 Avg: 43.2 
+left1right3: 26 66 42 17 25 Avg: 35.2 
+left2right2: 10 13 69 62 20 Avg: 34.8 
+left3right1: 19 29 41 57 15 Avg: 32.2 
+left4right0: 48 40 41 31 28 Avg: 37.6 
+
+log/sim_100000_steps_26-03-20_11-47/ WITH C2I
+bottom0top4: 58 66 77 69 164 Avg: 86.8 
+bottom1top3: 110 78 59 203 212 Avg: 132.4 
+bottom2top2: 33 42 75 41 56 Avg: 49.4 
+bottom3top1: 53 41 58 46 36 Avg: 46.8 
+bottom4top0: 25 24 31 30 28 Avg: 27.6 
+left0right4: 42 32 149 145 164 Avg: 106.4 
+left1right3: 41 62 57 67 49 Avg: 55.2 
+left2right2: 60 48 49 44 55 Avg: 51.2 
+left3right1: 38 39 41 61 43 Avg: 44.4 
+left4right0: 63 47 55 45 54 Avg: 52.8 
+
+log/sim_30000_steps_24-03-20_10-22/
+bottom0top4: 0 3 8 23 22 Avg: 11.2 
+bottom1top3: 9 13 21 11 9 Avg: 12.6 
+bottom2top2: 13 6 6 17 8 Avg: 10.0 
+bottom3top1: 23 7 7 5 9 Avg: 10.2 
+bottom4top0: 5 6 4 9 7 Avg: 6.2 
+left0right4: 3 9 22 4 21 Avg: 11.8 
+left1right3: 8 8 5 6 11 Avg: 7.6 
+left2right2: 20 16 22 3 21 Avg: 16.4 
+left3right1: 9 10 29 12 12 Avg: 14.4 
+left4right0: 7 5 15 30 6 Avg: 12.6 
+
+log/sim_30000_steps_24-03-20_10-42/
+bottom0top4: 22 19 18 20 17 Avg: 19.2 
+bottom1top3: 19 19 7 19 9 Avg: 14.6 
+bottom2top2: 12 19 27 11 23 Avg: 18.4 
+bottom3top1: 16 12 11 7 11 Avg: 11.4 
+bottom4top0: 10 6 11 11 7 Avg: 9.0 
+left0right4: 12 21 11 14 23 Avg: 16.2 
+left1right3: 28 21 26 12 23 Avg: 22.0 
+left2right2: 18 19 9 21 9 Avg: 15.2 
+left3right1: 15 19 16 13 14 Avg: 15.4 
+left4right0: 15 11 15 11 21 Avg: 14.6 
+
+log/sim_30000_steps_25-03-20_09-28/
+bottom0top4: 6 20 25 8 25 Avg: 16.8 
+bottom1top3: 8 10 8 9 38 Avg: 14.6 
+bottom2top2: 8 14 5 12 14 Avg: 10.6 
+bottom3top1: 5 18 5 5 7 Avg: 8.0 
+bottom4top0: 2 9 11 9 7 Avg: 7.6 
+left0right4: 12 12 3 2 8 Avg: 7.4 
+left1right3: 37 12 6 23 6 Avg: 16.8 
+left2right2: 4 23 12 14 21 Avg: 14.8 
+left3right1: 16 8 10 8 17 Avg: 11.8 
+left4right0: 17 17 9 21 2 Avg: 13.2 
+
+log/sim_30000_steps_25-03-20_09-48/
+bottom0top4: 3 20 10 19 13 Avg: 13.0 
+bottom1top3: 10 16 8 18 3 Avg: 11.0 
+bottom2top2: 6 19 13 13 20 Avg: 14.2 
+bottom3top1: 13 52 32 17 4 Avg: 23.6 
+bottom4top0: 4 3 9 8 10 Avg: 6.8 
+left0right4: 7 12 16 6 5 Avg: 9.2 
+left1right3: 16 9 13 4 6 Avg: 9.6 
+left2right2: 9 4 12 6 23 Avg: 10.8 
+left3right1: 6 14 16 14 2 Avg: 10.4 
+left4right0: 4 12 18 7 25 Avg: 13.2 

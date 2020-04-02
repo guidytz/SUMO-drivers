@@ -47,7 +47,7 @@ class Learner(object):
     # send to the agent the feedback corresponding to his action.
     # the method is divided into three parts following the same reasoning of method act.
     @abc.abstractmethod
-    def process_feedback(self, reward, new_state, prev_state=None, prev_action=None):
+    def process_feedback(self, reward, new_state, prev_state=None, prev_action=None, C2I=False):
         pass
     
     # return the name of the learner
