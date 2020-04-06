@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Mon Apr  6 08:41:53 2020 by Eclipse SUMO netgenerate Version 1.5.0
+-->
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netgenerateConfiguration.xsd">
+
+    <grid_network>
+        <grid value="true"/>
+        <grid.number value="5"/>
+        <grid.length value="200"/>
+        <grid.attach-length value="100"/>
+    </grid_network>
+
+    <output>
+        <output-file value="5x5.net.xml"/>
+    </output>
+
+    <building_defaults>
+        <default.lanenumber value="2"/>
+        <default.right-of-way value="edgePriority"/>
+        <default-junction-type value="allway_stop"/>
+    </building_defaults>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+    </junctions>
+
+</configuration>

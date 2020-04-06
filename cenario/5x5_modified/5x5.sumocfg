@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration>
+    <input>
+        <net-file value="5x5.net.xml"/>
+        <route-files value="5x5.rou.xml"/>
+    </input>
+    <time>
+        <begin value="0"/>
+        <end value="60000"/>
+    </time>
+    <time-to-teleport value="-1"/> 
+    <!-- If the value is not positive, teleporting due to grid-lock is disabled. -->
+</configuration>
