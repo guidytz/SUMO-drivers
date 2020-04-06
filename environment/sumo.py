@@ -17,6 +17,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from environment import Environment
 import traci
+import traci.constants as tc
 import sumolib
 import math
 
@@ -39,7 +40,6 @@ class SUMO(Environment):
         }
         
         rd.seed(datetime.now())
-
 
         super(SUMO, self).__init__()
 
@@ -228,21 +228,21 @@ class SUMO(Environment):
 
     def run_episode(self, max_steps=-1, mv_avg_gap=100):
         self.max_steps = max_steps
-        start_time = datetime.now()
-        print("Starting time: " + start_time.strftime("%H:%M"))
+        self.start_time = datetime.now()
+        print(f"Starting time: {self.start_time.strftime('%H:%M')}")
         self._has_episode_ended = False
         self._episodes += 1
         self.reset_episode()
         self.travel_times = np.array([])
         travel_avg_df = pd.DataFrame({"Step":[], "Travel moving average times from arrived cars":[]})
         cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]}) if self.__flags['plot_over5k'] else None
-        not_switched = True
+        # not_switched = True
         higher_count = 0
         total_count = 0
-        log_path = os.getcwd() + '/log/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
-        over_5k = log_path + '/over_5k'
-        self.sample_path = log_path + '/sample'
-        teleport = log_path + '/teleports.txt'
+        log_path = f"{os.getcwd()}/log/sim_{self.max_steps}_steps_{self.start_time.strftime('%d-%m-%y_%H-%M')}"
+        over_5k = f"{log_path}/over_5k"
+        self.sample_path = f"{log_path}/sample"
+        teleport = f"{log_path}/teleports.txt"
         self.trips_per_od = {od : 0 for od in self.od_pair_set}
 
         self.__make_log_folder(log_path)
@@ -251,10 +251,13 @@ class SUMO(Environment):
 
         for vehID in self.get_vehicles_ID_list():
             routeID = 'r_' + vehID
-            if routeID not in traci.route.getIDList():
+            routeSet = set()
+            if routeID not in routeSet:
                 _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
+                routeSet.add(routeID)
 
+        traci.simulation.subscribe((tc.VAR_TIME, tc.VAR_ARRIVED_VEHICLES_IDS, tc.VAR_DEPARTED_VEHICLES_IDS))
         self.current_time = traci.simulation.getTime()
         while self.current_time < self.max_steps:
             self.__vehicles_to_process_feedback = {}
@@ -262,8 +265,15 @@ class SUMO(Environment):
             higher_per_step = 0
 
             if self.__flags['teleport_log'] : self.__update_teleport_log(teleport)
+            self.sub_results = traci.simulation.getSubscriptionResults()
 
             [total_count, higher_per_step] = self.__process_arrived(total_count, higher_per_step)
+            if (higher_per_step > 0 
+                and self.__flags['plot_over5k']):
+                df = pd.DataFrame({"Step": [self.current_time],
+                                   "Number of arrived cars over 5k": [higher_per_step]})
+                cars_over_5k = cars_over_5k.append(df, ignore_index=True)
+
             self.__update_loaded_info()
             # departed vehicles (those that are entering the network)
             self.__update_departed_info()
@@ -271,18 +281,14 @@ class SUMO(Environment):
             self.__process_vehicles_feedback(self.__vehicles_to_process_feedback)
             self.__process_vehicles_act(self.__vehicles_to_process_act, self.current_time)
 
-            if higher_per_step > 0 and self.__flags['plot_over5k']:
-                df = pd.DataFrame({"Step": [self.current_time],
-                                   "Number of arrived cars over 5k": [higher_per_step]})
-                cars_over_5k = cars_over_5k.append(df, ignore_index=True)
 
             if self.current_time == self.time_before_learning:
                 self.log_sample = self.__sample_log(self.sample_path)
 
-            if self.current_time > (self.max_steps / 2) and not_switched:
-                for vehID in traci.vehicle.getIDList():
-                    self._agents[vehID].switch_epsilon(0)
-                not_switched = False
+            # if self.current_time > (self.max_steps / 2) and not_switched:
+            #     for vehID in traci.vehicle.getIDList():
+            #         self._agents[vehID].switch_epsilon(0)
+            #     not_switched = False
 
             step = self.current_time
             if step % mv_avg_gap == 0:
@@ -294,10 +300,10 @@ class SUMO(Environment):
 
             higher_count += higher_per_step
             traci.simulationStep()
-            self.current_time = traci.simulation.getTime()
+            self.current_time = self.sub_results[tc.VAR_TIME]
 
-        traci.close()
-        self.__write_sim_logfile(self.max_steps, start_time, total_count, higher_count)
+        self.__close_connection()
+        self.__write_sim_logfile(self.max_steps, total_count, higher_count)
         
         sort = {key : self.trips_per_od[key] for key in sorted(self.trips_per_od)}
         frame = {"OD Pair": list(sort.keys()), "Number of Trips Ended": list(sort.values())}
@@ -308,42 +314,31 @@ class SUMO(Environment):
             travel_avg_df.plot(kind="scatter", x="Step", y="Travel moving average times from arrived cars")
             plt.xlabel("Step")
             plt.ylabel("Travel Moving Average Times From Arrived Cars")
-            plt.margins(0.2)
              
             plt.figure(1)
             trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", figsize=(15, 7), kind="bar")
+            plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
             plt.xlabel("OD Pair")
             plt.ylabel("Number of Trips Ended")
-            plt.margins(0.2)
             
             plt.figure(2)
-            class_df.plot(x="Interval", y="Trips Ended Within the Interval",kind='bar', figsize=(15, 8))
+            class_df.plot(x="Interval", y="Trips Ended Within the Interval",kind='bar', figsize=(15, 7))
+            plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
             plt.xlabel("Interval")
             plt.ylabel("Trips Ended Within the Interval")
-            plt.margins(0.2)
 
             plt.show()
 
-        sim_name = 'csv/ClassDivision/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
-        sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
-        class_df.to_csv(sim_name, index=False)
-
-        sim_name = 'csv/TripsPerOD/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
-        sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
-        trips_dataframe.to_csv(sim_name, index=False)
-        
-        sim_name = 'csv/MovingAverage/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
-        sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
-        travel_avg_df.to_csv(sim_name)
+        self.__save_to_csv("ClassDivision", class_df, False)
+        self.__save_to_csv("TripsPerOD", trips_dataframe, False)
+        self.__save_to_csv("MovingAverage", travel_avg_df, True)
 
         if self.__flags['plot_over5k']:
             cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
             plt.show()
 
-            plot_name = 'csv/CarsOver5k/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M") + ".csv"
+            plot_name = f"csv/CarsOver5k/sim_{self.max_steps}_steps_{self.start_time.strftime('%d-%m-%y_%H-%M')}.csv"
             cars_over_5k.to_csv(plot_name, index=False)
-
-        print()
 
     def __process_vehicles_feedback(self, vehicles):
         # feedback_last
@@ -362,7 +357,6 @@ class SUMO(Environment):
             _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], use_C2I)
 
             if not vehicles[vehID][1]:
-                traci.vehicle.remove(vehID, traci.constants.REMOVE_ARRIVED)
                 self._vehicles[vehID]["arrival_time"] = current_time
                 self._vehicles[vehID]["travel_time"] = self._vehicles[vehID]["arrival_time"] - self._vehicles[vehID]["departure_time"]
                 continue
@@ -385,14 +379,8 @@ class SUMO(Environment):
         except:
             return False
 
-    def run_step(self):
-        raise Exception('run_step is not available in %s class' % self)
-
     def has_episode_ended(self):
         return self._has_episode_ended
-
-    def __calc_reward(self, state, action, new_state):
-        raise Exception('__calc_reward is not available in %s class' % self)
 
     def get_starting_edge_value(self, edge_id):
         # origin = self._net.getNode(self.__get_edge_origin(edge_id))
@@ -407,7 +395,7 @@ class SUMO(Environment):
         od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
         self.od_pair_load[od_pair] -= 1
         if self.od_pair_load[od_pair] < self.od_pair_min[od_pair]:
-            routeID = 'r_' + vehID
+            routeID = f"r_{vehID}"
             if routeID not in traci.route.getIDList():
                 _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
@@ -430,11 +418,11 @@ class SUMO(Environment):
                 traci.vehicle.setRouteID(vehID, routeID)
 
     def __update_departed_info(self):
-        for vehID in traci.simulation.getDepartedIDList():
+        for vehID in self.sub_results[tc.VAR_DEPARTED_VEHICLES_IDS]:
                 self._vehicles[vehID]["departure_time"] = self.current_time
 
     def __process_arrived(self, total_count, higher_per_step):
-        for vehID in traci.simulation.getArrivedIDList():
+        for vehID in self.sub_results[tc.VAR_ARRIVED_VEHICLES_IDS]:
                 self.__check_min_load(vehID)
 
                 self._vehicles[vehID]["arrival_time"] = self.current_time
@@ -449,9 +437,9 @@ class SUMO(Environment):
                 reward = self.current_time - self._vehicles[vehID]['time_last_link']
                 reward *= -1
 
-                should_process = self.current_time > self.time_before_learning or self.time_before_learning >= self.max_steps
-
-                if self._vehicles[vehID]["route"][-1] == self._vehicles[vehID]["destination"] and should_process:
+                if (self._vehicles[vehID]["route"][-1] == self._vehicles[vehID]["destination"] 
+                    and (self.current_time > self.time_before_learning 
+                         or self.time_before_learning >= self.max_steps)):
                     od_pair = self._vehicles[vehID]["origin"] + self._vehicles[vehID]["destination"] 
                     self.trips_per_od[od_pair] += 1
                     index = math.floor(self._vehicles[vehID]["travel_time"] / self.class_interval)
@@ -521,7 +509,8 @@ class SUMO(Environment):
                                 outgoing = self._net.getEdge(self._vehicles[vehID]['current_link']).getOutgoing()
                                 possible_actions = list()
                                 for edge in outgoing:
-                                    if len(edge.getOutgoing()) > 0 or self.__get_edge_destination(edge.getID()) == self._vehicles[vehID]['destination']:
+                                    if (len(edge.getOutgoing()) > 0 
+                                        or self.__get_edge_destination(edge.getID()) == self._vehicles[vehID]['destination']):
                                         possible_actions.append(edge.getID())
                                 self.__vehicles_to_process_act[vehID] = [
                                     node, #next state
@@ -552,21 +541,20 @@ class SUMO(Environment):
         try:
             os.mkdir(folder_name)
         except OSError:
-            print ("Creation of the directory %s failed" % folder_name)
-            traci.close()
+            print (f"Creation of the directory {folder_name} failed")
+            self.__close_connection()
             sys.exit()
     
     def __update_teleport_log(self, path):
         for vehID in traci.simulation.getStartingTeleportIDList():
                 try:
                     with open(path, 'a') as txt_file:
-                        teleport_str = "Vehicle " + vehID
-                        teleport_str += " in link " + traci.vehicle.getRoadID(vehID)
-                        teleport_str += " teleported in step " + str(self.current_time) + "\n"
+                        teleport_str = f"Vehicle {vehID} in link {traci.vehicle.getRoadID(vehID)} "
+                        teleport_str += f"teleported in step {self.current_time}\n"
                         txt_file.write(teleport_str)
                         txt_file.close()
                 except IOError:
-                    print("Unable to open " + path + " file")
+                    print(f"Unable to open {path} file")
 
     def __write_veh_log(self, path, vehID, reward, trip_end=False):
         filename = path + '/' + vehID + '.txt'
@@ -574,15 +562,13 @@ class SUMO(Environment):
             with open(filename, 'a') as txt_file:
                 c2i = 1 if self.__flags['C2I'] else 0
                 rand_key = ''
-                log_str = "time step " + str(self.current_time) + ": "
-                log_str += "Current state is " + self._vehicles[vehID]['route'][-1] + ", "
-                log_str += "took action " + self._vehicles[vehID]['current_link']
-                log_str += ", "
-                log_str += "with a reward of " + str(reward) + "  "
+                log_str = f"time step {self.current_time}: "
+                log_str += f"Current state is {self._vehicles[vehID]['route'][-1]}, "
+                log_str += f"took action {self._vehicles[vehID]['current_link']}, "
+                log_str += f"with a reward of {reward}  "
                 QTable = self._agents[vehID].get_Q_table()
                 if trip_end:
-                    log_str += "\nTrip ended with travel time " + str(self._vehicles[vehID]['travel_time'])
-                    log_str += "\n\n" 
+                    log_str += f"\nTrip ended with travel time {self._vehicles[vehID]['travel_time']}\n\n"
                 else:
                     max_val = max(QTable[c2i][self._vehicles[vehID]['route'][-2]].values())
                     for key, val in QTable[c2i][self._vehicles[vehID]['route'][-2]].items():
@@ -591,28 +577,28 @@ class SUMO(Environment):
 
                     if max_val == 0:
                         rand_key = self._vehicles[vehID]['current_link']
-                    log_str += "\nNormal: " + str(QTable[0][self._vehicles[vehID]['route'][-1]]) + "  "
-                    log_str += "\n   C2I: " + str(QTable[1][self._vehicles[vehID]['route'][-1]]) + "\n"
+                    log_str += f"\nNormal: {QTable[0][self._vehicles[vehID]['route'][-1]]}  "
+                    log_str += f"\n   C2I: {QTable[1][self._vehicles[vehID]['route'][-1]]}\n"
                 log_str = ('' if rand_key == self._vehicles[vehID]['current_link'] else '*') + log_str
                 txt_file.write(log_str)
                 txt_file.close()
         except IOError:
-            print("Couldn't open file " + filename)
+            print(f"Couldn't open file {filename}")
 
-    def __write_sim_logfile(self, total_steps, start_time, total_count, higher_count):
+    def __write_sim_logfile(self, total_steps, total_count, higher_count):
         try:
             with open('log/sims_log.txt', 'a') as logfile:
                 end_time = datetime.now()
                 log_str = "-----------------------------------------------\n"
-                log_str += "Simulation with " + str(total_steps) + " steps run in " + start_time.strftime("%d/%m/%y") + "\n"
+                log_str += f"Simulation with {total_steps} steps run in {self.start_time.strftime('%d/%m/%y')}\n"
                 log_str += "C2I was used: "
                 log_str += "yes" if self.__flags['C2I'] else "no"
                 log_str += "\n"
-                log_str += "Start time: " + start_time.strftime("%H:%M") + "\n"
-                log_str += "End time: " + end_time.strftime("%H:%M") + "\n"
-                log_str += "Total trips ended: " + str(total_count) + "\n"
-                log_str += "Trips that ended with more than 5k steps: " + str(higher_count) + "\n"
-                log_str += "Percentage (higher / total): " + "{:.2f} %\n\n".format(higher_count / total_count * 100)
+                log_str += f"Start time: {self.start_time.strftime('%H:%M')}\n"
+                log_str += f"End time: {end_time.strftime('%H:%M')}\n"
+                log_str += f"Total trips ended: {total_count}\n"
+                log_str += f"Trips that ended with more than 5k steps: {higher_count}\n"
+                log_str += "Percentage (higher / total): {:.2f} %\n\n".format(higher_count / total_count * 100)
 
                 logfile.write(log_str)
                 logfile.close()
@@ -629,19 +615,13 @@ class SUMO(Environment):
 
         for od_pair in od_sample.keys():
             sample.extend(rd.sample(od_sample[od_pair], 5))
-            od_path = sample_path + '/' + str(od_pair)
+            od_path = f"{sample_path}/{od_pair}"
             self.__make_log_folder(od_path)
         
         return sample
 
     def __create_data_classifier(self, interval, max):
-        step = 0
-        classifier = list()
-        while step <= max:
-            classifier.append(0)
-            step += interval
-
-        return classifier
+        return list(map(lambda i:0, range(max // interval + 1)))
 
     def __create_class_dataframe(self):
         begin = 0
@@ -655,29 +635,12 @@ class SUMO(Environment):
             aux_df = pd.DataFrame({"Interval":[interval_name], "Trips Ended Within the Interval": [self.classifier[index]]})
             class_dataframe = class_dataframe.append(aux_df, ignore_index=True)
 
-        aux_df = pd.DataFrame({"Interval":[str(self.top_class_value) + " or more"], "Trips Ended Within the Interval": [self.classifier[-1]]})
+        aux_df = pd.DataFrame({"Interval":[f"{self.top_class_value} or more"], "Trips Ended Within the Interval": [self.classifier[-1]]})
         class_dataframe = class_dataframe.append(aux_df, ignore_index=True)
             
         return class_dataframe
 
-
-
-
-
-
-# SAVE CSV
-# csv_file = "csv/Q-Table/Over5k/" + vehID + '_' + str(self.current_time) +  ".csv"
-
-                # QTable = self._agents[vehID].get_Q_table()
-                # try:
-                #     with open(csv_file, 'w') as csvfile:
-                #         csv_columns = [edge for edge in traci.edge.getIDList() if edge.find(':') == -1]
-                #         csv_columns.insert(0, 'State')
-                #         writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-                #         writer.writeheader()
-                #         for key in QTable.keys():
-                #             row = QTable[key].copy()
-                #             row['State'] = key
-                #             writer.writerow(row)
-                # except IOError:
-                #     print("I/O Error")
+    def __save_to_csv(self, folder_name, df, idx):
+        sim_name = f"csv/{folder_name}/sim_{self.max_steps}_steps_{self.start_time.strftime('%d-%m-%y_%H-%M')}"
+        sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
+        df.to_csv(sim_name, index=idx)
