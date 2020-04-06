@@ -50,10 +50,10 @@ class SUMO(Environment):
             self._sumo_binary = sumolib.checkBinary('sumo')
 
         #register SUMO/TraCI parameters
-        self._cfg_file = cfg_file
-        self._net_file = self._cfg_file[:self._cfg_file.rfind("/")+1] + minidom.parse(self._cfg_file).getElementsByTagName('net-file')[0].attributes['value'].value
-        self._rou_file = self._cfg_file[:self._cfg_file.rfind("/")+1] + minidom.parse(self._cfg_file).getElementsByTagName('route-files')[0].attributes['value'].value
-        self._port = port
+        self.__cfg_file = cfg_file
+        self.__net_file = self.__cfg_file[:self.__cfg_file.rfind("/")+1] + minidom.parse(self.__cfg_file).getElementsByTagName('net-file')[0].attributes['value'].value
+        self.__rou_file = self.__cfg_file[:self.__cfg_file.rfind("/")+1] + minidom.parse(self.__cfg_file).getElementsByTagName('route-files')[0].attributes['value'].value
+        self.__port = port
         self.__vehicles_to_process_feedback = {}
         self.__vehicles_to_process_act = {}
 
@@ -74,7 +74,7 @@ class SUMO(Environment):
         #..............................
 
         #read the network file
-        self._net = sumolib.net.readNet(self._net_file)
+        self._net = sumolib.net.readNet(self.__net_file)
 
         # create structure to handle C2I communication
         for edge in self._net.getEdges():
@@ -119,7 +119,7 @@ class SUMO(Environment):
         R = {}
 
         # process all vehicle entries
-        vehicles_parse = minidom.parse(self._rou_file).getElementsByTagName('vehicle')
+        vehicles_parse = minidom.parse(self.__rou_file).getElementsByTagName('vehicle')
         for v in vehicles_parse:
             #vehicle's ID
             vehID = v.getAttribute('id')
@@ -212,7 +212,7 @@ class SUMO(Environment):
         super(SUMO, self).reset_episode()
 
         #initialise TraCI
-        traci.start([self._sumo_binary , "-c", self._cfg_file]) # SUMO 0.28
+        traci.start([self._sumo_binary , "-c", self.__cfg_file, "-v", "true", "--random", "true"])
 
         #------------------------------------
         for vehID in self.get_vehicles_ID_list():
@@ -227,6 +227,9 @@ class SUMO(Environment):
             self._vehicles[vehID]['n_of_traversed_links'] = 0
 
     def run_episode(self, max_steps=-1, mv_avg_gap=100):
+        self.max_steps = max_steps
+        start_time = datetime.now()
+        print("Starting time: " + start_time.strftime("%H:%M"))
         self._has_episode_ended = False
         self._episodes += 1
         self.reset_episode()
@@ -236,8 +239,7 @@ class SUMO(Environment):
         not_switched = True
         higher_count = 0
         total_count = 0
-        start_time = datetime.now()
-        log_path = os.getcwd() + '/log/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
+        log_path = os.getcwd() + '/log/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
         over_5k = log_path + '/over_5k'
         self.sample_path = log_path + '/sample'
         teleport = log_path + '/teleports.txt'
@@ -253,49 +255,49 @@ class SUMO(Environment):
                 _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
 
-        while traci.simulation.getTime() < max_steps:
-            current_time = traci.simulation.getTime()
+        self.current_time = traci.simulation.getTime()
+        while self.current_time < self.max_steps:
             self.__vehicles_to_process_feedback = {}
             self.__vehicles_to_process_act = {}
             higher_per_step = 0
 
-            if self.__flags['teleport_log'] : self.__update_teleport_log(teleport, current_time)
+            if self.__flags['teleport_log'] : self.__update_teleport_log(teleport)
 
-            [total_count, higher_per_step] = self.__process_arrived(current_time, total_count, higher_per_step)
+            [total_count, higher_per_step] = self.__process_arrived(total_count, higher_per_step)
+            self.__update_loaded_info()
+            # departed vehicles (those that are entering the network)
+            self.__update_departed_info()
+            self.__process_all(over_5k)
+            self.__process_vehicles_feedback(self.__vehicles_to_process_feedback)
+            self.__process_vehicles_act(self.__vehicles_to_process_act, self.current_time)
 
             if higher_per_step > 0 and self.__flags['plot_over5k']:
-                df = pd.DataFrame({"Step": [traci.simulation.getTime()],
+                df = pd.DataFrame({"Step": [self.current_time],
                                    "Number of arrived cars over 5k": [higher_per_step]})
                 cars_over_5k = cars_over_5k.append(df, ignore_index=True)
 
-            if traci.simulation.getTime() == self.time_before_learning:
+            if self.current_time == self.time_before_learning:
                 self.log_sample = self.__sample_log(self.sample_path)
 
-            self.__update_loaded_info()
-
-            # departed vehicles (those that are entering the network)
-            self.__update_departed_info(current_time)
-            self.__process_all(current_time, over_5k)
-            self.__process_vehicles_feedback(self.__vehicles_to_process_feedback)
-            self.__process_vehicles_act(self.__vehicles_to_process_act, current_time)
-
-            if traci.simulation.getTime() > (max_steps / 2) and not_switched:
+            if self.current_time > (self.max_steps / 2) and not_switched:
                 for vehID in traci.vehicle.getIDList():
                     self._agents[vehID].switch_epsilon(0)
                 not_switched = False
 
-            step = traci.simulation.getTime()
-            if step % mv_avg_gap == 0 and step > 0:
+            step = self.current_time
+            if step % mv_avg_gap == 0:
+                mean = self.travel_times.mean() if self.travel_times.size > 0 else 0
                 df = pd.DataFrame({"Step": [step],
-                                   "Travel moving average times from arrived cars": [self.travel_times.mean()]})
+                                   "Travel moving average times from arrived cars": [mean]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
 
             higher_count += higher_per_step
             traci.simulationStep()
+            self.current_time = traci.simulation.getTime()
 
         traci.close()
-        self.__write_sim_logfile(max_steps, start_time, total_count, higher_count)
+        self.__write_sim_logfile(self.max_steps, start_time, total_count, higher_count)
         
         sort = {key : self.trips_per_od[key] for key in sorted(self.trips_per_od)}
         frame = {"OD Pair": list(sort.keys()), "Number of Trips Ended": list(sort.values())}
@@ -306,28 +308,31 @@ class SUMO(Environment):
             travel_avg_df.plot(kind="scatter", x="Step", y="Travel moving average times from arrived cars")
             plt.xlabel("Step")
             plt.ylabel("Travel Moving Average Times From Arrived Cars")
+            plt.margins(0.2)
              
             plt.figure(1)
-            trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", rot=0, figsize=(15, 5), kind="bar")
+            trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", figsize=(15, 7), kind="bar")
             plt.xlabel("OD Pair")
             plt.ylabel("Number of Trips Ended")
+            plt.margins(0.2)
             
             plt.figure(2)
             class_df.plot(x="Interval", y="Trips Ended Within the Interval",kind='bar', figsize=(15, 8))
             plt.xlabel("Interval")
             plt.ylabel("Trips Ended Within the Interval")
+            plt.margins(0.2)
 
             plt.show()
 
-        sim_name = 'csv/ClassDivision/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
+        sim_name = 'csv/ClassDivision/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
         sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
         class_df.to_csv(sim_name, index=False)
 
-        sim_name = 'csv/TripsPerOD/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
+        sim_name = 'csv/TripsPerOD/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
         sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
         trips_dataframe.to_csv(sim_name, index=False)
         
-        sim_name = 'csv/MovingAverage/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
+        sim_name = 'csv/MovingAverage/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M")
         sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
         travel_avg_df.to_csv(sim_name)
 
@@ -335,7 +340,7 @@ class SUMO(Environment):
             cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
             plt.show()
 
-            plot_name = 'csv/CarsOver5k/sim_' + str(max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M") + ".csv"
+            plot_name = 'csv/CarsOver5k/sim_' + str(self.max_steps) + '_steps_' + start_time.strftime("%d-%m-%y_%H-%M") + ".csv"
             cars_over_5k.to_csv(plot_name, index=False)
 
         print()
@@ -424,15 +429,15 @@ class SUMO(Environment):
                 routeID = 'r_' + vehID
                 traci.vehicle.setRouteID(vehID, routeID)
 
-    def __update_departed_info(self, current_time):
+    def __update_departed_info(self):
         for vehID in traci.simulation.getDepartedIDList():
-                self._vehicles[vehID]["departure_time"] = current_time
+                self._vehicles[vehID]["departure_time"] = self.current_time
 
-    def __process_arrived(self, current_time, total_count, higher_per_step):
+    def __process_arrived(self, total_count, higher_per_step):
         for vehID in traci.simulation.getArrivedIDList():
                 self.__check_min_load(vehID)
 
-                self._vehicles[vehID]["arrival_time"] = current_time
+                self._vehicles[vehID]["arrival_time"] = self.current_time
                 self._vehicles[vehID]["travel_time"] = self._vehicles[vehID]["arrival_time"] - self._vehicles[vehID]["departure_time"]
 
                 if self._vehicles[vehID]["travel_time"] < 5000:
@@ -441,10 +446,12 @@ class SUMO(Environment):
 
                 if self._vehicles[vehID]["travel_time"] >= 5000 : higher_per_step += 1
 
-                reward = current_time - self._vehicles[vehID]['time_last_link']
+                reward = self.current_time - self._vehicles[vehID]['time_last_link']
                 reward *= -1
 
-                if self._vehicles[vehID]["route"][-1] == self._vehicles[vehID]["destination"] and traci.simulation.getTime() >= self.time_before_learning:
+                should_process = self.current_time > self.time_before_learning or self.time_before_learning >= self.max_steps
+
+                if self._vehicles[vehID]["route"][-1] == self._vehicles[vehID]["destination"] and should_process:
                     od_pair = self._vehicles[vehID]["origin"] + self._vehicles[vehID]["destination"] 
                     self.trips_per_od[od_pair] += 1
                     index = math.floor(self._vehicles[vehID]["travel_time"] / self.class_interval)
@@ -453,7 +460,7 @@ class SUMO(Environment):
                     else:
                         self.classifier[index] += 1
 
-                if traci.simulation.getTime() > self.time_before_learning:
+                if self.current_time > self.time_before_learning:
                     self.__vehicles_to_process_feedback[vehID] = [
                         reward,
                         self.__get_edge_destination(self._vehicles[vehID]['current_link']),
@@ -461,14 +468,14 @@ class SUMO(Environment):
                         self._vehicles[vehID]['current_link']
                     ]
 
-                if vehID in self.log_sample and traci.simulation.getTime() > self.time_before_learning:
+                if vehID in self.log_sample and self.current_time > self.time_before_learning:
                     od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
                     path = self.sample_path + "/" + str(od_pair)
                     self.__write_veh_log(path, vehID, reward, True)
         
         return [total_count, higher_per_step]
 
-    def __process_all(self, current_time, over5k_path):
+    def __process_all(self, over5k_path):
         for vehID in self.get_vehicles_ID_list(): # all vehicles
                 # who have departed but not yet arrived
                 if self._vehicles[vehID]["departure_time"] != -1.0 and self._vehicles[vehID]["arrival_time"] == -1.0:
@@ -476,10 +483,10 @@ class SUMO(Environment):
                     if road != self._vehicles[vehID]["current_link"] and self.__is_link(road): #but have just leaved a node
                         #update info of previous link
                         if self._vehicles[vehID]['time_last_link'] > -1.0:
-                            reward = current_time - self._vehicles[vehID]['time_last_link']
+                            reward = self.current_time - self._vehicles[vehID]['time_last_link']
                             reward *= -1
 
-                            if traci.simulation.getTime() > self.time_before_learning:
+                            if self.current_time > self.time_before_learning:
                                 self.__update_inf_value(self._vehicles[vehID]['current_link'], reward)
                                 self.__vehicles_to_process_feedback[vehID] = [
                                     reward,
@@ -491,15 +498,15 @@ class SUMO(Environment):
                             if self._vehicles[vehID]['travel_time'] > 5000 and self.__flags['over5k_log']:
                                 self.__write_veh_log(over5k_path, vehID, reward)
 
-                            if traci.simulation.getTime() > self.time_before_learning:
+                            if self.current_time > self.time_before_learning:
                                 if vehID in self.log_sample:
                                     od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
                                     path = self.sample_path + "/" + str(od_pair)
                                     self.__write_veh_log(path, vehID, reward)
 
 
-                        self._vehicles[vehID]['time_last_link'] = current_time
-                        self._vehicles[vehID]['travel_time'] = current_time - self._vehicles[vehID]['departure_time']
+                        self._vehicles[vehID]['time_last_link'] = self.current_time
+                        self._vehicles[vehID]['travel_time'] = self.current_time - self._vehicles[vehID]['departure_time']
 
                         #update current_link
                         self._vehicles[vehID]['current_link'] = road
@@ -510,7 +517,7 @@ class SUMO(Environment):
                         self._vehicles[vehID]['route'].append(self.__get_edge_destination(self._vehicles[vehID]['current_link']))
 
                         if node != self._vehicles[vehID]['destination']:
-                            if traci.simulation.getTime() > self.time_before_learning:
+                            if self.current_time > self.time_before_learning:
                                 outgoing = self._net.getEdge(self._vehicles[vehID]['current_link']).getOutgoing()
                                 possible_actions = list()
                                 for edge in outgoing:
@@ -549,13 +556,13 @@ class SUMO(Environment):
             traci.close()
             sys.exit()
     
-    def __update_teleport_log(self, path, current_time):
+    def __update_teleport_log(self, path):
         for vehID in traci.simulation.getStartingTeleportIDList():
                 try:
                     with open(path, 'a') as txt_file:
                         teleport_str = "Vehicle " + vehID
                         teleport_str += " in link " + traci.vehicle.getRoadID(vehID)
-                        teleport_str += " teleported in step " + str(current_time) + "\n"
+                        teleport_str += " teleported in step " + str(self.current_time) + "\n"
                         txt_file.write(teleport_str)
                         txt_file.close()
                 except IOError:
@@ -567,7 +574,7 @@ class SUMO(Environment):
             with open(filename, 'a') as txt_file:
                 c2i = 1 if self.__flags['C2I'] else 0
                 rand_key = ''
-                log_str = "time step " + str(traci.simulation.getTime()) + ": "
+                log_str = "time step " + str(self.current_time) + ": "
                 log_str += "Current state is " + self._vehicles[vehID]['route'][-1] + ", "
                 log_str += "took action " + self._vehicles[vehID]['current_link']
                 log_str += ", "
@@ -625,8 +632,6 @@ class SUMO(Environment):
             od_path = sample_path + '/' + str(od_pair)
             self.__make_log_folder(od_path)
         
-        print("Sample size:",len(sample))
-
         return sample
 
     def __create_data_classifier(self, interval, max):
@@ -661,7 +666,7 @@ class SUMO(Environment):
 
 
 # SAVE CSV
-# csv_file = "csv/Q-Table/Over5k/" + vehID + '_' + str(traci.simulation.getTime()) +  ".csv"
+# csv_file = "csv/Q-Table/Over5k/" + vehID + '_' + str(self.current_time) +  ".csv"
 
                 # QTable = self._agents[vehID].get_Q_table()
                 # try:
