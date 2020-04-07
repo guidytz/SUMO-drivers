@@ -253,7 +253,7 @@ class SUMO(Environment):
             routeID = 'r_' + vehID
             routeSet = set()
             if routeID not in routeSet:
-                _, action = self.__agents[vehID].take_action()
+                _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
                 routeSet.add(routeID)
 
@@ -287,7 +287,7 @@ class SUMO(Environment):
 
             # if self.current_time > (self.max_steps / 2) and not_switched:
             #     for vehID in traci.vehicle.getIDList():
-            #         self.__agents[vehID].switch_epsilon(0)
+            #         self._agents[vehID].switch_epsilon(0)
             #     not_switched = False
 
             step = self.current_time
@@ -343,8 +343,8 @@ class SUMO(Environment):
     def __process_vehicles_feedback(self, vehicles):
         # feedback_last
         for vehID in vehicles.keys():
-            self.__agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3])
-            self.__agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3], 1)
+            self._agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3])
+            self._agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3], 1)
 
     def __process_vehicles_act(self, vehicles, current_time):
 
@@ -354,7 +354,7 @@ class SUMO(Environment):
 
             use_C2I = 1 if self.__flags['C2I'] else 0
 
-            _, action = self.__agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], use_C2I)
+            _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], use_C2I)
 
             if not vehicles[vehID][1]:
                 self.__vehicles[vehID]["arrival_time"] = current_time
@@ -392,7 +392,7 @@ class SUMO(Environment):
         if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
             routeID = f"r_{vehID}"
             if routeID not in traci.route.getIDList():
-                _, action = self.__agents[vehID].take_action()
+                _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
             traci.vehicle.add(vehID, routeID)
 
@@ -530,7 +530,7 @@ class SUMO(Environment):
                 possible_reward = np.array(self.__comm_devices[edge.getID()]).mean()
                 origin = self.__get_edge_origin(edge_id)
                 destination = self.__get_edge_destination(edge_id)
-                self.__agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
+                self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
     def __make_log_folder(self, folder_name):
         try:
@@ -561,7 +561,7 @@ class SUMO(Environment):
                 log_str += f"Current state is {self.__vehicles[vehID]['route'][-1]}, "
                 log_str += f"took action {self.__vehicles[vehID]['current_link']}, "
                 log_str += f"with a reward of {reward}  "
-                QTable = self.__agents[vehID].get_Q_table()
+                QTable = self._agents[vehID].get_Q_table()
                 if trip_end:
                     log_str += f"\nTrip ended with travel time {self.__vehicles[vehID]['travel_time']}\n\n"
                 else:
