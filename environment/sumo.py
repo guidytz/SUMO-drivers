@@ -57,38 +57,38 @@ class SUMO(Environment):
         self.__vehicles_to_process_feedback = {}
         self.__vehicles_to_process_act = {}
 
-        self.time_before_learning = time_before_learning
-        self.max_veh = max_veh
-        self.total_route_lengths = 0
+        self.__time_before_learning = time_before_learning
+        self.__max_veh = max_veh
+        self.__total_route_lengths = 0
 
-        self.od_pair_set = set()
-        self.od_pair_load = dict()
-        self.od_pair_min = dict()
-        self.comm_devices = dict()
-        self.max_queue = max_queue_val
-        self.log_sample = list()
-        self.class_interval = class_interval
-        self.top_class_value = top_class_value
-        self.classifier = self.__create_data_classifier(self.class_interval, self.top_class_value)
+        self.__od_pair_set = set()
+        self.__od_pair_load = dict()
+        self.__od_pair_min = dict()
+        self.__comm_devices = dict()
+        self.__max_queue = max_queue_val
+        self.__log_sample = list()
+        self.__class_interval = class_interval
+        self.__top_class_value = top_class_value
+        self.__classifier = self.__create_data_classifier(self.__class_interval, self.__top_class_value)
 
         #..............................
 
         #read the network file
-        self._net = sumolib.net.readNet(self.__net_file)
+        self.__net = sumolib.net.readNet(self.__net_file)
 
         # create structure to handle C2I communication
-        for edge in self._net.getEdges():
-            self.comm_devices[edge.getID()] = list()
+        for edge in self.__net.getEdges():
+            self.__comm_devices[edge.getID()] = list()
 
         self._env = {}
-        for s in self._net.getNodes(): #current states (current nodes)
+        for s in self.__net.getNodes(): #current states (current nodes)
             d = {}
             for a in s.getOutgoing(): #actions (out links)
                 d[a.getID()] = a.getToNode().getID() #resulting states (arriving nodes)
             self._env[s.getID()] = d
 
         self._env = {}
-        for s in self._net.getNodes(): #current states (current nodes)
+        for s in self.__net.getNodes(): #current states (current nodes)
             for si in s.getIncoming():
                 state = '%s:::%s'%(s.getID(), si.getID())
                 d = {}
@@ -104,7 +104,7 @@ class SUMO(Environment):
         self.__create_vehicles()
 
     def get_all_states_id(self):
-        states = self._net.getNodes()
+        states = self.__net.getNodes()
         ids = [s.getID() for s in states]
         return ids
 
@@ -113,7 +113,7 @@ class SUMO(Environment):
         Sets up the structure that holds all information necessary for vehicle handling in
         the simulation
         """
-        self._vehicles = {}
+        self.__vehicles = {}
 
         #process all route entries
         R = {}
@@ -140,9 +140,9 @@ class SUMO(Environment):
 
             #update OD pairs
             od_pair = origin + destination
-            if od_pair not in self.od_pair_set:
-                self.od_pair_set.add(od_pair)
-                self.total_route_lengths += len(route.split(' '))
+            if od_pair not in self.__od_pair_set:
+                self.__od_pair_set.add(od_pair)
+                self.__total_route_lengths += len(route.split(' '))
             #depart
             depart = float(v.getAttribute('depart'))
 
@@ -150,7 +150,7 @@ class SUMO(Environment):
             vType = v.getAttribute('vType')
 
             # create the entry in the dictionary
-            self._vehicles[vehID] = {
+            self.__vehicles[vehID] = {
                 'origin': origin,
                 'destination': destination,
                 'current_link': None,
@@ -172,32 +172,32 @@ class SUMO(Environment):
 
         for route in R:
             od_pair = self.__get_edge_origin(R[route].split(' ')[0]) + self.__get_edge_destination(R[route].split(' ')[-1])
-            self.od_pair_min.update({od_pair:int(len(R[route].split(' ')) / self.total_route_lengths * self.max_veh)})
-            self.od_pair_load.update({od_pair:0})
+            self.__od_pair_min.update({od_pair:int(len(R[route].split(' ')) / self.__total_route_lengths * self.__max_veh)})
+            self.__od_pair_load.update({od_pair:0})
 
     def get_vehicles_ID_list(self):
         #return a list with the vehicles' IDs
-        return self._vehicles.keys()
+        return self.__vehicles.keys()
 
     def get_vehicle_dict(self, vehID):
-        # return the value in _vehicles corresponding to vehID
-        return self._vehicles[vehID]
+        # return the value in __vehicles corresponding to vehID
+        return self.__vehicles[vehID]
 
     def __get_edge_origin(self, edge_id):
         # return the FROM node ID of the edge edge_id
-        return self._net.getEdge(edge_id).getFromNode().getID()
+        return self.__net.getEdge(edge_id).getFromNode().getID()
 
     def __get_edge_destination(self, edge_id):
         # return the TO node ID of the edge edge_id
-        return self._net.getEdge(edge_id).getToNode().getID()
+        return self.__net.getEdge(edge_id).getToNode().getID()
 
     #return an Edge instance from its ID
     def __get_action(self, ID):
-        return self._net.getEdge(ID)
+        return self.__net.getEdge(ID)
 
     #return a Node instance from its ID
     def __get_state(self, ID):
-        return self._net.getNode(ID)
+        return self.__net.getNode(ID)
 
     #commands to be performed upon normal termination
     def __close_connection(self):
@@ -216,15 +216,15 @@ class SUMO(Environment):
 
         #------------------------------------
         for vehID in self.get_vehicles_ID_list():
-            self._vehicles[vehID]['current_link'] = None
-            self._vehicles[vehID]['previous_node'] = self._vehicles[vehID]['origin']
-            self._vehicles[vehID]['departure_time'] = -1.0
-            self._vehicles[vehID]['arrival_time'] = -1.0
-            self._vehicles[vehID]['travel_time'] = -1.0
-            self._vehicles[vehID]['time_last_link'] = -1.0
-            self._vehicles[vehID]['route'] = [self._vehicles[vehID]['origin']]
-            self._vehicles[vehID]['initialized'] = False
-            self._vehicles[vehID]['n_of_traversed_links'] = 0
+            self.__vehicles[vehID]['current_link'] = None
+            self.__vehicles[vehID]['previous_node'] = self.__vehicles[vehID]['origin']
+            self.__vehicles[vehID]['departure_time'] = -1.0
+            self.__vehicles[vehID]['arrival_time'] = -1.0
+            self.__vehicles[vehID]['travel_time'] = -1.0
+            self.__vehicles[vehID]['time_last_link'] = -1.0
+            self.__vehicles[vehID]['route'] = [self.__vehicles[vehID]['origin']]
+            self.__vehicles[vehID]['initialized'] = False
+            self.__vehicles[vehID]['n_of_traversed_links'] = 0
 
     def run_episode(self, max_steps=-1, mv_avg_gap=100):
         self.max_steps = max_steps
@@ -243,7 +243,7 @@ class SUMO(Environment):
         over_5k = f"{log_path}/over_5k"
         self.sample_path = f"{log_path}/sample"
         teleport = f"{log_path}/teleports.txt"
-        self.trips_per_od = {od : 0 for od in self.od_pair_set}
+        self.trips_per_od = {od : 0 for od in self.__od_pair_set}
 
         self.__make_log_folder(log_path)
         self.__make_log_folder(over_5k)
@@ -253,7 +253,7 @@ class SUMO(Environment):
             routeID = 'r_' + vehID
             routeSet = set()
             if routeID not in routeSet:
-                _, action = self._agents[vehID].take_action()
+                _, action = self.__agents[vehID].take_action()
                 traci.route.add(routeID, [action])
                 routeSet.add(routeID)
 
@@ -282,12 +282,12 @@ class SUMO(Environment):
             self.__process_vehicles_act(self.__vehicles_to_process_act, self.current_time)
 
 
-            if self.current_time == self.time_before_learning:
-                self.log_sample = self.__sample_log(self.sample_path)
+            if self.current_time == self.__time_before_learning:
+                self.__log_sample = self.__sample_log(self.sample_path)
 
             # if self.current_time > (self.max_steps / 2) and not_switched:
             #     for vehID in traci.vehicle.getIDList():
-            #         self._agents[vehID].switch_epsilon(0)
+            #         self.__agents[vehID].switch_epsilon(0)
             #     not_switched = False
 
             step = self.current_time
@@ -343,8 +343,8 @@ class SUMO(Environment):
     def __process_vehicles_feedback(self, vehicles):
         # feedback_last
         for vehID in vehicles.keys():
-            self._agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3])
-            self._agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3], 1)
+            self.__agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3])
+            self.__agents[vehID].process_feedback(vehicles[vehID][0], vehicles[vehID][1], vehicles[vehID][2], vehicles[vehID][3], 1)
 
     def __process_vehicles_act(self, vehicles, current_time):
 
@@ -354,27 +354,22 @@ class SUMO(Environment):
 
             use_C2I = 1 if self.__flags['C2I'] else 0
 
-            _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], use_C2I)
+            _, action = self.__agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], use_C2I)
 
             if not vehicles[vehID][1]:
-                self._vehicles[vehID]["arrival_time"] = current_time
-                self._vehicles[vehID]["travel_time"] = self._vehicles[vehID]["arrival_time"] - self._vehicles[vehID]["departure_time"]
+                self.__vehicles[vehID]["arrival_time"] = current_time
+                self.__vehicles[vehID]["travel_time"] = self.__vehicles[vehID]["arrival_time"] - self.__vehicles[vehID]["departure_time"]
                 continue
 
-            #update route
-            cur_route = list(traci.vehicle.getRoute(vehID))
-            cur_route.append(action)
-
-            # remove traversed links from the route
-            # (this is necessary because otherwise the driver will try
-            # to reach the first link of such route from its current link)
-            cur_route = cur_route[self._vehicles[vehID]['n_of_traversed_links']-1:]
+            # use only current link and action in updated route to avoid making
+            # agent try to go back to the beggining of the route
+            cur_route = [self.__vehicles[vehID]['route'][-2]+self.__vehicles[vehID]['route'][-1], action]
 
             traci.vehicle.setRoute(vehID, cur_route)
 
     def __is_link(self, edge_id):
         try:
-            _ = self._net.getEdge(edge_id)
+            _ = self.__net.getEdge(edge_id)
             return True
         except:
             return False
@@ -383,81 +378,81 @@ class SUMO(Environment):
         return self._has_episode_ended
 
     def get_starting_edge_value(self, edge_id):
-        # origin = self._net.getNode(self.__get_edge_origin(edge_id))
-        # dest = self._net.getNode(self.__get_edge_destination(edge_id))
+        # origin = self.__net.getNode(self.__get_edge_origin(edge_id))
+        # dest = self.__net.getNode(self.__get_edge_destination(edge_id))
         # dist = np.linalg.norm(np.array(dest.getCoord()) - np.array(origin.getCoord()))
-        # speed = self._net.getEdge(edge_id).getSpeed()
+        # speed = self.__net.getEdge(edge_id).getSpeed()
         # base_value = dist / speed
         # return - base_value + rd.uniform(0, - base_value)
         return 0
 
     def __check_min_load(self, vehID):
-        od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
-        self.od_pair_load[od_pair] -= 1
-        if self.od_pair_load[od_pair] < self.od_pair_min[od_pair]:
+        od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+        self.__od_pair_load[od_pair] -= 1
+        if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
             routeID = f"r_{vehID}"
             if routeID not in traci.route.getIDList():
-                _, action = self._agents[vehID].take_action()
+                _, action = self.__agents[vehID].take_action()
                 traci.route.add(routeID, [action])
             traci.vehicle.add(vehID, routeID)
 
     def __update_loaded_info(self):
         for vehID in traci.simulation.getLoadedIDList():
-                self._vehicles[vehID]['current_link'] = None
-                self._vehicles[vehID]['previous_node'] = self._vehicles[vehID]['origin']
-                self._vehicles[vehID]['departure_time'] = -1.0
-                self._vehicles[vehID]['arrival_time'] = -1.0
-                self._vehicles[vehID]['travel_time'] = -1.0
-                self._vehicles[vehID]['time_last_link'] = -1.0
-                self._vehicles[vehID]['route'] = [self._vehicles[vehID]['origin']]
-                self._vehicles[vehID]['initialized'] = False
-                self._vehicles[vehID]['n_of_traversed_links'] = 0
-                od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
-                self.od_pair_load[od_pair] += 1
-                routeID = 'r_' + vehID
+                self.__vehicles[vehID]['current_link'] = None
+                self.__vehicles[vehID]['previous_node'] = self.__vehicles[vehID]['origin']
+                self.__vehicles[vehID]['departure_time'] = -1.0
+                self.__vehicles[vehID]['arrival_time'] = -1.0
+                self.__vehicles[vehID]['travel_time'] = -1.0
+                self.__vehicles[vehID]['time_last_link'] = -1.0
+                self.__vehicles[vehID]['route'] = [self.__vehicles[vehID]['origin']]
+                self.__vehicles[vehID]['initialized'] = False
+                self.__vehicles[vehID]['n_of_traversed_links'] = 0
+                od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+                self.__od_pair_load[od_pair] += 1
+                routeID = f"r_{vehID}"
                 traci.vehicle.setRouteID(vehID, routeID)
 
     def __update_departed_info(self):
         for vehID in self.sub_results[tc.VAR_DEPARTED_VEHICLES_IDS]:
-                self._vehicles[vehID]["departure_time"] = self.current_time
+                self.__vehicles[vehID]["departure_time"] = self.current_time
 
     def __process_arrived(self, total_count, higher_per_step):
         for vehID in self.sub_results[tc.VAR_ARRIVED_VEHICLES_IDS]:
                 self.__check_min_load(vehID)
 
-                self._vehicles[vehID]["arrival_time"] = self.current_time
-                self._vehicles[vehID]["travel_time"] = self._vehicles[vehID]["arrival_time"] - self._vehicles[vehID]["departure_time"]
+                self.__vehicles[vehID]["arrival_time"] = self.current_time
+                self.__vehicles[vehID]["travel_time"] = self.__vehicles[vehID]["arrival_time"] - self.__vehicles[vehID]["departure_time"]
 
-                if self._vehicles[vehID]["travel_time"] < 5000:
-                    self.travel_times = np.append(self.travel_times, [self._vehicles[vehID]["travel_time"]])
+                if self.__vehicles[vehID]["travel_time"] < 5000:
+                    self.travel_times = np.append(self.travel_times, [self.__vehicles[vehID]["travel_time"]])
                 total_count += 1
 
-                if self._vehicles[vehID]["travel_time"] >= 5000 : higher_per_step += 1
+                if self.__vehicles[vehID]["travel_time"] >= 5000 : higher_per_step += 1
 
-                reward = self.current_time - self._vehicles[vehID]['time_last_link']
+                reward = self.current_time - self.__vehicles[vehID]['time_last_link']
                 reward *= -1
 
-                if (self._vehicles[vehID]["route"][-1] == self._vehicles[vehID]["destination"] 
-                    and (self.current_time > self.time_before_learning 
-                         or self.time_before_learning >= self.max_steps)):
-                    od_pair = self._vehicles[vehID]["origin"] + self._vehicles[vehID]["destination"] 
+                if (self.__vehicles[vehID]["route"][-1] == self.__vehicles[vehID]["destination"] 
+                    and (self.current_time > self.__time_before_learning 
+                         or self.__time_before_learning >= self.max_steps)):
+                    od_pair = self.__vehicles[vehID]["origin"] + self.__vehicles[vehID]["destination"] 
                     self.trips_per_od[od_pair] += 1
-                    index = math.floor(self._vehicles[vehID]["travel_time"] / self.class_interval)
-                    if index >= len(self.classifier):
-                        self.classifier[-1] += 1
+                    index = math.floor(self.__vehicles[vehID]["travel_time"] / self.__class_interval)
+                    if index >= len(self.__classifier):
+                        self.__classifier[-1] += 1
                     else:
-                        self.classifier[index] += 1
+                        self.__classifier[index] += 1
 
-                if self.current_time > self.time_before_learning:
+                if self.current_time > self.__time_before_learning:
                     self.__vehicles_to_process_feedback[vehID] = [
                         reward,
-                        self.__get_edge_destination(self._vehicles[vehID]['current_link']),
-                        self.__get_edge_origin(self._vehicles[vehID]['current_link']),
-                        self._vehicles[vehID]['current_link']
+                        self.__get_edge_destination(self.__vehicles[vehID]['current_link']),
+                        self.__get_edge_origin(self.__vehicles[vehID]['current_link']),
+                        self.__vehicles[vehID]['current_link']
                     ]
 
-                if vehID in self.log_sample and self.current_time > self.time_before_learning:
-                    od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
+                if vehID in self.__log_sample and self.current_time > self.__time_before_learning:
+                    od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
                     path = self.sample_path + "/" + str(od_pair)
                     self.__write_veh_log(path, vehID, reward, True)
         
@@ -466,51 +461,51 @@ class SUMO(Environment):
     def __process_all(self, over5k_path):
         for vehID in self.get_vehicles_ID_list(): # all vehicles
                 # who have departed but not yet arrived
-                if self._vehicles[vehID]["departure_time"] != -1.0 and self._vehicles[vehID]["arrival_time"] == -1.0:
+                if self.__vehicles[vehID]["departure_time"] != -1.0 and self.__vehicles[vehID]["arrival_time"] == -1.0:
                     road = traci.vehicle.getRoadID(vehID)
-                    if road != self._vehicles[vehID]["current_link"] and self.__is_link(road): #but have just leaved a node
+                    if road != self.__vehicles[vehID]["current_link"] and self.__is_link(road): #but have just leaved a node
                         #update info of previous link
-                        if self._vehicles[vehID]['time_last_link'] > -1.0:
-                            reward = self.current_time - self._vehicles[vehID]['time_last_link']
+                        if self.__vehicles[vehID]['time_last_link'] > -1.0:
+                            reward = self.current_time - self.__vehicles[vehID]['time_last_link']
                             reward *= -1
 
-                            if self.current_time > self.time_before_learning:
-                                self.__update_inf_value(self._vehicles[vehID]['current_link'], reward)
+                            if self.current_time > self.__time_before_learning:
+                                self.__update_inf_value(self.__vehicles[vehID]['current_link'], reward)
                                 self.__vehicles_to_process_feedback[vehID] = [
                                     reward,
-                                    self.__get_edge_destination(self._vehicles[vehID]['current_link']),
-                                    self.__get_edge_origin(self._vehicles[vehID]['current_link']),
-                                    self._vehicles[vehID]['current_link']
+                                    self.__get_edge_destination(self.__vehicles[vehID]['current_link']),
+                                    self.__get_edge_origin(self.__vehicles[vehID]['current_link']),
+                                    self.__vehicles[vehID]['current_link']
                                 ]
 
-                            if self._vehicles[vehID]['travel_time'] > 5000 and self.__flags['over5k_log']:
+                            if self.__vehicles[vehID]['travel_time'] > 5000 and self.__flags['over5k_log']:
                                 self.__write_veh_log(over5k_path, vehID, reward)
 
-                            if self.current_time > self.time_before_learning:
-                                if vehID in self.log_sample:
-                                    od_pair = self._vehicles[vehID]['origin'] + self._vehicles[vehID]['destination']
+                            if self.current_time > self.__time_before_learning:
+                                if vehID in self.__log_sample:
+                                    od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
                                     path = self.sample_path + "/" + str(od_pair)
                                     self.__write_veh_log(path, vehID, reward)
 
 
-                        self._vehicles[vehID]['time_last_link'] = self.current_time
-                        self._vehicles[vehID]['travel_time'] = self.current_time - self._vehicles[vehID]['departure_time']
+                        self.__vehicles[vehID]['time_last_link'] = self.current_time
+                        self.__vehicles[vehID]['travel_time'] = self.current_time - self.__vehicles[vehID]['departure_time']
 
                         #update current_link
-                        self._vehicles[vehID]['current_link'] = road
-                        self._vehicles[vehID]['n_of_traversed_links'] += 1
+                        self.__vehicles[vehID]['current_link'] = road
+                        self.__vehicles[vehID]['n_of_traversed_links'] += 1
 
                         #get the next node, and add it to the route
-                        node = self.__get_edge_destination(self._vehicles[vehID]["current_link"])
-                        self._vehicles[vehID]['route'].append(self.__get_edge_destination(self._vehicles[vehID]['current_link']))
+                        node = self.__get_edge_destination(self.__vehicles[vehID]["current_link"])
+                        self.__vehicles[vehID]['route'].append(self.__get_edge_destination(self.__vehicles[vehID]['current_link']))
 
-                        if node != self._vehicles[vehID]['destination']:
-                            if self.current_time > self.time_before_learning:
-                                outgoing = self._net.getEdge(self._vehicles[vehID]['current_link']).getOutgoing()
+                        if node != self.__vehicles[vehID]['destination']:
+                            if self.current_time > self.__time_before_learning:
+                                outgoing = self.__net.getEdge(self.__vehicles[vehID]['current_link']).getOutgoing()
                                 possible_actions = list()
                                 for edge in outgoing:
                                     if (len(edge.getOutgoing()) > 0 
-                                        or self.__get_edge_destination(edge.getID()) == self._vehicles[vehID]['destination']):
+                                        or self.__get_edge_destination(edge.getID()) == self.__vehicles[vehID]['destination']):
                                         possible_actions.append(edge.getID())
                                 self.__vehicles_to_process_act[vehID] = [
                                     node, #next state
@@ -519,23 +514,23 @@ class SUMO(Environment):
                             else:
                                 self.__vehicles_to_process_act[vehID] = [
                                     node, #next state
-                                    [self._vehicles[vehID]['original_route'][len(self._vehicles[vehID]['route']) - 1]] #available actions
+                                    [self.__vehicles[vehID]['original_route'][len(self.__vehicles[vehID]['route']) - 1]] #available actions
                                 ]
 
     def __update_inf_value(self, link_id, travel_time):
-        self.comm_devices[link_id].append(travel_time)
-        if len(self.comm_devices[link_id]) > self.max_queue:
-            self.comm_devices[link_id].pop(0)
+        self.__comm_devices[link_id].append(travel_time)
+        if len(self.__comm_devices[link_id]) > self.__max_queue:
+            self.__comm_devices[link_id].pop(0)
     
     def __upd_c2i_info(self, vehID, node):
-        state = self._net.getNode(node)
+        state = self.__net.getNode(node)
         for edge in state.getOutgoing():
             edge_id = edge.getID()
-            if len(self.comm_devices[edge_id]) > 0:
-                possible_reward = np.array(self.comm_devices[edge.getID()]).mean()
+            if len(self.__comm_devices[edge_id]) > 0:
+                possible_reward = np.array(self.__comm_devices[edge.getID()]).mean()
                 origin = self.__get_edge_origin(edge_id)
                 destination = self.__get_edge_destination(edge_id)
-                self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
+                self.__agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
     def __make_log_folder(self, folder_name):
         try:
@@ -563,23 +558,23 @@ class SUMO(Environment):
                 c2i = 1 if self.__flags['C2I'] else 0
                 rand_key = ''
                 log_str = f"time step {self.current_time}: "
-                log_str += f"Current state is {self._vehicles[vehID]['route'][-1]}, "
-                log_str += f"took action {self._vehicles[vehID]['current_link']}, "
+                log_str += f"Current state is {self.__vehicles[vehID]['route'][-1]}, "
+                log_str += f"took action {self.__vehicles[vehID]['current_link']}, "
                 log_str += f"with a reward of {reward}  "
-                QTable = self._agents[vehID].get_Q_table()
+                QTable = self.__agents[vehID].get_Q_table()
                 if trip_end:
-                    log_str += f"\nTrip ended with travel time {self._vehicles[vehID]['travel_time']}\n\n"
+                    log_str += f"\nTrip ended with travel time {self.__vehicles[vehID]['travel_time']}\n\n"
                 else:
-                    max_val = max(QTable[c2i][self._vehicles[vehID]['route'][-2]].values())
-                    for key, val in QTable[c2i][self._vehicles[vehID]['route'][-2]].items():
+                    max_val = max(QTable[c2i][self.__vehicles[vehID]['route'][-2]].values())
+                    for key, val in QTable[c2i][self.__vehicles[vehID]['route'][-2]].items():
                         if val == max_val:
                             rand_key = key
 
                     if max_val == 0:
-                        rand_key = self._vehicles[vehID]['current_link']
-                    log_str += f"\nNormal: {QTable[0][self._vehicles[vehID]['route'][-1]]}  "
-                    log_str += f"\n   C2I: {QTable[1][self._vehicles[vehID]['route'][-1]]}\n"
-                log_str = ('' if rand_key == self._vehicles[vehID]['current_link'] else '*') + log_str
+                        rand_key = self.__vehicles[vehID]['current_link']
+                    log_str += f"\nNormal: {QTable[0][self.__vehicles[vehID]['route'][-1]]}  "
+                    log_str += f"\n   C2I: {QTable[1][self.__vehicles[vehID]['route'][-1]]}\n"
+                log_str = ('' if rand_key == self.__vehicles[vehID]['current_link'] else '*') + log_str
                 txt_file.write(log_str)
                 txt_file.close()
         except IOError:
@@ -607,10 +602,10 @@ class SUMO(Environment):
 
     def __sample_log(self, sample_path):
         all_veh = traci.vehicle.getIDList()
-        od_sample = {od:list() for od in self.od_pair_set}
+        od_sample = {od:list() for od in self.__od_pair_set}
         sample = list()
         for veh in all_veh:
-            od_pair = self._vehicles[veh]['origin'] + self._vehicles[veh]['destination']
+            od_pair = self.__vehicles[veh]['origin'] + self.__vehicles[veh]['destination']
             od_sample[od_pair].append(veh)
 
         for od_pair in od_sample.keys():
@@ -626,16 +621,16 @@ class SUMO(Environment):
     def __create_class_dataframe(self):
         begin = 0
         class_dataframe = pd.DataFrame({"Interval":[], "Trips Ended Within the Interval":[]})
-        while begin < self.top_class_value:
-            index = begin // self.class_interval
+        while begin < self.__top_class_value:
+            index = begin // self.__class_interval
             interval_name = str(begin) + ' - '
-            begin += self.class_interval - 1
+            begin += self.__class_interval - 1
             interval_name += str(begin)
             begin += 1
-            aux_df = pd.DataFrame({"Interval":[interval_name], "Trips Ended Within the Interval": [self.classifier[index]]})
+            aux_df = pd.DataFrame({"Interval":[interval_name], "Trips Ended Within the Interval": [self.__classifier[index]]})
             class_dataframe = class_dataframe.append(aux_df, ignore_index=True)
 
-        aux_df = pd.DataFrame({"Interval":[f"{self.top_class_value} or more"], "Trips Ended Within the Interval": [self.classifier[-1]]})
+        aux_df = pd.DataFrame({"Interval":[f"{self.__top_class_value} or more"], "Trips Ended Within the Interval": [self.__classifier[-1]]})
         class_dataframe = class_dataframe.append(aux_df, ignore_index=True)
             
         return class_dataframe
