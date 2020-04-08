@@ -565,7 +565,7 @@ class SUMO(Environment):
                 ]
                 QTable = self._agents[vehID].get_Q_table()
                 if trip_end:
-                    str_list.append9(f"\nTrip ended with travel time {self.__vehicles[vehID]['travel_time']}\n\n")
+                    str_list.append(f"\nTrip ended with travel time {self.__vehicles[vehID]['travel_time']}\n\n")
                 else:
                     max_val = max(QTable[c2i][self.__vehicles[vehID]['route'][-2]].values())
                     for key, val in QTable[c2i][self.__vehicles[vehID]['route'][-2]].items():
