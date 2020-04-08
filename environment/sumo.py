@@ -291,10 +291,9 @@ class SUMO(Environment):
             #     not_switched = False
 
             step = self.current_time
-            if step % mv_avg_gap == 0:
-                mean = self.travel_times.mean() if self.travel_times.size > 0 else 0
+            if step % mv_avg_gap == 0 and step > 0:
                 df = pd.DataFrame({"Step": [step],
-                                   "Travel moving average times from arrived cars": [mean]})
+                                   "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
 
@@ -535,10 +534,11 @@ class SUMO(Environment):
     def __make_log_folder(self, folder_name):
         try:
             os.mkdir(folder_name)
-        except OSError:
-            print (f"Creation of the directory {folder_name} failed")
-            self.__close_connection()
-            sys.exit()
+        except OSError as e:
+            if e.errno != 17:              
+                print (f"Creation of the directory {folder_name} failed. Error message: {e.strerror}")
+                self.__close_connection()
+                sys.exit(-1)
     
     def __update_teleport_log(self, path):
         for vehID in traci.simulation.getStartingTeleportIDList():
@@ -557,13 +557,15 @@ class SUMO(Environment):
             with open(filename, 'a') as txt_file:
                 c2i = 1 if self.__flags['C2I'] else 0
                 rand_key = ''
-                log_str = f"time step {self.current_time}: "
-                log_str += f"Current state is {self.__vehicles[vehID]['route'][-1]}, "
-                log_str += f"took action {self.__vehicles[vehID]['current_link']}, "
-                log_str += f"with a reward of {reward}  "
+                str_list = [
+                    f"time step {self.current_time}: ",
+                    f"Current state is {self.__vehicles[vehID]['route'][-1]}, ",
+                    f"took action {self.__vehicles[vehID]['current_link']}, ",
+                    f"with a reward of {reward}  ",
+                ]
                 QTable = self._agents[vehID].get_Q_table()
                 if trip_end:
-                    log_str += f"\nTrip ended with travel time {self.__vehicles[vehID]['travel_time']}\n\n"
+                    str_list.append9(f"\nTrip ended with travel time {self.__vehicles[vehID]['travel_time']}\n\n")
                 else:
                     max_val = max(QTable[c2i][self.__vehicles[vehID]['route'][-2]].values())
                     for key, val in QTable[c2i][self.__vehicles[vehID]['route'][-2]].items():
@@ -572,10 +574,10 @@ class SUMO(Environment):
 
                     if max_val == 0:
                         rand_key = self.__vehicles[vehID]['current_link']
-                    log_str += f"\nNormal: {QTable[0][self.__vehicles[vehID]['route'][-1]]}  "
-                    log_str += f"\n   C2I: {QTable[1][self.__vehicles[vehID]['route'][-1]]}\n"
-                log_str = ('' if rand_key == self.__vehicles[vehID]['current_link'] else '*') + log_str
-                txt_file.write(log_str)
+                    str_list.append(f"\nNormal: {QTable[0][self.__vehicles[vehID]['route'][-1]]}  ")
+                    str_list.append(f"\n   C2I: {QTable[1][self.__vehicles[vehID]['route'][-1]]}\n")
+                str_list.insert(0,'' if rand_key == self.__vehicles[vehID]['current_link'] else '*')
+                txt_file.write("".join(str_list))
                 txt_file.close()
         except IOError:
             print(f"Couldn't open file {filename}")
@@ -584,18 +586,19 @@ class SUMO(Environment):
         try:
             with open('log/sims_log.txt', 'a') as logfile:
                 end_time = datetime.now()
-                log_str = "-----------------------------------------------\n"
-                log_str += f"Simulation with {total_steps} steps run in {self.start_time.strftime('%d/%m/%y')}\n"
-                log_str += "C2I was used: "
-                log_str += "yes" if self.__flags['C2I'] else "no"
-                log_str += "\n"
-                log_str += f"Start time: {self.start_time.strftime('%H:%M')}\n"
-                log_str += f"End time: {end_time.strftime('%H:%M')}\n"
-                log_str += f"Total trips ended: {total_count}\n"
-                log_str += f"Trips that ended with more than 5k steps: {higher_count}\n"
-                log_str += "Percentage (higher / total): {:.2f} %\n\n".format(higher_count / total_count * 100)
-
-                logfile.write(log_str)
+                str_list = [ 
+                    "-----------------------------------------------\n",
+                    f"Simulation with {total_steps} steps run in {self.start_time.strftime('%d/%m/%y')}\n",
+                    "C2I was used: ",
+                    "yes" if self.__flags['C2I'] else "no",
+                    "\n",
+                    f"Start time: {self.start_time.strftime('%H:%M')}\n",
+                    f"End time: {end_time.strftime('%H:%M')}\n",
+                    f"Total trips ended: {total_count}\n",
+                    f"Trips that ended with more than 5k steps: {higher_count}\n",
+                    "Percentage (higher / total): {:.2f} %\n\n".format(higher_count / total_count * 100)
+                ]
+                logfile.write("".join(str_list))
                 logfile.close()
         except IOError:
             print("Unable to open simulations log file")
@@ -636,6 +639,15 @@ class SUMO(Environment):
         return class_dataframe
 
     def __save_to_csv(self, folder_name, df, idx):
-        sim_name = f"csv/{folder_name}/sim_{self.max_steps}_steps_{self.start_time.strftime('%d-%m-%y_%H-%M')}"
-        sim_name += "_withC2I.csv" if self.__flags['C2I'] else '.csv'
-        df.to_csv(sim_name, index=idx)
+        date_folder = self.start_time.strftime("%m_%d_%y")
+        try:
+            os.mkdir(f"csv/{folder_name}/{date_folder}")
+        except OSError as e:
+            if e.errno != 17:
+                print(f"Couldn't create folder {date_folder}, error message: {e.strerror}")
+                return 
+        str_list = [
+            f"csv/{folder_name}/{date_folder}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}",
+            "_withC2I.csv" if self.__flags['C2I'] else '.csv'
+        ]
+        df.to_csv("".join(str_list), index=idx)
