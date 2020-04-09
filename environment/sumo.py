@@ -328,9 +328,9 @@ class SUMO(Environment):
 
             plt.show()
 
-        self.__save_to_csv("ClassDivision", class_df, False)
-        self.__save_to_csv("TripsPerOD", trips_dataframe, False)
-        self.__save_to_csv("MovingAverage", travel_avg_df, True)
+        self.__save_to_csv("ClassDivision", class_df)
+        self.__save_to_csv("TripsPerOD", trips_dataframe)
+        self.__save_to_csv("MovingAverage", travel_avg_df)
 
         if self.__flags['plot_over5k']:
             cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
@@ -638,7 +638,7 @@ class SUMO(Environment):
             
         return class_dataframe
 
-    def __save_to_csv(self, folder_name, df, idx):
+    def __save_to_csv(self, folder_name, df, idx=False):
         date_folder = self.start_time.strftime("%m_%d_%y")
         try:
             os.mkdir(f"csv/{folder_name}/{date_folder}")
