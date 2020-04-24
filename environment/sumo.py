@@ -35,7 +35,7 @@ class SUMO(Environment):
             'C2I': False,
             'over5k_log': False,
             'teleport_log': False,
-            'plot': True,
+            'plot': False,
             'plot_over5k': False
         }
         
@@ -236,6 +236,9 @@ class SUMO(Environment):
         self.travel_times = np.array([])
         travel_avg_df = pd.DataFrame({"Step":[], "Travel moving average times from arrived cars":[]})
         cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]}) if self.__flags['plot_over5k'] else None
+        occupation = {"Step":[]}
+        occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
+        occupation_df = pd.DataFrame(occupation) 
         # not_switched = True
         higher_count = 0
         total_count = 0
@@ -296,6 +299,10 @@ class SUMO(Environment):
                                    "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
+                occupation = {"Step":[step]}
+                occupation.update(self.__get_edges_ocuppation())
+                occupation_df = occupation_df.append(pd.DataFrame(occupation), ignore_index=True)
+                
 
             higher_count += higher_per_step
             traci.simulationStep()
@@ -331,6 +338,7 @@ class SUMO(Environment):
         self.__save_to_csv("ClassDivision", class_df)
         self.__save_to_csv("TripsPerOD", trips_dataframe)
         self.__save_to_csv("MovingAverage", travel_avg_df)
+        self.__save_to_csv("Occupation", occupation_df)
 
         if self.__flags['plot_over5k']:
             cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
@@ -651,3 +659,11 @@ class SUMO(Environment):
             "_withC2I.csv" if self.__flags['C2I'] else '.csv'
         ]
         df.to_csv("".join(str_list), index=idx)
+
+    def __get_edges_ocuppation(self):
+        return {
+                    edge.getID():traci.edge.getLastStepOccupancy(edge.getID()) 
+                    for edge in self.__net.getEdges(withInternal=False)
+                }
+
+
