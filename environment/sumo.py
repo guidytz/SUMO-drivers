@@ -240,6 +240,7 @@ class SUMO(Environment):
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
         occupation_df = pd.DataFrame(occupation) 
         occupation_measure = max_steps / 100
+        print(occupation_measure)
         # not_switched = True
         higher_count = 0
         total_count = 0
@@ -300,7 +301,7 @@ class SUMO(Environment):
                                    "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
-            if step % occupation_measure:
+            if step % occupation_measure == 0:
                 occupation = {"Step":[step]}
                 occupation.update(self.__get_edges_ocuppation())
                 occupation_df = occupation_df.append(pd.DataFrame(occupation), ignore_index=True)
