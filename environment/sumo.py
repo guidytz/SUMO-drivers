@@ -240,7 +240,6 @@ class SUMO(Environment):
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
         occupation_df = pd.DataFrame(occupation) 
         occupation_measure = max_steps / 100
-        print(occupation_measure)
         # not_switched = True
         higher_count = 0
         total_count = 0
@@ -338,10 +337,11 @@ class SUMO(Environment):
 
             plt.show()
 
-        self.__save_to_csv("ClassDivision", class_df)
-        self.__save_to_csv("TripsPerOD", trips_dataframe)
-        self.__save_to_csv("MovingAverage", travel_avg_df)
-        self.__save_to_csv("Occupation", occupation_df)
+        used_rl = self.__time_before_learning < max_steps
+        self.__save_to_csv("ClassDivision", class_df, used_rl)
+        self.__save_to_csv("TripsPerOD", trips_dataframe, used_rl)
+        self.__save_to_csv("MovingAverage", travel_avg_df, used_rl)
+        self.__save_to_csv("Occupation", occupation_df, used_rl)
 
         if self.__flags['plot_over5k']:
             cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
@@ -649,10 +649,11 @@ class SUMO(Environment):
             
         return class_dataframe
 
-    def __save_to_csv(self, folder_name, df, idx=False):
+    def __save_to_csv(self, folder_name, df, learning, idx=False):
         date_folder = self.start_time.strftime("%m_%d_%y")
         try:
-            os.mkdir(f"csv/{folder_name}/{date_folder}")
+            learning_str = "learning" if learning else "not_learning"
+            os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}")
         except OSError as e:
             if e.errno != 17:
                 print(f"Couldn't create folder {date_folder}, error message: {e.strerror}")
