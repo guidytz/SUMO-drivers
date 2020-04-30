@@ -651,15 +651,16 @@ class SUMO(Environment):
 
     def __save_to_csv(self, folder_name, df, learning, idx=False):
         date_folder = self.start_time.strftime("%m_%d_%y")
+        learning_str = "learning" if learning else "not_learning"
         try:
-            learning_str = "learning" if learning else "not_learning"
+            os.mkdir(f"csv/{folder_name}/{date_folder}")
             os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}")
         except OSError as e:
             if e.errno != 17:
                 print(f"Couldn't create folder {date_folder}, error message: {e.strerror}")
                 return 
         str_list = [
-            f"csv/{folder_name}/{date_folder}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}",
+            f"csv/{folder_name}/{date_folder}/{learning_str}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}",
             "_withC2I.csv" if self.__flags['C2I'] else '.csv'
         ]
         df.to_csv("".join(str_list), index=idx)
