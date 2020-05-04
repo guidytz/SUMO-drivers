@@ -514,8 +514,9 @@ class SUMO(Environment):
                                 outgoing = self.__net.getEdge(self.__vehicles[vehID]['current_link']).getOutgoing()
                                 possible_actions = list()
                                 for edge in outgoing:
-                                    if (len(edge.getOutgoing()) > 0 
-                                        or self.__get_edge_destination(edge.getID()) == self.__vehicles[vehID]['destination']):
+                                    if ((len(edge.getOutgoing()) > 0 
+                                        or self.__get_edge_destination(edge.getID()) == self.__vehicles[vehID]['destination'])
+                                        and self.__get_edge_destination(edge.getID()) not in self.__vehicles[vehID]['route']):
                                         possible_actions.append(edge.getID())
                                 self.__vehicles_to_process_act[vehID] = [
                                     node, #next state
