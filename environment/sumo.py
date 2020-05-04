@@ -655,10 +655,15 @@ class SUMO(Environment):
         learning_str = "learning" if learning else "not_learning"
         try:
             os.mkdir(f"csv/{folder_name}/{date_folder}")
-            os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}")
         except OSError as e:
             if e.errno != 17:
                 print(f"Couldn't create folder {date_folder}, error message: {e.strerror}")
+                return 
+        try:
+            os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}")
+        except OSError as e:
+            if e.errno != 17:
+                print(f"Couldn't create folder {learning_str}, error message: {e.strerror}")
                 return 
         str_list = [
             f"csv/{folder_name}/{date_folder}/{learning_str}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}",
