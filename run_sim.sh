@@ -32,15 +32,19 @@ then
 fi
 
 # Begin script in case all parameters are correct
-echo "Running simulations in background"
+now=$(date +"%d/%m/%Y - %H:%M")
+echo "Script will run $num_sims in total"
+echo "Starting simulations in background..."
+echo -e "Starting time at \t\t\t $now"
 for i in $(eval echo "{5..$num_sims..5}")
 do  
-    python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
-    sleep 60 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
-    sleep 120 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
-    sleep 180 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
-    sleep 240 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
-    wait
-    echo -e "$i..\c"
+   python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
+   sleep 60 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
+   sleep 120 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
+   sleep 180 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
+   sleep 240 && python3 main.py -c $net_file -s $steps -w $wait_learn > /dev/null 2>&1 &
+   wait
+   now=$(date +"%d/%m/%Y - %H:%M")
+   echo -e "Finished running $i simulations at \t $now"
 done
 echo "Done"
