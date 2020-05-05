@@ -36,7 +36,8 @@ class SUMO(Environment):
             'over5k_log': False,
             'teleport_log': False,
             'plot': False,
-            'plot_over5k': False
+            'plot_over5k': False,
+            'sample_log': False
         }
         
         rd.seed(datetime.now())
@@ -249,9 +250,11 @@ class SUMO(Environment):
         teleport = f"{log_path}/teleports.txt"
         self.trips_per_od = {od : 0 for od in self.__od_pair_set}
 
-        self.__make_log_folder(log_path)
-        self.__make_log_folder(over_5k)
-        self.__make_log_folder(self.sample_path)
+        if (self.__flags['over5k_log'] 
+           or self.__flags['sample_log'] 
+           or self.__flags['teleport_log']): self.__make_log_folder(log_path)
+        if self.__flags['over5k_log']: self.__make_log_folder(over_5k)
+        if self.__flags['sample_log']: self.__make_log_folder(self.sample_path)
 
         for vehID in self.get_vehicles_ID_list():
             routeID = 'r_' + vehID
@@ -286,7 +289,7 @@ class SUMO(Environment):
             self.__process_vehicles_act(self.__vehicles_to_process_act, self.current_time)
 
 
-            if self.current_time == self.__time_before_learning:
+            if self.current_time == self.__time_before_learning and self.__flags['sample_log']:
                 self.__log_sample = self.__sample_log(self.sample_path)
 
             # if self.current_time > (self.max_steps / 2) and not_switched:
@@ -435,7 +438,6 @@ class SUMO(Environment):
 
                 if self.__vehicles[vehID]["travel_time"] < 5000:
                     self.travel_times = np.append(self.travel_times, [self.__vehicles[vehID]["travel_time"]])
-                total_count += 1
 
                 if self.__vehicles[vehID]["travel_time"] >= 5000 : higher_per_step += 1
 
@@ -445,9 +447,11 @@ class SUMO(Environment):
                 if (self.__vehicles[vehID]["route"][-1] == self.__vehicles[vehID]["destination"] 
                     and (self.current_time > self.__time_before_learning 
                          or self.__time_before_learning >= self.max_steps)):
+                    total_count += 1
                     od_pair = self.__vehicles[vehID]["origin"] + self.__vehicles[vehID]["destination"] 
                     self.trips_per_od[od_pair] += 1
                     index = math.floor(self.__vehicles[vehID]["travel_time"] / self.__class_interval)
+                    reward += 1000
                     if index >= len(self.__classifier):
                         self.__classifier[-1] += 1
                     else:
@@ -461,7 +465,7 @@ class SUMO(Environment):
                         self.__vehicles[vehID]['current_link']
                     ]
 
-                if vehID in self.__log_sample and self.current_time > self.__time_before_learning:
+                if vehID in self.__log_sample and self.current_time > self.__time_before_learning and self.__flags['sample_log']:
                     od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
                     path = self.sample_path + "/" + str(od_pair)
                     self.__write_veh_log(path, vehID, reward, True)
@@ -515,8 +519,8 @@ class SUMO(Environment):
                                 possible_actions = list()
                                 for edge in outgoing:
                                     if ((len(edge.getOutgoing()) > 0 
-                                        or self.__get_edge_destination(edge.getID()) == self.__vehicles[vehID]['destination'])
-                                        and self.__get_edge_destination(edge.getID()) not in self.__vehicles[vehID]['route']):
+                                        or self.__get_edge_destination(edge.getID()) == self.__vehicles[vehID]['destination'])):
+                                        # and self.__get_edge_destination(edge.getID()) not in self.__vehicles[vehID]['route']
                                         possible_actions.append(edge.getID())
                                 self.__vehicles_to_process_act[vehID] = [
                                     node, #next state
