@@ -1,10 +1,3 @@
-'''
-Created Date: Friday, February 28th 2020, 5:51 pm
-Author: Guilherme Dytz dos Santos
------
-Last Modified: Wednesday, March 4th 2020, 6:20 pm
-Modified By: guilhermedytz
-'''
 import sys
 import argparse
 import pandas as pd
@@ -26,5 +19,5 @@ if __name__ == "__main__":
 
     df = pd.read_csv(options.csv_file)
     columns = list(df.columns)
-    df.plot(kind="scatter", x=columns[0], y=columns[1])
+    df.plot(kind="scatter", x=columns[0], y=columns[1], s=5)
     plt.show()
