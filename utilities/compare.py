@@ -35,5 +35,6 @@ if __name__ == "__main__":
     df = df.drop(columns=[col[0]+"_other"])
     # print(df.head())
     df.plot(kind="bar", x=col[0], y=["Without Learning", "With Learning"], figsize=(15, 7))
-    plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
+    plt.ylabel("Number of trips ended")
+    plt.subplots_adjust(left=0.08, bottom=0.20, right=0.95, top=0.95)
     plt.show()
