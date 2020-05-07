@@ -18,8 +18,8 @@ if __name__ == '__main__':
 
     parse.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
                        help="define the config SUMO file (mandatory)")
-    parse.add_argument("-d", "--driver-number", action="store", type=int, dest="numveh",
-                       default=500, help="desired network load (default = 500)")
+    parse.add_argument("-d", "--demand", action="store", type=int, dest="demand",
+                       default=1000, help="desired network demand (default = 1000)")
     parse.add_argument("-s", "--steps", action="store", type=int, default=10000,
                        help="number of max steps (default = 10000)", dest="steps")
     parse.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         parse.print_help()
         sys.exit()
 
-    env = SUMO(options.cfgfile, use_gui=options.gui, time_before_learning=options.wait_learn, max_veh=options.numveh)
+    env = SUMO(options.cfgfile, use_gui=options.gui, time_before_learning=options.wait_learn, max_veh=options.demand)
 
     agents = list()
     for veh in env.get_vehicles_ID_list():
