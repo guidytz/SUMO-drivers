@@ -3,7 +3,7 @@
 <configuration>
     <input>
         <net-file value="5x5.net.xml"/>
-	<route-files value="DUA/5x5.rou.xml"/>
+	<route-files value="5x5.rou.xml"/>
     </input>
     <time>
         <begin value="0"/>
