@@ -255,7 +255,6 @@ class SUMO(Environment):
         self.sample_path = f"{log_path}/sample"
         teleport = f"{log_path}/teleports.txt"
         self.trips_per_od = {od : 0 for od in self.__od_pair_set}
-        print(self.__od_pair_min)
 
         if (self.__flags['over5k_log'] 
            or self.__flags['sample_log'] 
