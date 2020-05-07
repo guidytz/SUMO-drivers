@@ -60,7 +60,7 @@ class SUMO(Environment):
 
         self.__time_before_learning = time_before_learning
         self.__max_veh = max_veh
-        self.__total_route_lengths = 0
+        self.__total_route_dist = 0
 
         self.__od_pair_set = set()
         self.__od_pair_load = dict()
@@ -143,7 +143,9 @@ class SUMO(Environment):
             od_pair = origin + destination
             if od_pair not in self.__od_pair_set:
                 self.__od_pair_set.add(od_pair)
-                self.__total_route_lengths += len(route.split(' '))
+                o = np.array(self.__net.getNode(origin).getCoord())
+                d = np.array(self.__net.getNode(destination).getCoord())
+                self.__total_route_dist += np.linalg.norm(o - d)
             #depart
             depart = float(v.getAttribute('depart'))
 
@@ -172,8 +174,12 @@ class SUMO(Environment):
             }
 
         for route in R:
-            od_pair = self.__get_edge_origin(R[route].split(' ')[0]) + self.__get_edge_destination(R[route].split(' ')[-1])
-            self.__od_pair_min.update({od_pair:int(len(R[route].split(' ')) / self.__total_route_lengths * self.__max_veh)})
+            origin = self.__get_edge_origin(R[route].split(' ')[0])
+            destination = self.__get_edge_destination(R[route].split(' ')[-1])
+            od_pair = f"{origin}{destination}"
+            o = np.array(self.__net.getNode(origin).getCoord())
+            d = np.array(self.__net.getNode(destination).getCoord())
+            self.__od_pair_min.update({od_pair:math.ceil(np.linalg.norm(o - d) / self.__total_route_dist * self.__max_veh)})
             self.__od_pair_load.update({od_pair:0})
 
     def get_vehicles_ID_list(self):
@@ -249,6 +255,7 @@ class SUMO(Environment):
         self.sample_path = f"{log_path}/sample"
         teleport = f"{log_path}/teleports.txt"
         self.trips_per_od = {od : 0 for od in self.__od_pair_set}
+        print(self.__od_pair_min)
 
         if (self.__flags['over5k_log'] 
            or self.__flags['sample_log'] 
