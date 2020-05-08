@@ -32,7 +32,7 @@ class SUMO(Environment):
     """
     def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30, class_interval=200, top_class_value=5000):
         self.__flags = {
-            'C2I': False,
+            'C2I': True,
             'over5k_log': False,
             'teleport_log': False,
             'plot': False,
@@ -255,6 +255,7 @@ class SUMO(Environment):
         self.sample_path = f"{log_path}/sample"
         teleport = f"{log_path}/teleports.txt"
         self.trips_per_od = {od : 0 for od in self.__od_pair_set}
+        with_rl = self.__time_before_learning < max_steps
 
         if (self.__flags['over5k_log'] 
            or self.__flags['sample_log'] 
@@ -304,7 +305,7 @@ class SUMO(Environment):
             #     not_switched = False
 
             step = self.current_time
-            if step % mv_avg_gap == 0 and step > 0:
+            if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
                 df = pd.DataFrame({"Step": [step],
                                    "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
@@ -346,11 +347,10 @@ class SUMO(Environment):
 
             plt.show()
 
-        used_rl = self.__time_before_learning < max_steps
-        self.__save_to_csv("ClassDivision", class_df, used_rl)
-        self.__save_to_csv("TripsPerOD", trips_dataframe, used_rl)
-        self.__save_to_csv("MovingAverage", travel_avg_df, used_rl)
-        self.__save_to_csv("Occupation", occupation_df, used_rl)
+        self.__save_to_csv("ClassDivision", class_df, with_rl)
+        self.__save_to_csv("TripsPerOD", trips_dataframe, with_rl)
+        self.__save_to_csv("MovingAverage", travel_avg_df, with_rl)
+        self.__save_to_csv("Occupation", occupation_df, with_rl)
 
         if self.__flags['plot_over5k']:
             cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
