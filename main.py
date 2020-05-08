@@ -20,8 +20,8 @@ if __name__ == '__main__':
                        help="define the config SUMO file (mandatory)")
     parse.add_argument("-d", "--demand", action="store", type=int, dest="demand",
                        default=750, help="desired network demand (default = 750)")
-    parse.add_argument("-s", "--steps", action="store", type=int, default=10000,
-                       help="number of max steps (default = 10000)", dest="steps")
+    parse.add_argument("-s", "--steps", action="store", type=int, default=100000,
+                       help="number of max steps (default = 100000)", dest="steps")
     parse.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
                        help="Time steps before agents start the learning (default = 3000)")
     parse.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
