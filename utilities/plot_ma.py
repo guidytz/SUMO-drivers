@@ -1,9 +1,11 @@
 import sys
 import argparse
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
+    matplotlib.rcParams['figure.dpi'] = 80
     parser = argparse.ArgumentParser(
         description='Script to plot a scatter graph using a csv file with two columns')
 

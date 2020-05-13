@@ -32,7 +32,7 @@ class SUMO(Environment):
     """
     def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30, class_interval=200, top_class_value=5000):
         self.__flags = {
-            'C2I': True,
+            'C2I': False,
             'over5k_log': False,
             'teleport_log': False,
             'plot': False,
@@ -246,7 +246,10 @@ class SUMO(Environment):
         occupation = {"Step":[]}
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
         occupation_df = pd.DataFrame(occupation) 
-        occupation_measure = max_steps / 100
+        occ_mea_init = 20000
+        occ_mea_end = 40000
+        occ_mea_int = 100
+        self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
         # not_switched = True
         higher_count = 0
         total_count = 0
@@ -310,10 +313,12 @@ class SUMO(Environment):
                                    "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
-            if step % occupation_measure == 0:
-                occupation = {"Step":[step]}
-                occupation.update(self.__get_edges_ocuppation())
-                occupation_df = occupation_df.append(pd.DataFrame(occupation), ignore_index=True)
+            if (step >= occ_mea_init and step <= occ_mea_end):
+                self.__measure_occupation()
+                if step % occ_mea_int == 0:
+                    occupation = {"Step":[step]}
+                    occupation.update(self.__get_edges_ocuppation())
+                    occupation_df = occupation_df.append(pd.DataFrame(occupation), ignore_index=True)
                 
 
             higher_count += higher_per_step
@@ -681,10 +686,17 @@ class SUMO(Environment):
         ]
         df.to_csv("".join(str_list), index=idx)
 
-    def __get_edges_ocuppation(self):
-        return {
-                    edge.getID():traci.edge.getLastStepOccupancy(edge.getID()) 
-                    for edge in self.__net.getEdges(withInternal=False)
-                }
+    def __measure_occupation(self):
+        for edge in self.__net.getEdges(withInternal=False):
+            edge_ID = edge.getID()
+            self.__occ_dict[edge_ID].append(traci.edge.getLastStepOccupancy(edge_ID))
 
+    def __get_edges_ocuppation(self):
+        occ_avg = dict()
+        for edge in self.__net.getEdges(withInternal=False):
+            edge_ID = edge.getID()
+            occ_avg[edge_ID] = np.array(self.__occ_dict[edge_ID]).mean() 
+            self.__occ_dict[edge_ID].clear()
+
+        return occ_avg
 
