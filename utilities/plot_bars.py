@@ -1,9 +1,11 @@
 import sys
 import argparse
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
+    matplotlib.rcParams['figure.dpi'] = 50
     parser = argparse.ArgumentParser(
         description='Script to plot a bar graph using a csv file with two columns')
 
@@ -20,5 +22,6 @@ if __name__ == "__main__":
     df = pd.read_csv(options.csv_file)
     col = list(df.columns)
     df.plot(kind="bar", x=col[0], y=col[1], figsize=(15, 7))
-    plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
+    plt.ylabel("Number of trips ended")
+    plt.subplots_adjust(left=0.07, bottom=0.20, right=0.95, top=0.95)
     plt.show()
