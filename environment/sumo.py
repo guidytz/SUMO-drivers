@@ -246,7 +246,7 @@ class SUMO(Environment):
         occupation = {"Step":[]}
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
         occupation_df = pd.DataFrame(occupation) 
-        occ_mea_init = 20000
+        occ_mea_init = 17000
         occ_mea_end = 40000
         occ_mea_int = 100
         self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
