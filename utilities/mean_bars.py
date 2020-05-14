@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    matplotlib.rcParams['figure.dpi'] = 50
     parser = argparse.ArgumentParser(
         description='Script to take several csv files of same sort and take the average of the values to store')
 

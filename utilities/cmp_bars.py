@@ -12,7 +12,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    matplotlib.rcParams['figure.dpi'] = 50
     parser = argparse.ArgumentParser(
         description='Script to plot a bar graph using a csv file with two columns')
 
