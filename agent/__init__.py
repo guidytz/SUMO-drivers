@@ -31,7 +31,7 @@ class Learner(object):
         pass
         
     # reset all episode-related attributes
-    def reset_episodic(self, episode):
+    def new_episode(self, episode):
         self._episode = episode
     
     # return the agent's current state and the action to be performed by him. 
@@ -57,6 +57,9 @@ class Learner(object):
     # return the current state of the learner within the environment
     def get_state(self):
         return self._state
+
+    def get_episode(self):
+        return self._episode
     
     # defines what must happen when one prints the learner
     def __str__(self):

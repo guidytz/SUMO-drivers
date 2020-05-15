@@ -238,8 +238,8 @@ class SUMO(Environment):
         self.start_time = datetime.now()
         print(f"Starting time: {self.start_time.strftime('%H:%M')}")
         self._has_episode_ended = False
-        self._episodes += 1
         self.reset_episode()
+        self._episodes += 1
         self.travel_times = np.array([])
         travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]}) if self.__flags['plot_over5k'] else None
@@ -416,6 +416,7 @@ class SUMO(Environment):
         if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
             routeID = f"r_{vehID}"
             if routeID not in traci.route.getIDList():
+                self._agents[vehID].new_episode(self._agents[vehID].get_episode() + 1)
                 _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
             traci.vehicle.add(vehID, routeID)

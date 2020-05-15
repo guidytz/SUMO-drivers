@@ -52,7 +52,7 @@ class Environment(object):
         self._has_episode_ended = False
         
         for l in self._agents.values():
-            l.reset_episodic(self._episodes)
+            l.new_episode(self._episodes)
     
     #register a agent within the environment
     def register_agents(self, agents):

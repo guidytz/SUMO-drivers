@@ -21,7 +21,7 @@ class QLearner(Learner):
         
         self._initialise_Q_table()
         
-        self.reset_episodic(0)
+        self.new_episode(0)
     
     #initialize the Q-table.
     #in the beginning, only the entries corresponding to initial state
@@ -34,15 +34,12 @@ class QLearner(Learner):
         self._QTable[0][self._starting_state] = dict({a:self._env.get_starting_edge_value(a) for a in self._env.get_state_actions(self._starting_state)})
         self._QTable[1][self._starting_state] = dict({a:self._env.get_starting_edge_value(a) for a in self._env.get_state_actions(self._starting_state)})
     
-    def reset_episodic(self, episode):
-        super(QLearner, self).reset_episodic(episode)
+    def new_episode(self, episode):
+        super(QLearner, self).new_episode(episode)
 		
         self._state = self._starting_state
         self._action = None
         self._accumulated_reward = 0.0
-        
-        self._exp_strategy.reset()
-        
         self._has_arrived = False
     
     def take_action(self, state=None, available_actions=None, c2i=0):
