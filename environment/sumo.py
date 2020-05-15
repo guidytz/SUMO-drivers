@@ -241,7 +241,7 @@ class SUMO(Environment):
         self._episodes += 1
         self.reset_episode()
         self.travel_times = np.array([])
-        travel_avg_df = pd.DataFrame({"Step":[], "Travel moving average times from arrived cars":[]})
+        travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]}) if self.__flags['plot_over5k'] else None
         occupation = {"Step":[]}
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
@@ -310,7 +310,7 @@ class SUMO(Environment):
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
                 df = pd.DataFrame({"Step": [step],
-                                   "Travel moving average times from arrived cars": [self.travel_times.mean()]})
+                                   "Average travel time": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
             if (step >= occ_mea_init and step <= occ_mea_end):
@@ -334,9 +334,9 @@ class SUMO(Environment):
         class_df = self.__create_class_dataframe()
         
         if self.__flags['plot']:
-            travel_avg_df.plot(kind="scatter", x="Step", y="Travel moving average times from arrived cars")
+            travel_avg_df.plot(kind="scatter", x="Step", y="Average travel time")
             plt.xlabel("Step")
-            plt.ylabel("Travel Moving Average Times From Arrived Cars")
+            plt.ylabel("Average travel time")
              
             plt.figure(1)
             trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", figsize=(15, 7), kind="bar")

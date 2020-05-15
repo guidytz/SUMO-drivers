@@ -28,6 +28,7 @@ if __name__ == "__main__":
     df2 = pd.read_csv(options.csv_file_2)
     columns = list(df1.columns)
     ax = df1.plot(kind="scatter", x=columns[0], y=columns[1], s=5)
-    df2.plot(kind="scatter", x=columns[0], y=columns[1], ax=ax, color="red", s=5)
+    df2.plot(kind="scatter", x=columns[0], y=columns[1], ax=ax, color="C1", s=5)
+    plt.ylabel("Average travel time")
     ax.legend([legend_1, legend_2])
     plt.show()

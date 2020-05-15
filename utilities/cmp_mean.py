@@ -56,8 +56,10 @@ def main():
     plt.figure()
     plt.plot(mean_1.index, mean_1)
     plt.fill_between(std_1.index, mean_1 - 2 * std_1, mean_1 + 2 * std_1, alpha=0.2)
-    plt.plot(mean_2.index, mean_2)
+    plt.plot(mean_2.index, mean_2, color="red")
     plt.fill_between(std_2.index, mean_2 - 2 * std_2, mean_2 + 2 * std_2, alpha=0.2)
+    plt.xlabel("Step")
+    plt.ylabel("Average Travel Time")
     plt.legend(["Q-Learning", "Q-Learning with C2I"])
     plt.show()
 
