@@ -65,7 +65,7 @@ class SUMO(Environment):
         self.__od_pair_set = set()
         self.__od_pair_load = dict()
         self.__od_pair_min = dict()
-        self.__comm_devices = dict()
+        self.__comm_dev = dict()
         self.__max_queue = max_queue_val
         self.__log_sample = list()
         self.__class_interval = class_interval
@@ -79,7 +79,7 @@ class SUMO(Environment):
 
         # create structure to handle C2I communication
         for edge in self.__net.getEdges():
-            self.__comm_devices[edge.getID()] = list()
+            self.__comm_dev[edge.getID()] = list()
 
         self._env = {}
         for s in self.__net.getNodes(): #current states (current nodes)
@@ -374,7 +374,7 @@ class SUMO(Environment):
 
         # act_last
         for vehID in vehicles.keys():
-            self.__upd_c2i_info(vehID, vehicles[vehID][0])
+            self.__get_infras_data(vehID, vehicles[vehID][0])
 
             use_C2I = 1 if self.__flags['C2I'] else 0
 
@@ -470,6 +470,7 @@ class SUMO(Environment):
                         self.__classifier[index] += 1
 
                 if self.current_time > self.__time_before_learning:
+                    self.__update_queue(self.__vehicles[vehID]['current_link'], reward)
                     self.__vehicles_to_process_feedback[vehID] = [
                         reward,
                         self.__get_edge_destination(self.__vehicles[vehID]['current_link']),
@@ -496,7 +497,7 @@ class SUMO(Environment):
                             reward *= -1
 
                             if self.current_time > self.__time_before_learning:
-                                self.__update_inf_value(self.__vehicles[vehID]['current_link'], reward)
+                                self.__update_queue(self.__vehicles[vehID]['current_link'], reward)
                                 self.__vehicles_to_process_feedback[vehID] = [
                                     reward,
                                     self.__get_edge_destination(self.__vehicles[vehID]['current_link']),
@@ -544,17 +545,17 @@ class SUMO(Environment):
                                     [self.__vehicles[vehID]['original_route'][len(self.__vehicles[vehID]['route']) - 1]] #available actions
                                 ]
 
-    def __update_inf_value(self, link_id, travel_time):
-        self.__comm_devices[link_id].append(travel_time)
-        if len(self.__comm_devices[link_id]) > self.__max_queue:
-            self.__comm_devices[link_id].pop(0)
+    def __update_queue(self, link_id, travel_time):
+        self.__comm_dev[link_id].append(travel_time)
+        if len(self.__comm_dev[link_id]) > self.__max_queue:
+            self.__comm_dev[link_id].pop(0)
     
-    def __upd_c2i_info(self, vehID, node):
+    def __get_infras_data(self, vehID, node):
         state = self.__net.getNode(node)
         for edge in state.getOutgoing():
             edge_id = edge.getID()
-            if len(self.__comm_devices[edge_id]) > 0:
-                possible_reward = np.array(self.__comm_devices[edge.getID()]).mean()
+            if len(self.__comm_dev[edge_id]) > 0:
+                possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
                 origin = self.__get_edge_origin(edge_id)
                 destination = self.__get_edge_destination(edge_id)
                 self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
