@@ -246,7 +246,7 @@ class SUMO(Environment):
         occupation = {"Step":[]}
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
         occupation_df = pd.DataFrame(occupation) 
-        occ_mea_init = 17000
+        occ_mea_init = 5000
         occ_mea_end = 40000
         occ_mea_int = 100
         self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
@@ -309,10 +309,11 @@ class SUMO(Environment):
 
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
-                df = pd.DataFrame({"Step": [step],
-                                   "Travel moving average times from arrived cars": [self.travel_times.mean()]})
-                travel_avg_df = travel_avg_df.append(df, ignore_index=True)
-                self.travel_times = np.array([])
+                if step >= 3000:
+                    df = pd.DataFrame({"Step": [step],
+                                       "Travel moving average times from arrived cars": [self.travel_times.mean()]})
+                    travel_avg_df = travel_avg_df.append(df, ignore_index=True)
+                    self.travel_times = np.array([])
             if (step >= occ_mea_init and step <= occ_mea_end):
                 self.__measure_occupation()
                 if step % occ_mea_int == 0:
