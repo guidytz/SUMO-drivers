@@ -309,18 +309,10 @@ class SUMO(Environment):
 
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
-<<<<<<< HEAD
-                if step >= 3000:
-                    df = pd.DataFrame({"Step": [step],
-                                       "Travel moving average times from arrived cars": [self.travel_times.mean()]})
-                    travel_avg_df = travel_avg_df.append(df, ignore_index=True)
-                    self.travel_times = np.array([])
-=======
                 df = pd.DataFrame({"Step": [step],
                                    "Average travel time": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
->>>>>>> d2af3fa82c4595fc2a1cd1d617f1828c7d227377
             if (step >= occ_mea_init and step <= occ_mea_end):
                 self.__measure_occupation()
                 if step % occ_mea_int == 0:
