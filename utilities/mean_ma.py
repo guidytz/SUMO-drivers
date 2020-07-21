@@ -34,16 +34,13 @@ def main():
 
     df = df.set_index("Step")
     mean = df.mean(axis=1, numeric_only=True)
-    # mean = mean.rename(columns={mean.columns[-1]:f"Mean Values"})
     std = df.std(axis=1, numeric_only=True)
-    # std = std.rename(columns={std.columns[-1]:f"Standard Deviation"})
-    # full_df = mean.join(std, on="Step").reset_index()
 
-    # columns = list(mea.columns)
     plt.figure()
     plt.plot(mean.index, mean)
     plt.fill_between(std.index, mean - 2 * std, mean + 2 * std, alpha=0.2)
-    # full_df.plot(kind="line", x=columns[0], y=columns[1])
+    plt.xlabel("Step")
+    plt.ylabel("Average travel time")
     plt.show()
 
 

@@ -21,4 +21,5 @@ if __name__ == "__main__":
     df = pd.read_csv(options.csv_file)
     columns = list(df.columns)
     df.plot(kind="scatter", x=columns[0], y=columns[1], s=5)
+    plt.ylabel("Average travel time")
     plt.show()

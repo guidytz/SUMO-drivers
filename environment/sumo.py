@@ -238,10 +238,10 @@ class SUMO(Environment):
         self.start_time = datetime.now()
         print(f"Starting time: {self.start_time.strftime('%H:%M')}")
         self._has_episode_ended = False
-        self._episodes += 1
         self.reset_episode()
+        self._episodes += 1
         self.travel_times = np.array([])
-        travel_avg_df = pd.DataFrame({"Step":[], "Travel moving average times from arrived cars":[]})
+        travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]}) if self.__flags['plot_over5k'] else None
         occupation = {"Step":[]}
         occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
@@ -309,11 +309,18 @@ class SUMO(Environment):
 
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
+<<<<<<< HEAD
                 if step >= 3000:
                     df = pd.DataFrame({"Step": [step],
                                        "Travel moving average times from arrived cars": [self.travel_times.mean()]})
                     travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                     self.travel_times = np.array([])
+=======
+                df = pd.DataFrame({"Step": [step],
+                                   "Average travel time": [self.travel_times.mean()]})
+                travel_avg_df = travel_avg_df.append(df, ignore_index=True)
+                self.travel_times = np.array([])
+>>>>>>> d2af3fa82c4595fc2a1cd1d617f1828c7d227377
             if (step >= occ_mea_init and step <= occ_mea_end):
                 self.__measure_occupation()
                 if step % occ_mea_int == 0:
@@ -335,9 +342,9 @@ class SUMO(Environment):
         class_df = self.__create_class_dataframe()
         
         if self.__flags['plot']:
-            travel_avg_df.plot(kind="scatter", x="Step", y="Travel moving average times from arrived cars")
+            travel_avg_df.plot(kind="scatter", x="Step", y="Average travel time")
             plt.xlabel("Step")
-            plt.ylabel("Travel Moving Average Times From Arrived Cars")
+            plt.ylabel("Average travel time")
              
             plt.figure(1)
             trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", figsize=(15, 7), kind="bar")
@@ -417,6 +424,7 @@ class SUMO(Environment):
         if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
             routeID = f"r_{vehID}"
             if routeID not in traci.route.getIDList():
+                self._agents[vehID].new_episode(self._agents[vehID].get_episode() + 1)
                 _, action = self._agents[vehID].take_action()
                 traci.route.add(routeID, [action])
             traci.vehicle.add(vehID, routeID)
