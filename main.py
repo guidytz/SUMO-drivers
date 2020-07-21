@@ -28,6 +28,10 @@ if __name__ == '__main__':
                        help="uses SUMO GUI instead of CLI")
     parse.add_argument("-m", "--mav", action="store",type=int, dest="mav", default=100,
                        help="Moving gap size (default = 100 steps)")
+    parse.add_argument("--no-c2i", action="store_false", dest="c2i", default=True,
+                       help="Toggle not to use car-to-infrastructure communication")
+    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="sr", default=1,
+                       help="Communication success rate (default = 1)")
 
     options = parse.parse_args()
     if not options.cfgfile:
@@ -46,6 +50,7 @@ if __name__ == '__main__':
         agents.append(agent)
 
     env.register_agents(agents)
+    env.update_c2i_params(options.c2i, options.sr)
 
     env.run_episode(options.steps, options.mav)
 

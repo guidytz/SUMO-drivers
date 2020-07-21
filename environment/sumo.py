@@ -32,7 +32,7 @@ class SUMO(Environment):
     """
     def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30, class_interval=200, top_class_value=5000):
         self.__flags = {
-            'C2I': False,
+            'C2I': True,
             'over5k_log': False,
             'teleport_log': False,
             'plot': False,
@@ -66,6 +66,7 @@ class SUMO(Environment):
         self.__od_pair_load = dict()
         self.__od_pair_min = dict()
         self.__comm_dev = dict()
+        self.__comm_succ_rate = 0.8
         self.__max_queue = max_queue_val
         self.__log_sample = list()
         self.__class_interval = class_interval
@@ -546,19 +547,23 @@ class SUMO(Environment):
                                 ]
 
     def __update_queue(self, link_id, travel_time):
-        self.__comm_dev[link_id].append(travel_time)
-        if len(self.__comm_dev[link_id]) > self.__max_queue:
-            self.__comm_dev[link_id].pop(0)
+        comm_succ = rd.random()
+        if comm_succ < self.__comm_succ_rate:
+            self.__comm_dev[link_id].append(travel_time)
+            if len(self.__comm_dev[link_id]) > self.__max_queue:
+                self.__comm_dev[link_id].pop(0)
     
     def __get_infras_data(self, vehID, node):
-        state = self.__net.getNode(node)
-        for edge in state.getOutgoing():
-            edge_id = edge.getID()
-            if len(self.__comm_dev[edge_id]) > 0:
-                possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
-                origin = self.__get_edge_origin(edge_id)
-                destination = self.__get_edge_destination(edge_id)
-                self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
+        comm_succ = rd.random()
+        if comm_succ < self.__comm_succ_rate:
+            state = self.__net.getNode(node)
+            for edge in state.getOutgoing():
+                edge_id = edge.getID()
+                if len(self.__comm_dev[edge_id]) > 0:
+                    possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
+                    origin = self.__get_edge_origin(edge_id)
+                    destination = self.__get_edge_destination(edge_id)
+                    self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
     def __make_log_folder(self, folder_name):
         try:
@@ -701,4 +706,8 @@ class SUMO(Environment):
             self.__occ_dict[edge_ID].clear()
 
         return occ_avg
+
+    def update_c2i_params(self, c2i_on = True, comm_succ_rate = 1):
+        self.__flags['C2I'] = c2i_on
+        self.__comm_succ_rate = comm_succ_rate
 
