@@ -319,12 +319,13 @@ class SUMO(Environment):
                                    "Average travel time": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
-            if (step >= occ_mea_init and step <= occ_mea_end and self.__flags['debug']):
-                self.__measure_occupation()
-                if step % occ_mea_int == 0:
-                    occupation = {"Step":[step]}
-                    occupation.update(self.__get_edges_ocuppation())
-                    occupation_df = occupation_df.append(pd.DataFrame(occupation), ignore_index=True)
+            if self.__flags['debug']:
+                if step >= occ_mea_init and step <= occ_mea_end:
+                    self.__measure_occupation()
+                    if step % occ_mea_int == 0:
+                        occupation = {"Step":[step]}
+                        occupation.update(self.__get_edges_ocuppation())
+                        occupation_df = occupation_df.append(pd.DataFrame(occupation), ignore_index=True)
                 
 
             higher_count += higher_per_step
