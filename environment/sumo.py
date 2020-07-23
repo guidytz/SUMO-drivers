@@ -32,7 +32,7 @@ class SUMO(Environment):
     """
     def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30, class_interval=200, top_class_value=5000):
         self.__flags = {
-            'C2I': True,
+            'debug': False,
             'over5k_log': False,
             'teleport_log': False,
             'plot': False,
@@ -353,9 +353,10 @@ class SUMO(Environment):
 
             plt.show()
 
+        self.__save_to_csv("MovingAverage", travel_avg_df, with_rl)
+        
         self.__save_to_csv("ClassDivision", class_df, with_rl)
         self.__save_to_csv("TripsPerOD", trips_dataframe, with_rl)
-        self.__save_to_csv("MovingAverage", travel_avg_df, with_rl)
         self.__save_to_csv("Occupation", occupation_df, with_rl)
 
         if self.__flags['plot_over5k']:
@@ -377,9 +378,9 @@ class SUMO(Environment):
         for vehID in vehicles.keys():
             self.__get_infras_data(vehID, vehicles[vehID][0])
 
-            use_C2I = 1 if self.__flags['C2I'] else 0
+            use_C2I = 1
 
-            _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], use_C2I)
+            _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], 1)
 
             if not vehicles[vehID][1]:
                 self.__vehicles[vehID]["arrival_time"] = current_time
@@ -589,7 +590,7 @@ class SUMO(Environment):
         filename = path + '/' + vehID + '.txt'
         try:
             with open(filename, 'a') as txt_file:
-                c2i = 1 if self.__flags['C2I'] else 0
+                c2i = 1
                 rand_key = ''
                 str_list = [
                     f"time step {self.current_time}: ",
@@ -623,8 +624,8 @@ class SUMO(Environment):
                 str_list = [ 
                     "-----------------------------------------------\n",
                     f"Simulation with {total_steps} steps run in {self.start_time.strftime('%d/%m/%y')}\n",
-                    "C2I was used: ",
-                    "yes" if self.__flags['C2I'] else "no",
+                    "Communication success rate: ",
+                    f"{self.__comm_succ_rate}"
                     "\n",
                     f"Start time: {self.start_time.strftime('%H:%M')}\n",
                     f"End time: {end_time.strftime('%H:%M')}\n",
@@ -675,6 +676,7 @@ class SUMO(Environment):
     def __save_to_csv(self, folder_name, df, learning, idx=False):
         date_folder = self.start_time.strftime("%m_%d_%y")
         learning_str = "learning" if learning else "not_learning"
+        succ = self.__comm_succ_rate * 100
         try:
             os.mkdir(f"csv/{folder_name}/{date_folder}")
         except OSError as e:
@@ -687,9 +689,14 @@ class SUMO(Environment):
             if e.errno != 17:
                 print(f"Couldn't create folder {learning_str}, error message: {e.strerror}")
                 return 
+        try:
+            os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}/{succ}")
+        except OSError as e:
+            if e.errno != 17:
+                print(f"Couldn't create folder {learning_str}/{succ}, error message: {e.strerror}")
+                return 
         str_list = [
-            f"csv/{folder_name}/{date_folder}/{learning_str}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}",
-            "_withC2I.csv" if self.__flags['C2I'] else '.csv'
+            f"csv/{folder_name}/{date_folder}/{learning_str}/{succ}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}.csv"
         ]
         df.to_csv("".join(str_list), index=idx)
 
@@ -708,6 +715,5 @@ class SUMO(Environment):
         return occ_avg
 
     def update_c2i_params(self, c2i_on = True, comm_succ_rate = 1):
-        self.__flags['C2I'] = c2i_on
         self.__comm_succ_rate = comm_succ_rate
 
