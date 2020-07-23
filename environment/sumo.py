@@ -245,14 +245,7 @@ class SUMO(Environment):
         self._episodes += 1
         self.travel_times = np.array([])
         travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
-        cars_over_5k = None
-        occupation = {"Step":[]}
-        occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
-        occupation_df = pd.DataFrame(occupation) 
-        occ_mea_init = 5000
-        occ_mea_end = 40000
-        occ_mea_int = 100
-        self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
+        cars_over_5k = occupation = occupation_df = occ_mea_init = occ_mea_end = occ_mea_int = self.__occ_dict = None
         higher_count = 0
         total_count = 0
         log_path = f"{os.getcwd()}/log/sim_{self.max_steps}_steps_{self.start_time.strftime('%d-%m-%y_%H-%M')}"
@@ -264,6 +257,13 @@ class SUMO(Environment):
         
         if self.__flags['debug'] and self.__flags['plot_over5k']:
             cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]})
+            occupation = {"Step":[]}
+            occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
+            occupation_df = pd.DataFrame(occupation) 
+            occ_mea_init = 5000
+            occ_mea_end = 40000
+            occ_mea_int = 100
+            self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
 
         if (self.__flags['over5k_log'] 
             or self.__flags['sample_log'] 
@@ -319,7 +319,7 @@ class SUMO(Environment):
                                    "Average travel time": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
-            if (step >= occ_mea_init and step <= occ_mea_end):
+            if (step >= occ_mea_init and step <= occ_mea_end and self.__flags['debug']):
                 self.__measure_occupation()
                 if step % occ_mea_int == 0:
                     occupation = {"Step":[step]}
