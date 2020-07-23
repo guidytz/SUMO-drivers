@@ -686,7 +686,7 @@ class SUMO(Environment):
     def __save_to_csv(self, folder_name, df, learning, idx=False):
         date_folder = self.start_time.strftime("%m_%d_%y")
         learning_str = "learning" if learning else "not_learning"
-        succ = self.__comm_succ_rate * 100
+        succ = int(self.__comm_succ_rate * 100)
         try:
             os.mkdir(f"csv/{folder_name}/{date_folder}")
         except OSError as e:
