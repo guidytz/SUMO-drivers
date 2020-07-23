@@ -489,11 +489,11 @@ class SUMO(Environment):
                         self.__get_edge_origin(self.__vehicles[vehID]['current_link']),
                         self.__vehicles[vehID]['current_link']
                     ]
-
-                if vehID in self.__log_sample and self.current_time > self.__time_before_learning:
-                    od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
-                    path = self.sample_path + "/" + str(od_pair)
-                    self.__write_veh_log(path, vehID, reward, True)
+                if self.__flags['debug']:
+                    if vehID in self.__log_sample and self.current_time > self.__time_before_learning:
+                        od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+                        path = self.sample_path + "/" + str(od_pair)
+                        self.__write_veh_log(path, vehID, reward, True)
         
         return [total_count, higher_per_step]
 
@@ -520,7 +520,7 @@ class SUMO(Environment):
                             if self.__vehicles[vehID]['travel_time'] > 5000 and self.__flags['over5k_log']:
                                 self.__write_veh_log(over5k_path, vehID, reward)
 
-                            if self.current_time > self.__time_before_learning:
+                            if self.current_time > self.__time_before_learning and self.__flags['debug']:
                                 if vehID in self.__log_sample:
                                     od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
                                     path = self.sample_path + "/" + str(od_pair)
