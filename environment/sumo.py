@@ -559,14 +559,14 @@ class SUMO(Environment):
 
     def __update_queue(self, link_id, travel_time):
         comm_succ = rd.random()
-        if comm_succ < self.__comm_succ_rate:
+        if comm_succ <= self.__comm_succ_rate:
             self.__comm_dev[link_id].append(travel_time)
             if len(self.__comm_dev[link_id]) > self.__max_queue:
                 self.__comm_dev[link_id].pop(0)
     
     def __get_infras_data(self, vehID, node):
         comm_succ = rd.random()
-        if comm_succ < self.__comm_succ_rate:
+        if comm_succ <= self.__comm_succ_rate:
             state = self.__net.getNode(node)
             for edge in state.getOutgoing():
                 edge_id = edge.getID()
