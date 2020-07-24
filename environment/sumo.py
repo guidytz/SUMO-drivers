@@ -482,7 +482,7 @@ class SUMO(Environment):
                             self.__classifier[index] += 1
 
                 if self.current_time > self.__time_before_learning:
-                    self.__update_queue(self.__vehicles[vehID]['current_link'], reward)
+                    # self.__update_queue(self.__vehicles[vehID]['current_link'], reward)
                     self.__vehicles_to_process_feedback[vehID] = [
                         reward,
                         self.__get_edge_destination(self.__vehicles[vehID]['current_link']),
