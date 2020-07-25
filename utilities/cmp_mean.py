@@ -33,6 +33,7 @@ def main():
     std = dict() if args.plot_std else None
 
     for folder in files.keys():
+        print(f"Processing folder: {folder}")
         df[folder] = pd.read_csv(f"{args.dir_path}/{folder}/{files[folder][0]}")["Step"].copy().to_frame()
         for file, i in  zip(files[folder], range(len(files[folder]) - 1)):
             csv_df_1 = pd.read_csv(f"{args.dir_path}/{folder}/{file}")
