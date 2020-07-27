@@ -571,10 +571,10 @@ class SUMO(Environment):
             state = self.__net.getNode(node)
             for edge in state.getOutgoing():
                 edge_id = edge.getID()
-                if len(self.__comm_dev[edge_id]) > 0:
+                destination = self.__get_edge_destination(edge_id)
+                if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
                     possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
                     origin = self.__get_edge_origin(edge_id)
-                    destination = self.__get_edge_destination(edge_id)
                     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
     def __make_log_folder(self, folder_name):
