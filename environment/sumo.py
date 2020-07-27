@@ -37,7 +37,10 @@ class SUMO(Environment):
             'teleport_log': False,
             'plot': False,
             'plot_over5k': False,
-            'sample_log': False
+            'sample_log': False,
+            'occupation': False,
+            'class': False,
+            'TripsOD': False
         }
         
         rd.seed(datetime.now())
@@ -70,10 +73,12 @@ class SUMO(Environment):
         self.__max_queue = max_queue_val
         self.__log_sample = self.__class_interval = self.__top_class_value = self.__classifier = None
         if self.__flags['debug']:
-            self.__log_sample = list()
-            self.__class_interval = class_interval
-            self.__top_class_value = top_class_value
-            self.__classifier = self.__create_data_classifier(self.__class_interval, self.__top_class_value)
+            if self.__flags['sample_log']:
+                self.__log_sample = list()
+            if self.__flags['class']:
+                self.__class_interval = class_interval
+                self.__top_class_value = top_class_value
+                self.__classifier = self.__create_data_classifier(self.__class_interval, self.__top_class_value)
 
         #..............................
 
@@ -252,18 +257,20 @@ class SUMO(Environment):
         over_5k = f"{log_path}/over_5k"
         self.sample_path = f"{log_path}/sample"
         teleport = f"{log_path}/teleports.txt"
-        self.trips_per_od = {od : 0 for od in self.__od_pair_set}
+        self.trips_per_od = {od : 0 for od in self.__od_pair_set} if self.__flags['TripsOD'] else None
         with_rl = self.__time_before_learning < max_steps
         
-        if self.__flags['debug'] and self.__flags['plot_over5k']:
-            cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]})
-            occupation = {"Step":[]}
-            occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
-            occupation_df = pd.DataFrame(occupation) 
-            occ_mea_init = 5000
-            occ_mea_end = 40000
-            occ_mea_int = 100
-            self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
+        if self.__flags['debug']:
+            if self.__flags['plot_over5k']:
+                cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]})
+            if self.__flags['occupation']: 
+                occupation = {"Step":[]}
+                occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
+                occupation_df = pd.DataFrame(occupation) 
+                occ_mea_init = 5000
+                occ_mea_end = 40000
+                occ_mea_int = 100
+                self.__occ_dict = {edge.getID(): list() for edge in self.__net.getEdges(withInternal=False)}
 
         if (self.__flags['over5k_log'] 
             or self.__flags['sample_log'] 
@@ -319,7 +326,7 @@ class SUMO(Environment):
                                    "Average travel time": [self.travel_times.mean()]})
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
-            if self.__flags['debug']:
+            if self.__flags['debug'] and self.__flags['occupation']:
                 if step >= occ_mea_init and step <= occ_mea_end:
                     self.__measure_occupation()
                     if step % occ_mea_int == 0:
@@ -336,10 +343,11 @@ class SUMO(Environment):
         self.__write_sim_logfile(self.max_steps, total_count, higher_count)
         
         if self.__flags['debug']:
-            sort = {key : self.trips_per_od[key] for key in sorted(self.trips_per_od)}
-            frame = {"OD Pair": list(sort.keys()), "Number of Trips Ended": list(sort.values())}
-            trips_dataframe = pd.DataFrame(frame)
-            class_df = self.__create_class_dataframe()
+            if self.__flags['TripsOD']:
+                sort = {key : self.trips_per_od[key] for key in sorted(self.trips_per_od)}
+                frame = {"OD Pair": list(sort.keys()), "Number of Trips Ended": list(sort.values())}
+                trips_dataframe = pd.DataFrame(frame)
+            class_df = self.__create_class_dataframe() if self.__flags['class'] else None
         
         if self.__flags['plot']:
             travel_avg_df.plot(kind="scatter", x="Step", y="Average travel time")
@@ -347,26 +355,28 @@ class SUMO(Environment):
             plt.ylabel("Average travel time")
 
             if self.__flags['debug']: 
-                plt.figure(1)
-                trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", figsize=(15, 7), kind="bar")
-                plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
-                plt.xlabel("OD Pair")
-                plt.ylabel("Number of Trips Ended")
+                if self.__flags['TripsOD']:
+                    plt.figure(1)
+                    trips_dataframe.plot(x="OD Pair", y="Number of Trips Ended", figsize=(15, 7), kind="bar")
+                    plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
+                    plt.xlabel("OD Pair")
+                    plt.ylabel("Number of Trips Ended")
                 
-                plt.figure(2)
-                class_df.plot(x="Interval", y="Trips Ended Within the Interval",kind='bar', figsize=(15, 7))
-                plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
-                plt.xlabel("Interval")
-                plt.ylabel("Trips Ended Within the Interval")
+                if self.__flags['class']:
+                    plt.figure(2)
+                    class_df.plot(x="Interval", y="Trips Ended Within the Interval",kind='bar', figsize=(15, 7))
+                    plt.subplots_adjust(left=0.05, bottom=0.20, right=0.95, top=0.95)
+                    plt.xlabel("Interval")
+                    plt.ylabel("Trips Ended Within the Interval")
 
             plt.show()
 
         self.__save_to_csv("MovingAverage", travel_avg_df, with_rl)
         
         if self.__flags['debug']:
-            self.__save_to_csv("ClassDivision", class_df, with_rl)
-            self.__save_to_csv("TripsPerOD", trips_dataframe, with_rl)
-            self.__save_to_csv("Occupation", occupation_df, with_rl)
+            if self.__flags['class']: self.__save_to_csv("ClassDivision", class_df, with_rl)
+            if self.__flags['TripsOD']: self.__save_to_csv("TripsPerOD", trips_dataframe, with_rl)
+            if self.__flags['occupation']: self.__save_to_csv("Occupation", occupation_df, with_rl)
 
             if self.__flags['plot_over5k']:
                 cars_over_5k.plot(kind="scatter", x="Step", y="Number of arrived cars over 5k")
@@ -474,7 +484,7 @@ class SUMO(Environment):
                          or self.__time_before_learning >= self.max_steps)):
                     total_count += 1
                     od_pair = self.__vehicles[vehID]["origin"] + self.__vehicles[vehID]["destination"] 
-                    self.trips_per_od[od_pair] += 1
+                    if self.__flags['TripsOD']: self.trips_per_od[od_pair] += 1
                     reward += 1000
                     if self.__flags['debug']:
                         index = math.floor(self.__vehicles[vehID]["travel_time"] / self.__class_interval)
