@@ -62,7 +62,7 @@ do
       sleep 240 && python3 main.py -c $net_file -s $steps -w $wait_learn -r $succ_rate > /dev/null 2>&1 &
       wait
       now=$(date +"%d/%m/%Y - %H:%M")
-      echo -e "Finished running $j with $i C2I success rate simulations at \t $now"
+      echo -e "Finished running $j simulations with $i C2I success rate at \t $now"
    done
 done
 echo ""
