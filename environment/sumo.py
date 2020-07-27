@@ -466,7 +466,8 @@ class SUMO(Environment):
 
                 reward = self.current_time - self.__vehicles[vehID]['time_last_link']
                 reward *= -1
-                self.__update_queue(self.__vehicles[vehID]['current_link'], reward)
+                if self.current_time > self.__time_before_learning:
+                    self.__update_queue(self.__vehicles[vehID]['current_link'], reward)
 
                 if (self.__vehicles[vehID]["route"][-1] == self.__vehicles[vehID]["destination"] 
                     and (self.current_time > self.__time_before_learning 
