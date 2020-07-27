@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 import pandas as pd
-import numpy
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -31,6 +31,7 @@ def main():
     df = dict()
     mean = dict()
     std = dict() if args.plot_std else None
+    folder_names = list()
 
     for folder in files.keys():
         print(f"Processing folder: {folder}")
@@ -39,24 +40,31 @@ def main():
             csv_df_1 = pd.read_csv(f"{args.dir_path}/{folder}/{file}")
             df[folder] = df[folder].join(csv_df_1.set_index("Step"), on="Step")
             df[folder] = df[folder].rename(columns={df[folder].columns[-1]:f"file_{i}"})
+            if df[folder].iloc[0].isnull().values.any():
+                df[folder] =  df[folder].iloc[30:]
         df[folder] = df[folder].set_index("Step")
         mean[folder] = df[folder].mean(axis=1, numeric_only=True)
         if args.plot_std: std[folder] = df[folder].std(axis=1, numeric_only=True)
 
-    plt.figure()
+    fig, ax = plt.subplots(1)
     for folder in files.keys():
-        plt.plot(mean[folder].index, mean[folder])
-        if args.plot_std: plt.fill_between(
-                                           std[folder].index, 
-                                           mean[folder] - 2 * std[folder], 
-                                           mean[folder] + 2 * std[folder], 
-                                           alpha=0.5
-                                          )
+        ax.plot(mean[folder].index, mean[folder])
+        if args.plot_std: 
+            ax.fill_between(
+                             std[folder].index, 
+                             mean[folder] - 2 * std[folder], 
+                             mean[folder] + 2 * std[folder], 
+                             alpha=0.5
+                            )
+            
+        folder_new = folder.replace("_", " ")
+        folder_names.append(folder_new)
     
-    plt.xlabel("Step")
-    plt.ylabel("Average Travel Time")
-    plt.legend(files.keys())
+    ax.set_xlabel("Step")
+    ax.set_ylabel("Average Travel Time")
+    ax.legend(folder_names)
     plt.show()
+
 
 if __name__ == "__main__":
     main()
