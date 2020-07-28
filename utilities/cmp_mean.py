@@ -14,7 +14,9 @@ def main():
     parser.add_argument("-d", "--dir", action="store", dest="dir_path",
                         help="Path to directory containing folders of simulations to compare (mandatory)")
     parser.add_argument("-s", "--std", action="store_true", dest="plot_std", default=False,
-                        help="Flag to determine if standard deviation should be ploted")
+                        help="Flag to determine if standard deviation should be ploted (default = False)")
+    parser.add_argument("--sort", action="store_true", dest="sort_plots", default=False,
+                        help="Flag to determine if the plots should be sorted (default = False)")
 
     args = parser.parse_args()
     if not args.dir_path:
@@ -32,8 +34,10 @@ def main():
     mean = dict()
     std = dict() if args.plot_std else None
     folder_names = list()
+    sorted_list = list(files.keys())
+    if args.sort_plots: sorted_list.sort(key=int) 
 
-    for folder in files.keys():
+    for folder in sorted_list:
         print(f"Processing folder: {folder}")
         df[folder] = pd.read_csv(f"{args.dir_path}/{folder}/{files[folder][0]}")["Step"].copy().to_frame()
         for file, i in  zip(files[folder], range(len(files[folder]) - 1)):
@@ -47,7 +51,7 @@ def main():
         if args.plot_std: std[folder] = df[folder].std(axis=1, numeric_only=True)
 
     fig, ax = plt.subplots(1)
-    for folder in files.keys():
+    for folder in sorted_list:
         ax.plot(mean[folder].index, mean[folder])
         if args.plot_std: 
             ax.fill_between(
