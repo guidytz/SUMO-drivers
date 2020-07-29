@@ -5,65 +5,91 @@ helpFunction()
 {
    echo ""
    echo "Usage: $0 -n num_sims"
-   echo -e "\t-n Number of simulations to run"
-   echo -e "\t-c Net configuration file"
-   echo -e "\t-s Number of simulation steps"
-   echo -e "\t-w Number of steps for simulation to wait before learning"
-   echo -e "\t-r C2I communication success rate step (100 needs to be multiple of this parameter)"
+   echo -e "\t-n Number of simulations to run (default = 30)"
+   echo -e "\t-c Net configuration file (mandatory)"
+   echo -e "\t-s Number of simulation steps (default = 60000)"
+   echo -e "\t-w Number of steps for simulation to wait before learning (default = 3000)"
+   echo -e "\t-r C2I communication success rate (in case -u is true, 100 must be multiple of this value) (default = 100)"
+   echo -e "\t-u Flag to use comunication success rate as a step"
    exit 1
 }
 
+run()
+{
+   network=$1
+   step=$2
+   wait=$3
+   s_rate=$4
+
+   succ_rate=$(bc -l <<<"scale=2;$s_rate/100")
+   echo ""
+   echo "Starting to run simulations with communication success rate $s_rate%" 
+   for j in $(eval echo "{5..$num_sims..5}")
+   do  
+      python3 main.py -c $network -s $step -w $wait -r $succ_rate > /dev/null 2>&1 &
+      sleep 60 && python3 main.py -c $network -s $step -w $wait -r $succ_rate > /dev/null 2>&1 &
+      sleep 120 && python3 main.py -c $network -s $step -w $wait -r $succ_rate > /dev/null 2>&1 &
+      sleep 180 && python3 main.py -c $network -s $step -w $wait -r $succ_rate > /dev/null 2>&1 &
+      sleep 240 && python3 main.py -c $network -s $step -w $wait -r $succ_rate > /dev/null 2>&1 &
+      wait
+      now=$(date +"%d/%m/%Y - %H:%M")
+      echo -e "Finished running $j \t simulations with $s_rate% C2I success rate at \t $now"
+   done
+}
+
+#Defining default values
+num_sims=30
+steps=60000
+wait_learn=3000
+rate=100
+use_step=0
+
 # Get parameters from args
-while getopts "n:c:s:w:r:" opt
+while getopts "n:c:s:w:r:u" opt
 do
    case "$opt" in
       n ) num_sims="$OPTARG" ;;
       c ) net_file="$OPTARG" ;;
       s ) steps="$OPTARG" ;;
       w ) wait_learn="$OPTARG" ;;
-      r ) rate_step="$OPTARG" ;;
-      ? ) helpFunction ;;
+      r ) rate="$OPTARG" ;;
+      u ) use_step=1 ;;
+      * ) helpFunction ;;
    esac
 done
 
 # Print helpFunction in case parameters are empty
-if [ -z "$num_sims" ] || [ -z "$net_file" ] || [ -z "$steps" ] || [ -z "$wait_learn" ]
+if [ -z "$net_file" ]
 then
-   echo "One or more arguments are empty";
+   echo "Network file information is mandatory!!";
    helpFunction
 fi
 
-if [ -z "$rate_step" ] 
+if ((100 % $rate != 0)) && (($use_step == 1))
 then
-   rate_step=100
-elif [ 100 % rate_step != 0 ]
-then
-   echo "Parameter -rs value not allowed"
+   echo "Parameter -r value not allowed"
    helpFunction
 fi
 
 # Begin script in case all parameters are correct
 now=$(date +"%d/%m/%Y - %H:%M")
-echo "Script will run $num_sims in total"
-echo "Starting simulations in background..."
-echo -e "Starting time at \t\t\t $now"
 
-for i in $(eval echo "{0..100..$rate_step}")
-do
-   succ_rate=$(bc -l <<<"scale=2;$i/100")
-   echo ""
-   echo "Starting to run simulations with communication success rate $succ_rate"
-   for j in $(eval echo "{5..$num_sims..5}")
-   do  
-      python3 main.py -c $net_file -s $steps -w $wait_learn -r $succ_rate > /dev/null 2>&1 &
-      sleep 60 && python3 main.py -c $net_file -s $steps -w $wait_learn -r $succ_rate > /dev/null 2>&1 &
-      sleep 120 && python3 main.py -c $net_file -s $steps -w $wait_learn -r $succ_rate > /dev/null 2>&1 &
-      sleep 180 && python3 main.py -c $net_file -s $steps -w $wait_learn -r $succ_rate > /dev/null 2>&1 &
-      sleep 240 && python3 main.py -c $net_file -s $steps -w $wait_learn -r $succ_rate > /dev/null 2>&1 &
-      wait
-      now=$(date +"%d/%m/%Y - %H:%M")
-      echo -e "Finished running $j simulations with $i C2I success rate at \t $now"
+if (($use_step == 1))
+then
+   total=$((100 / $rate + 1))
+   total=$(($total * $num_sims))
+   echo "Script will run $total simulations in total"
+   echo "Starting simulations in background..."
+   echo -e "Starting time at \t\t\t $now"
+   for i in $(eval echo "{0..100..$rate}")
+   do
+      run $net_file $steps $wait_learn $i
    done
-done
+else
+   echo "Script will run $num_sims simulations in total"
+   echo "Starting simulations in background..."
+   echo -e "Starting time at \t\t\t $now"
+   run $net_file $steps $wait_learn $rate
+fi
 echo ""
 echo "Done"
