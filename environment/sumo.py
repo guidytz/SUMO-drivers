@@ -52,8 +52,10 @@ class SUMO(Environment):
 
         #register SUMO/TraCI parameters
         self.__cfg_file = cfg_file
-        self.__net_file = self.__cfg_file[:self.__cfg_file.rfind("/")+1] + minidom.parse(self.__cfg_file).getElementsByTagName('net-file')[0].attributes['value'].value
-        self.__rou_file = self.__cfg_file[:self.__cfg_file.rfind("/")+1] + minidom.parse(self.__cfg_file).getElementsByTagName('route-files')[0].attributes['value'].value
+        self.__net_file = (self.__cfg_file[:self.__cfg_file.rfind("/")+1] + 
+                          minidom.parse(self.__cfg_file).getElementsByTagName('net-file')[0].attributes['value'].value)
+        self.__rou_file = (self.__cfg_file[:self.__cfg_file.rfind("/")+1] + 
+                        minidom.parse(self.__cfg_file).getElementsByTagName('route-files')[0].attributes['value'].value)
         self.__port = port
         self.__vehicles_to_process_feedback = {}
         self.__vehicles_to_process_act = {}
@@ -572,10 +574,16 @@ class SUMO(Environment):
             for edge in state.getOutgoing():
                 edge_id = edge.getID()
                 destination = self.__get_edge_destination(edge_id)
-                if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
-                    possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
+                if self.__vehicles[vehID]['destination'] != destination:
+                    ff_travel_time = edge.getLength() / edge.getSpeed()
+                    possible_reward = traci.edge.getTraveltime(edge_id) - ff_travel_time
+                    possible_reward = 0 if possible_reward < 0 else possible_reward
                     origin = self.__get_edge_origin(edge_id)
                     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
+                # if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
+                #     possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
+                #     origin = self.__get_edge_origin(edge_id)
+                #     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
     def __make_log_folder(self, folder_name):
         try:
