@@ -720,16 +720,18 @@ class SUMO(Environment):
         df.to_csv("".join(str_list), index=idx)
 
     def __measure_occupation(self):
-        for edge in self.__net.getEdges(withInternal=False):
-            edge_ID = edge.getID()
-            self.__occ_dict[edge_ID].append(traci.edge.getLastStepOccupancy(edge_ID))
+        pass
+        # for edge in self.__net.getEdges(withInternal=False):
+        #     edge_ID = edge.getID()
+            # self.__occ_dict[edge_ID].append(traci.edge.getLastStepOccupancy(edge_ID))
 
     def __get_edges_ocuppation(self):
         occ_avg = dict()
         for edge in self.__net.getEdges(withInternal=False):
             edge_ID = edge.getID()
-            occ_avg[edge_ID] = np.array(self.__occ_dict[edge_ID]).mean() 
-            self.__occ_dict[edge_ID].clear()
+            # occ_avg[edge_ID] = np.array(self.__occ_dict[edge_ID]).mean() 
+            # self.__occ_dict[edge_ID].clear()
+            occ_avg[edge_ID] = traci.edge.getLastStepVehicleNumber(edge_ID)
 
         return occ_avg
 
