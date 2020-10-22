@@ -257,8 +257,9 @@ class SUMO(Environment):
         self.trips_per_od = {od : 0 for od in self.__od_pair_set}
         with_rl = self.__time_before_learning < max_steps
         
-        if self.__flags['debug'] and self.__flags['plot_over5k']:
-            cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]})
+        if self.__flags['debug']:
+            if self.__flags['plot_over5k']:
+                cars_over_5k = pd.DataFrame({"Step":[], "Number of arrived cars over 5k":[]})
             occupation = {"Step":[]}
             occupation.update({edge.getID():[] for edge in self.__net.getEdges()})
             occupation_df = pd.DataFrame(occupation) 
