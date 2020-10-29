@@ -256,6 +256,7 @@ class SUMO(Environment):
         teleport = f"{log_path}/teleports.txt"
         self.trips_per_od = {od : 0 for od in self.__od_pair_set}
         with_rl = self.__time_before_learning < max_steps
+        not_switched = True
         
         if self.__flags['debug']:
             if self.__flags['plot_over5k']:
@@ -315,6 +316,12 @@ class SUMO(Environment):
             #     for vehID in traci.vehicle.getIDList():
             #         self._agents[vehID].switch_epsilon(0)
             #     not_switched = False
+
+            if self.current_time > 20000 and not_switched:
+                for od in self.__od_pair_min.keys():
+                    if self.__od_pair_min[od] == 86:
+                        self.__od_pair_min[od] = 40
+                not_switched = False
 
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
