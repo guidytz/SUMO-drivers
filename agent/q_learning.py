@@ -29,8 +29,6 @@ class QLearner(Learner):
     def _initialise_Q_table(self):#TODO - replace by __check_and_create_Q_table_entry
         self._QTable = [{}, {}]
         
-        # for state in states_IDs:
-            # self._QTable[state] = dict({a:0 for a in self._env.get_state_actions(state)})
         self._QTable[0][self._starting_state] = dict({a:self._env.get_starting_edge_value(a) for a in self._env.get_state_actions(self._starting_state)})
         self._QTable[1][self._starting_state] = dict({a:self._env.get_starting_edge_value(a) for a in self._env.get_state_actions(self._starting_state)})
     
@@ -57,18 +55,13 @@ class QLearner(Learner):
             available = {}
             for a in available_actions:
                 available[a] = self._QTable[c2i][state][a]
-        #print state
-        #print 'available: %s'%available
-        #print 'all: %s'%self._QTable[state]
-        
+
         if not available:
             self._has_arrived = True
         else:
             #choose action according to the the exploration strategy
             self._action = self._exp_strategy.choose(available, self._episode)
-        
-        #print "Action %s taken in state %s" % (self._action, self._state)
-        
+                
         #return action to take
         return [state, self._action]
     
@@ -90,12 +83,6 @@ class QLearner(Learner):
         return self._QTable.copy()
     
     def process_feedback(self, reward, new_state, prev_state=None, prev_action=None, c2i=0):
-        
-        #print reward
-        #print new_state
-        #print self._state
-        #print self._action
-        
         state = prev_state
         if state == None:
             state = self._state
@@ -103,8 +90,6 @@ class QLearner(Learner):
         action = prev_action
         if action == None:
             action = self._action
-        
-        #print "After performing action %s in state %s, the new state is %s and the reward %f" % (action, state, new_state, reward)
         
         #check whether new_state is already in Q-table
         self.__check_and_create_Q_table_entry(state)

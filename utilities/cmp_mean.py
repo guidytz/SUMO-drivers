@@ -57,7 +57,7 @@ def main():
         print(mean[folder].loc[20000])
 
     _, ax = plt.subplots(1)
-    # ax.set_prop_cycle(custom_cycler)
+    ax.set_prop_cycle(custom_cycler)
     for folder in sorted_list:
         ax.plot(mean[folder].index, mean[folder])
         if args.plot_std: 

@@ -1,9 +1,6 @@
 '''
 Created Date: Wednesday, January 22nd 2020, 10:29:59 am
 Author: Guilherme Dytz dos Santos
------
-Last Modified: Wednesday, April 1st 2020, 11:04 am
-Modified By: guilhermedytz
 '''
 # pylint: disable=fixme, line-too-long, invalid-name, missing-docstring
 import sys
