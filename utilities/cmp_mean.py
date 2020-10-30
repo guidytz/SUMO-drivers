@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from cycler import cycler
 
 
 def main():
@@ -25,6 +26,7 @@ def main():
         parser.print_help()
         sys.exit()
 
+    custom_cycler = cycler(color=['olive', 'pink', 'black', 'blue'])
     stream = os.popen(f"ls {args.dir_path}")
     output = stream.read()
     folders = output.split('\n')
@@ -44,13 +46,18 @@ def main():
             csv_df_1 = pd.read_csv(f"{args.dir_path}/{folder}/{file}")
             df[folder] = df[folder].join(csv_df_1.set_index("Step"), on="Step")
             df[folder] = df[folder].rename(columns={df[folder].columns[-1]:f"file_{i}"})
+            if (not df[folder].iloc[0].isnull().values.any()):
+                df[folder] = df[folder].iloc[:472] # not plotting last 10k steps
             if df[folder].iloc[0].isnull().values.any():
                 df[folder] =  df[folder].iloc[30:]
+                df[folder] = df[folder].iloc[:470] # not plotting last 10k steps
         df[folder] = df[folder].set_index("Step")
         mean[folder] = df[folder].mean(axis=1, numeric_only=True)
         if args.plot_std: std[folder] = df[folder].std(axis=1, numeric_only=True)
+        print(mean[folder].loc[20000])
 
-    fig, ax = plt.subplots(1)
+    _, ax = plt.subplots(1)
+    # ax.set_prop_cycle(custom_cycler)
     for folder in sorted_list:
         ax.plot(mean[folder].index, mean[folder])
         if args.plot_std: 
