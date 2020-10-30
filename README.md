@@ -3,10 +3,10 @@
 A python code to handle Multiagent Reinforcement Learning using [SUMO](https://github.com/eclipse/sumo) as a microscopic 
 traffic simulation. 
 
-> currently working with SUMO v.1.7.0
+> Currently working with SUMO v.1.7.0
 
 ## Dependencies
-SUMO environment need to be installed in order to run the code correctly.
+SUMO environment needs to be installed in order to run the code correctly.
 
 ### SUMO Installation
 
@@ -25,7 +25,7 @@ following line to .bashrc:
 export SUMO_HOME="/usr/share/sumo"
 ```
 
-Other options for installing SUMO in different systems can be found in [SUMO's documantation page](https://sumo.dlr.de/docs)
+Other options for installing SUMO in different systems can be found in [SUMO's documentation page](https://sumo.dlr.de/docs)
 
 ## Usage
 
@@ -34,7 +34,7 @@ python3 main.py -c <scenario>
 ```
 
 Where the scenario is a basic .sumocfg file containg info about network and route files necessary for the simulation. Some
-examples can be found in [cenario](https://github.com/guidytz/SUMO-QL/tree/master/cenario).
+examples can be found in [scenario](https://github.com/guidytz/SUMO-QL/tree/master/scenario).
 
 This will run the application with the chosen scenario, applying Q-Learning algorithm to each car agent coupled with car
 to infrastructure (C2I) communication.
@@ -50,7 +50,7 @@ After running the experiments, results can be found in [csv](https://github.com/
 
 ## Utilities
 
-Some utilities scripts were implemented to be able to plot the results, which can be used as the example below:
+Some utility scripts were implemented to be able to plot the results, which can be used as the example below:
 
 ```bash
 python3 utilities/plot_ma.py -f <path_to_csv_file>
