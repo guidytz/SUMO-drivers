@@ -33,7 +33,8 @@ Other options for installing SUMO in different systems can be found in [SUMO's d
 python3 main.py -c <scenario>
 ```
 
-Where the scenario is a basic .sumocfg file containg info about network and route files necessary for the simulation
+Where the scenario is a basic .sumocfg file containg info about network and route files necessary for the simulation. Some
+examples can be found in [cenario](https://github.com/guidytz/SUMO-QL/tree/master/cenario).
 
 This will run the application with the chosen scenario, applying Q-Learning algorithm to each car agent coupled with car
 to infrastructure (C2I) communication.
