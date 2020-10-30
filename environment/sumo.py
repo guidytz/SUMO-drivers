@@ -246,6 +246,7 @@ class SUMO(Environment):
         self.reset_episode()
         self._episodes += 1
         self.travel_times = np.array([])
+        self.__bonus = 1000
         travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = occupation = occupation_df = occ_mea_init = occ_mea_end = occ_mea_int = self.__occ_dict = None
         higher_count = 0
@@ -478,7 +479,7 @@ class SUMO(Environment):
                     total_count += 1
                     od_pair = self.__vehicles[vehID]["origin"] + self.__vehicles[vehID]["destination"] 
                     self.trips_per_od[od_pair] += 1
-                    reward += 1000
+                    reward += self.__bonus
                     if self.__flags['debug']:
                         index = math.floor(self.__vehicles[vehID]["travel_time"] / self.__class_interval)
                         if index >= len(self.__classifier):
