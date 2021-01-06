@@ -17,6 +17,7 @@ import traci
 import traci.constants as tc
 import sumolib
 import math
+from igraph import *
 
 class SUMO(Environment):
     """
@@ -78,6 +79,15 @@ class SUMO(Environment):
 
         #read the network file
         self.__net = sumolib.net.readNet(self.__net_file)
+        graph_file = self.__net_file
+        graph_file = graph_file.replace(".net.xml", ".txt")
+        self.__net_graph = Graph.Read_Ncol(graph_file)
+        ones = [1] * len(self.__net_graph.es)
+        btw = self.__net_graph.edge_betweenness(weights=ones)
+        self.__btw_dic = dict()
+        for e in self.__net_graph.es:
+            name = f"{self.__net_graph.vs[e.source]['name']}{self.__net_graph.vs[e.target]['name']}"
+            self.__btw_dic[name] = btw[e.index]
 
         # create structure to handle C2I communication
         for edge in self.__net.getEdges():
@@ -588,6 +598,7 @@ class SUMO(Environment):
                 #     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
                 if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
                     possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
+                    possible_reward *= self.__btw_dic[edge.getID()]
                     origin = self.__get_edge_origin(edge_id)
                     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
