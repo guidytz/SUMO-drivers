@@ -83,13 +83,8 @@ class SUMO(Environment):
         graph_file = graph_file.replace(".net.xml", ".txt")
         self.__net_graph = Graph.Read_Ncol(graph_file)
         ones = [1] * len(self.__net_graph.es)
-        btw = self.__net_graph.edge_betweenness(weights=ones)
-        mx = max(btw)
-        btw[:] = [x / mx for x in btw]
         self.__btw_dic = dict()
-        for e in self.__net_graph.es:
-            name = f"{self.__net_graph.vs[e.source]['name']}{self.__net_graph.vs[e.target]['name']}"
-            self.__btw_dic[name] = btw[e.index]
+        self.__update_btw(ones)
 
         # create structure to handle C2I communication
         for edge in self.__net.getEdges():
@@ -327,11 +322,11 @@ class SUMO(Environment):
             #         self._agents[vehID].switch_epsilon(0)
             #     not_switched = False
 
-            if self.current_time > 20000 and not_switched:
-                for od in self.__od_pair_min.keys():
-                    if self.__od_pair_min[od] == 86:
-                        self.__od_pair_min[od] = 40
-                not_switched = False
+            # if self.current_time > 20000 and not_switched:
+            #     for od in self.__od_pair_min.keys():
+            #         if self.__od_pair_min[od] == 86:
+            #             self.__od_pair_min[od] = 40
+            #     not_switched = False
 
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
@@ -757,3 +752,10 @@ class SUMO(Environment):
     def update_c2i_params(self, c2i_on = True, comm_succ_rate = 1):
         self.__comm_succ_rate = comm_succ_rate
 
+    def __update_btw(self, weights):
+        btw = self.__net_graph.edge_betweenness(weights=weights)
+        mx = max(btw)
+        btw[:] = [x / mx for x in btw]
+        for e in self.__net_graph.es:
+            name = f"{self.__net_graph.vs[e.source]['name']}{self.__net_graph.vs[e.target]['name']}"
+            self.__btw_dic[name] = btw[e.index]
