@@ -18,6 +18,7 @@ import traci.constants as tc
 import sumolib
 import math
 from igraph import *
+from math import isnan
 
 class SUMO(Environment):
     """
@@ -321,6 +322,13 @@ class SUMO(Environment):
             #     for vehID in traci.vehicle.getIDList():
             #         self._agents[vehID].switch_epsilon(0)
             #     not_switched = False
+            
+            if self.current_time >= self.__time_before_learning and self.current_time % 1000 == 0:
+                weights = list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
+                for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
+                    if isnan(weights[i]):
+                        weights[i] = traci.edge.getTraveltime(key)
+                self.__update_btw(weights)
 
             # if self.current_time > 20000 and not_switched:
             #     for od in self.__od_pair_min.keys():
