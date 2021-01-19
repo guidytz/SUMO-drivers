@@ -32,7 +32,7 @@ if __name__ == '__main__':
                        help="Toggle not to use car-to-infrastructure communication")
     parse.add_argument("-r", "--success-rate", action="store", type=float, dest="sr", default=1,
                        help="Communication success rate (default = 1)")
-    parse.add_argument("-b", "--btw-gap", action="store", type=int, dest="btw_gap", default=500,
+    parse.add_argument("-b", "--btw-gap", action="store", type=int, dest="btw_gap", default=1000,
                        help="Gap of time to recalculate betweenness (default = 500)")
 
     options = parse.parse_args()
