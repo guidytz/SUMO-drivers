@@ -29,7 +29,7 @@ class SUMO(Environment):
       time spent on traveling on such a link multiplied by -1 (the lower the travel time the better)
     * the transitions between states are deterministic
     """
-    def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30, class_interval=200, top_class_value=5000):
+    def __init__(self, cfg_file, port=8813, use_gui=False, time_before_learning=5000, max_veh=1000, max_queue_val=30, class_interval=200, top_class_value=5000, calc_btw_gap = 500):
         self.__flags = {
             'debug': False,
             'over5k_log': False,
@@ -85,6 +85,7 @@ class SUMO(Environment):
         self.__net_graph = Graph.Read_Ncol(graph_file)
         ones = [1] * len(self.__net_graph.es)
         self.__btw_dic = dict()
+        self.__calc_btw_gap = calc_btw_gap
         self.__update_btw(ones)
 
         # create structure to handle C2I communication
@@ -323,7 +324,7 @@ class SUMO(Environment):
             #         self._agents[vehID].switch_epsilon(0)
             #     not_switched = False
             
-            if self.current_time >= self.__time_before_learning and self.current_time % 1000 == 0:
+            if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
                 weights = list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
                 for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
                     if isnan(weights[i]):

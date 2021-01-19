@@ -32,6 +32,8 @@ if __name__ == '__main__':
                        help="Toggle not to use car-to-infrastructure communication")
     parse.add_argument("-r", "--success-rate", action="store", type=float, dest="sr", default=1,
                        help="Communication success rate (default = 1)")
+    parse.add_argument("-b", "--btw-gap", action="store", type=int, dest="btw_gap", default=500,
+                       help="Gap of time to recalculate betweenness (default = 500)")
 
     options = parse.parse_args()
     if not options.cfgfile:
@@ -40,7 +42,11 @@ if __name__ == '__main__':
         parse.print_help()
         sys.exit()
 
-    env = SUMO(options.cfgfile, use_gui=options.gui, time_before_learning=options.wait_learn, max_veh=options.demand)
+    env = SUMO(options.cfgfile, 
+               use_gui=options.gui, 
+               time_before_learning=options.wait_learn, 
+               max_veh=options.demand,
+               calc_btw_gap=options.btw_gap)
 
     agents = list()
     for veh in env.get_vehicles_ID_list():
