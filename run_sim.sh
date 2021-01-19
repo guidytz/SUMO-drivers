@@ -48,7 +48,7 @@ use_step=0
 btw_gap=1000
 
 # Get parameters from args
-while getopts "n:c:s:w:r:u:b" opt
+while getopts "n:c:s:w:r:b:u" opt
 do
    case "$opt" in
       n ) num_sims="$OPTARG" ;;
@@ -56,8 +56,8 @@ do
       s ) steps="$OPTARG" ;;
       w ) wait_learn="$OPTARG" ;;
       r ) rate="$OPTARG" ;;
-      u ) use_step=1 ;;
       b ) btw_gap="$OPTARG" ;;
+      u ) use_step=1 ;;
       * ) helpFunction ;;
    esac
 done
