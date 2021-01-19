@@ -48,7 +48,7 @@ use_step=0
 btw_gap=1000
 
 # Get parameters from args
-while getopts "n:c:s:w:r:u" opt
+while getopts "n:c:s:w:r:u:b" opt
 do
    case "$opt" in
       n ) num_sims="$OPTARG" ;;
