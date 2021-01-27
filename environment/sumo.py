@@ -325,7 +325,7 @@ class SUMO(Environment):
             #     not_switched = False
             
             if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
-                weights = list(self.__get_edges_ocuppation().items())
+                weights = list(self.__get_edges_ocuppation().values())
                 # list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
                 # for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
                 #     if isnan(weights[i]):
