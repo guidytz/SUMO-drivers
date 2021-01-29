@@ -83,10 +83,10 @@ class SUMO(Environment):
         graph_file = self.__net_file
         graph_file = graph_file.replace(".net.xml", ".txt")
         self.__net_graph = Graph.Read_Ncol(graph_file)
-        ones = [1] * len(self.__net_graph.es)
+        weights = list(map(lambda edge: edge.getLength() / edge.getSpeed(), self.__net.getEdges()))
         self.__btw_dic = dict()
         self.__calc_btw_gap = calc_btw_gap
-        self.__update_btw(ones)
+        self.__update_btw(weights)
 
         # create structure to handle C2I communication
         for edge in self.__net.getEdges():
@@ -325,11 +325,11 @@ class SUMO(Environment):
             #     not_switched = False
             
             if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
-                weights = list(self.__get_edges_ocuppation().values())
-                # list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
-                # for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
-                #     if isnan(weights[i]):
-                #         weights[i] = traci.edge.getTraveltime(key)
+                # weights = list(self.__get_edges_ocuppation().values())
+                weights = list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
+                for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
+                    if isnan(weights[i]):
+                        weights[i] = traci.edge.getTraveltime(key)
                 self.__update_btw(weights)
 
             # if self.current_time > 20000 and not_switched:
