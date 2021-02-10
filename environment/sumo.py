@@ -81,12 +81,12 @@ class SUMO(Environment):
         #read the network file
         self.__net = sumolib.net.readNet(self.__net_file)
         graph_file = self.__net_file
-        graph_file = graph_file.replace(".net.xml", ".txt")
-        self.__net_graph = Graph.Read_Ncol(graph_file)
-        weights = list(map(lambda edge: edge.getLength() / edge.getSpeed(), self.__net.getEdges()))
-        self.__btw_dic = dict()
-        self.__calc_btw_gap = calc_btw_gap
-        self.__update_btw(weights)
+        # graph_file = graph_file.replace(".net.xml", ".txt")
+        # self.__net_graph = Graph.Read_Ncol(graph_file)
+        # weights = list(map(lambda edge: edge.getLength() / edge.getSpeed(), self.__net.getEdges()))
+        # self.__btw_dic = dict()
+        # self.__calc_btw_gap = calc_btw_gap
+        # self.__update_btw(weights)
 
         # create structure to handle C2I communication
         for edge in self.__net.getEdges():
@@ -318,11 +318,6 @@ class SUMO(Environment):
                 and self.__flags['sample_log'] 
                 and self.__flags['debug']):
                 self.__log_sample = self.__sample_log(self.sample_path)
-
-            # if self.current_time > (self.max_steps / 2) and not_switched:
-            #     for vehID in traci.vehicle.getIDList():
-            #         self._agents[vehID].switch_epsilon(0)
-            #     not_switched = False
             
             if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
                 # weights = list(self.__get_edges_ocuppation().values())
@@ -436,15 +431,6 @@ class SUMO(Environment):
 
     def has_episode_ended(self):
         return self._has_episode_ended
-
-    def get_starting_edge_value(self, edge_id):
-        # origin = self.__net.getNode(self.__get_edge_origin(edge_id))
-        # dest = self.__net.getNode(self.__get_edge_destination(edge_id))
-        # dist = np.linalg.norm(np.array(dest.getCoord()) - np.array(origin.getCoord()))
-        # speed = self.__net.getEdge(edge_id).getSpeed()
-        # base_value = dist / speed
-        # return - base_value + rd.uniform(0, - base_value)
-        return 0
 
     def __check_min_load(self, vehID):
         od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
@@ -597,12 +583,6 @@ class SUMO(Environment):
             for edge in state.getOutgoing():
                 edge_id = edge.getID()
                 destination = self.__get_edge_destination(edge_id)
-                # if self.__vehicles[vehID]['destination'] != destination:
-                #     ff_travel_time = edge.getLength() / edge.getSpeed()
-                #     possible_reward = traci.edge.getTraveltime(edge_id) - ff_travel_time
-                #     possible_reward = 0 if possible_reward < 0 else possible_reward
-                #     origin = self.__get_edge_origin(edge_id)
-                #     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
                 if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
                     possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
                     possible_reward *= (1 + self.__btw_dic[edge.getID()])
@@ -763,9 +743,10 @@ class SUMO(Environment):
         self.__comm_succ_rate = comm_succ_rate
 
     def __update_btw(self, weights):
-        btw = self.__net_graph.edge_betweenness(weights=weights)
-        mx = max(btw)
-        btw[:] = [x / mx for x in btw]
-        for e in self.__net_graph.es:
-            name = f"{self.__net_graph.vs[e.source]['name']}{self.__net_graph.vs[e.target]['name']}"
-            self.__btw_dic[name] = btw[e.index]
+        pass
+        # btw = self.__net_graph.edge_betweenness(weights=weights)
+        # mx = max(btw)
+        # btw[:] = [x / mx for x in btw]
+        # for e in self.__net_graph.es:
+        #     name = f"{self.__net_graph.vs[e.source]['name']}{self.__net_graph.vs[e.target]['name']}"
+        #     self.__btw_dic[name] = btw[e.index]
