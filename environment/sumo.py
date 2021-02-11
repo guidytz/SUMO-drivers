@@ -80,7 +80,7 @@ class SUMO(Environment):
 
         #read the network file
         self.__net = sumolib.net.readNet(self.__net_file)
-        graph_file = self.__net_file
+        # graph_file = self.__net_file
         # graph_file = graph_file.replace(".net.xml", ".txt")
         # self.__net_graph = Graph.Read_Ncol(graph_file)
         # weights = list(map(lambda edge: edge.getLength() / edge.getSpeed(), self.__net.getEdges()))
@@ -253,6 +253,8 @@ class SUMO(Environment):
         self._episodes += 1
         self.travel_times = np.array([])
         self.__bonus = 1000
+        self.__best_avg = np.inf
+        self.__best_cfg = dict()
         travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = occupation = occupation_df = occ_mea_init = occ_mea_end = occ_mea_int = self.__occ_dict = None
         higher_count = 0
@@ -318,14 +320,17 @@ class SUMO(Environment):
                 and self.__flags['sample_log'] 
                 and self.__flags['debug']):
                 self.__log_sample = self.__sample_log(self.sample_path)
+
+            if self.current_time >= self.__time_before_learning:
+                self.__update_cfg()
             
-            if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
+            # if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
                 # weights = list(self.__get_edges_ocuppation().values())
-                weights = list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
-                for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
-                    if isnan(weights[i]):
-                        weights[i] = traci.edge.getTraveltime(key)
-                self.__update_btw(weights)
+                # weights = list(map(lambda key: -1 * np.array(self.__comm_dev[key]).mean(), self.__comm_dev.keys()))
+                # for i, key in list(zip(range(len(weights)), self.__comm_dev.keys())):
+                    # if isnan(weights[i]):
+                        # weights[i] = traci.edge.getTraveltime(key)
+                # self.__update_btw(weights)
 
             # if self.current_time > 20000 and not_switched:
             #     for od in self.__od_pair_min.keys():
@@ -431,6 +436,15 @@ class SUMO(Environment):
 
     def has_episode_ended(self):
         return self._has_episode_ended
+
+    def get_starting_edge_value(self, edge_id):
+        # origin = self.__net.getNode(self.__get_edge_origin(edge_id))
+        # dest = self.__net.getNode(self.__get_edge_destination(edge_id))
+        # dist = np.linalg.norm(np.array(dest.getCoord()) - np.array(origin.getCoord()))
+        # speed = self.__net.getEdge(edge_id).getSpeed()
+        # base_value = dist / speed
+        # return - base_value + rd.uniform(0, - base_value)
+        return 0
 
     def __check_min_load(self, vehID):
         od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
@@ -584,8 +598,9 @@ class SUMO(Environment):
                 edge_id = edge.getID()
                 destination = self.__get_edge_destination(edge_id)
                 if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
-                    possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
-                    possible_reward *= (1 + self.__btw_dic[edge.getID()])
+                    # possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
+                    possible_reward = self.__best_cfg[edge.getID()]
+                    # possible_reward *= (1 + self.__btw_dic[edge.getID()])
                     origin = self.__get_edge_origin(edge_id)
                     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
 
@@ -729,6 +744,20 @@ class SUMO(Environment):
         #     edge_ID = edge.getID()
             # self.__occ_dict[edge_ID].append(traci.edge.getLastStepOccupancy(edge_ID))
 
+    def __get_avg_link_tt(self):
+        tt_sum = 0
+        for edge in self.__net.getEdges(withInternal=False):
+            tt_sum += traci.edge.getLastStepMeanSpeed(edge.getID())
+
+        return tt_sum / len(self.__net.getEdges(withInternal=False)) 
+
+    def __update_cfg(self):
+        curr_tt = self.__get_avg_link_tt()
+        if self.__best_avg > curr_tt:
+            print(f"changed to: {curr_tt}")
+            self.__best_avg = curr_tt
+            self.__best_cfg = self.__get_edges_tt()
+
     def __get_edges_ocuppation(self):
         occ_avg = dict()
         for edge in self.__net.getEdges(withInternal=False):
@@ -736,8 +765,14 @@ class SUMO(Environment):
             # occ_avg[edge_ID] = np.array(self.__occ_dict[edge_ID]).mean() 
             # self.__occ_dict[edge_ID].clear()
             occ_avg[edge_ID] = traci.edge.getLastStepVehicleNumber(edge_ID)
+            
+    def __get_edges_tt(self):
+        edges_tt = dict()
+        for edge in self.__net.getEdges(withInternal=False):
+            edge_ID = edge.getID()
+            edges_tt[edge_ID] = traci.edge.getLastStepMeanSpeed(edge_ID)
 
-        return occ_avg
+        return edges_tt
 
     def update_c2i_params(self, c2i_on = True, comm_succ_rate = 1):
         self.__comm_succ_rate = comm_succ_rate
