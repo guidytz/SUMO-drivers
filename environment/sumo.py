@@ -605,8 +605,13 @@ class SUMO(Environment):
                 destination = self.__get_edge_destination(edge_id)
                 if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
                     possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
-                    if self.__best_cfg[edge_id] < best_reward:
-                        best_reward = self.__best_cfg[edge_id]
+                    curr_speed = traci.edge.getLastStepMeanSpeed(edge_id)
+                    if curr_speed == 0:
+                        curr_speed = edge.getSpeed()
+                    current_tt = edge.getLength() / curr_speed
+                    diff = current_tt - self.__best_cfg[edge_id]
+                    if diff < best_reward:
+                        best_reward = diff
                         best_edge = edge_id
                     # possible_reward = self.__best_cfg[edge.getID()]
                     # possible_reward *= (1 + self.__btw_dic[edge.getID()])
@@ -780,7 +785,10 @@ class SUMO(Environment):
         edges_tt = dict()
         for edge in self.__net.getEdges(withInternal=False):
             edge_ID = edge.getID()
-            edges_tt[edge_ID] = traci.edge.getLastStepMeanSpeed(edge_ID)
+            curr_speed = traci.edge.getLastStepMeanSpeed(edge_ID)
+            if curr_speed == 0:
+                curr_speed = edge.getSpeed()
+            edges_tt[edge_ID] = edge.getLength() / curr_speed
 
         return edges_tt
 
