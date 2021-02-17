@@ -410,11 +410,15 @@ class SUMO(Environment):
 
         # act_last
         for vehID in vehicles.keys():
-            self.__get_infras_data(vehID, vehicles[vehID][0])
+            deleg_succ = rd.random()
+            delegation = self.__get_infras_data(vehID, vehicles[vehID][0])
 
             use_C2I = 1
 
             _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], 1)
+
+            if deleg_succ > 0.25 and delegation != "":
+                action = delegation
 
             if not vehicles[vehID][1]:
                 self.__vehicles[vehID]["arrival_time"] = current_time
@@ -592,17 +596,23 @@ class SUMO(Environment):
     
     def __get_infras_data(self, vehID, node):
         comm_succ = rd.random()
+        best_reward = float('inf')
+        best_edge = ""
         if comm_succ <= self.__comm_succ_rate:
             state = self.__net.getNode(node)
-            for edge in state.getOutgoing():
+            for edge in self.__net.getEdge(self.__vehicles[vehID]['current_link']).getOutgoing():
                 edge_id = edge.getID()
                 destination = self.__get_edge_destination(edge_id)
                 if len(self.__comm_dev[edge_id]) > 0 and self.__vehicles[vehID]['destination'] != destination:
-                    # possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
-                    possible_reward = self.__best_cfg[edge.getID()]
+                    possible_reward = np.array(self.__comm_dev[edge.getID()]).mean()
+                    if self.__best_cfg[edge_id] < best_reward:
+                        best_reward = self.__best_cfg[edge_id]
+                        best_edge = edge_id
+                    # possible_reward = self.__best_cfg[edge.getID()]
                     # possible_reward *= (1 + self.__btw_dic[edge.getID()])
                     origin = self.__get_edge_origin(edge_id)
                     self._agents[vehID].process_feedback(possible_reward, destination, origin, edge_id, 1)
+        return best_edge
 
     def __make_log_folder(self, folder_name):
         try:
@@ -754,7 +764,7 @@ class SUMO(Environment):
     def __update_cfg(self):
         curr_tt = self.__get_avg_link_tt()
         if self.__best_avg > curr_tt:
-            print(f"changed to: {curr_tt}")
+            print(f"------------------ Changed to {curr_tt} in step {self.current_time} ------------------")
             self.__best_avg = curr_tt
             self.__best_cfg = self.__get_edges_tt()
 
