@@ -255,6 +255,7 @@ class SUMO(Environment):
         self.__bonus = 1000
         self.__best_avg = np.inf
         self.__best_cfg = dict()
+        self.__curr_avg_tt = float('inf')
         travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = occupation = occupation_df = occ_mea_init = occ_mea_end = occ_mea_int = self.__occ_dict = None
         higher_count = 0
@@ -319,10 +320,7 @@ class SUMO(Environment):
             if (self.current_time == self.__time_before_learning 
                 and self.__flags['sample_log'] 
                 and self.__flags['debug']):
-                self.__log_sample = self.__sample_log(self.sample_path)
-
-            if self.current_time >= self.__time_before_learning:
-                self.__update_cfg()
+                self.__log_sample = self.__sample_log(self.sample_path)               
             
             # if self.current_time >= self.__time_before_learning and self.current_time % self.__calc_btw_gap == 0:
                 # weights = list(self.__get_edges_ocuppation().values())
@@ -340,8 +338,10 @@ class SUMO(Environment):
 
             step = self.current_time
             if step % mv_avg_gap == 0 and step > 0 and (step >= self.__time_before_learning or not with_rl):
+                self.__curr_avg_tt = self.travel_times.mean()
                 df = pd.DataFrame({"Step": [step],
-                                   "Average travel time": [self.travel_times.mean()]})
+                                   "Average travel time": [self.__curr_avg_tt]})
+                self.__update_cfg(self.__curr_avg_tt)
                 travel_avg_df = travel_avg_df.append(df, ignore_index=True)
                 self.travel_times = np.array([])
             if self.__flags['debug']:
@@ -417,8 +417,11 @@ class SUMO(Environment):
 
             _, action = self._agents[vehID].take_action(vehicles[vehID][0], vehicles[vehID][1], 1)
 
-            if deleg_succ > 0.25 and delegation != "":
-                action = delegation
+            curr_outgoing = list(map(lambda edge:edge.getID(), self.__net.getEdge(self.__vehicles[vehID]['current_link']).getOutgoing()))
+
+            if self.__vehicles[vehID]["destination"] not in curr_outgoing:
+                if deleg_succ > 0.25 and delegation != "" and self.__curr_avg_tt < 450:
+                    action = delegation
 
             if not vehicles[vehID][1]:
                 self.__vehicles[vehID]["arrival_time"] = current_time
@@ -599,7 +602,7 @@ class SUMO(Environment):
         best_reward = float('inf')
         best_edge = ""
         if comm_succ <= self.__comm_succ_rate:
-            state = self.__net.getNode(node)
+            # state = self.__net.getNode(node)
             for edge in self.__net.getEdge(self.__vehicles[vehID]['current_link']).getOutgoing():
                 edge_id = edge.getID()
                 destination = self.__get_edge_destination(edge_id)
@@ -766,11 +769,10 @@ class SUMO(Environment):
 
         return tt_sum / len(self.__net.getEdges(withInternal=False)) 
 
-    def __update_cfg(self):
-        curr_tt = self.__get_avg_link_tt()
-        if self.__best_avg > curr_tt:
-            print(f"------------------ Changed to {curr_tt} in step {self.current_time} ------------------")
-            self.__best_avg = curr_tt
+    def __update_cfg(self, mean):
+        if self.__best_avg > mean:
+            print(f"------------------ Changed to {mean} in step {self.current_time} ------------------")
+            self.__best_avg = mean
             self.__best_cfg = self.__get_edges_tt()
 
     def __get_edges_ocuppation(self):
