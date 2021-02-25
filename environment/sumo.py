@@ -151,7 +151,7 @@ class SUMO(Environment):
             destination = self.__get_edge_destination(route.split(' ')[-1])
 
             #update OD pairs
-            od_pair = origin + destination
+            od_pair = f"{origin}|{destination}"
             if od_pair not in self.__od_pair_set:
                 self.__od_pair_set.add(od_pair)
                 o = np.array(self.__net.getNode(origin).getCoord())
@@ -187,7 +187,7 @@ class SUMO(Environment):
         for route in R:
             origin = self.__get_edge_origin(R[route].split(' ')[0])
             destination = self.__get_edge_destination(R[route].split(' ')[-1])
-            od_pair = f"{origin}{destination}"
+            od_pair = f"{origin}|{destination}"
             o = np.array(self.__net.getNode(origin).getCoord())
             d = np.array(self.__net.getNode(destination).getCoord())
             self.__od_pair_min.update({od_pair:math.ceil(np.linalg.norm(o - d) / self.__total_route_dist * self.__max_veh)})
@@ -454,7 +454,7 @@ class SUMO(Environment):
         return 0
 
     def __check_min_load(self, vehID):
-        od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+        od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
         self.__od_pair_load[od_pair] -= 1
         if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
             routeID = f"r_{vehID}"
@@ -475,7 +475,7 @@ class SUMO(Environment):
                 self.__vehicles[vehID]['route'] = [self.__vehicles[vehID]['origin']]
                 self.__vehicles[vehID]['initialized'] = False
                 self.__vehicles[vehID]['n_of_traversed_links'] = 0
-                od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+                od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
                 self.__od_pair_load[od_pair] += 1
                 routeID = f"r_{vehID}"
                 traci.vehicle.setRouteID(vehID, routeID)
@@ -505,7 +505,7 @@ class SUMO(Environment):
                     and (self.current_time > self.__time_before_learning 
                          or self.__time_before_learning >= self.max_steps)):
                     total_count += 1
-                    od_pair = self.__vehicles[vehID]["origin"] + self.__vehicles[vehID]["destination"] 
+                    od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}" 
                     self.trips_per_od[od_pair] += 1
                     reward += self.__bonus
                     if self.__flags['debug']:
@@ -524,7 +524,7 @@ class SUMO(Environment):
                     ]
                 if self.__flags['debug']:
                     if vehID in self.__log_sample and self.current_time > self.__time_before_learning:
-                        od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+                        od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
                         path = self.sample_path + "/" + str(od_pair)
                         self.__write_veh_log(path, vehID, reward, True)
         
@@ -555,7 +555,7 @@ class SUMO(Environment):
 
                             if self.current_time > self.__time_before_learning and self.__flags['debug']:
                                 if vehID in self.__log_sample:
-                                    od_pair = self.__vehicles[vehID]['origin'] + self.__vehicles[vehID]['destination']
+                                    od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
                                     path = self.sample_path + "/" + str(od_pair)
                                     self.__write_veh_log(path, vehID, reward)
 
@@ -699,7 +699,7 @@ class SUMO(Environment):
         od_sample = {od:list() for od in self.__od_pair_set}
         sample = list()
         for veh in all_veh:
-            od_pair = self.__vehicles[veh]['origin'] + self.__vehicles[veh]['destination']
+            od_pair = f"{self.__vehicles[veh]['origin']}|{self.__vehicles[veh]['destination']}"
             od_sample[od_pair].append(veh)
 
         for od_pair in od_sample.keys():
