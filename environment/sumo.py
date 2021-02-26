@@ -63,9 +63,11 @@ class SUMO(Environment):
         self.__max_veh = max_veh
         self.__total_route_dist = 0
 
+        self.__MIN_OD_SIZE = 20
         self.__od_pair_set = set()
         self.__od_pair_load = dict()
         self.__od_pair_min = dict()
+        self.__curr_veh = 0
         self.__comm_dev = dict()
         self.__comm_succ_rate = 1
         self.__max_queue = max_queue_val
@@ -190,8 +192,9 @@ class SUMO(Environment):
             od_pair = f"{origin}|{destination}"
             o = np.array(self.__net.getNode(origin).getCoord())
             d = np.array(self.__net.getNode(destination).getCoord())
-            self.__od_pair_min.update({od_pair:math.ceil(np.linalg.norm(o - d) / self.__total_route_dist * self.__max_veh)})
-            self.__od_pair_load.update({od_pair:0})
+            if len(self.__od_pair_set) <= self.__MIN_OD_SIZE:
+                self.__od_pair_min.update({od_pair:math.ceil(np.linalg.norm(o - d) / self.__total_route_dist * self.__max_veh)})
+                self.__od_pair_load.update({od_pair:0})
 
     def get_vehicles_ID_list(self):
         #return a list with the vehicles' IDs
@@ -454,15 +457,22 @@ class SUMO(Environment):
         return 0
 
     def __check_min_load(self, vehID):
-        od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
-        self.__od_pair_load[od_pair] -= 1
-        if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
-            routeID = f"r_{vehID}"
-            if routeID not in traci.route.getIDList():
-                self._agents[vehID].new_episode(self._agents[vehID].get_episode() + 1)
-                _, action = self._agents[vehID].take_action()
-                traci.route.add(routeID, [action])
-            traci.vehicle.add(vehID, routeID)
+        self.__curr_veh -= 1
+        if len(self.__od_pair_set) <= self.__MIN_OD_SIZE:
+            od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
+            self.__od_pair_load[od_pair] -= 1
+            if self.__od_pair_load[od_pair] < self.__od_pair_min[od_pair]:
+                self.__insert_veh(vehID)
+        elif self.__curr_veh < self.__max_veh:
+            self.__insert_veh(vehID)
+
+    def __insert_veh(self, vehID):
+        routeID = f"r_{vehID}"
+        if routeID not in traci.route.getIDList():
+            self._agents[vehID].new_episode(self._agents[vehID].get_episode() + 1)
+            _, action = self._agents[vehID].take_action()
+            traci.route.add(routeID, [action])
+        traci.vehicle.add(vehID, routeID)
 
     def __update_loaded_info(self):
         for vehID in traci.simulation.getLoadedIDList():
@@ -475,8 +485,10 @@ class SUMO(Environment):
                 self.__vehicles[vehID]['route'] = [self.__vehicles[vehID]['origin']]
                 self.__vehicles[vehID]['initialized'] = False
                 self.__vehicles[vehID]['n_of_traversed_links'] = 0
-                od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
-                self.__od_pair_load[od_pair] += 1
+                self.__curr_veh += 1
+                if len(self.__od_pair_set) <= self.__MIN_OD_SIZE:
+                    od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
+                    self.__od_pair_load[od_pair] += 1
                 routeID = f"r_{vehID}"
                 traci.vehicle.setRouteID(vehID, routeID)
 
@@ -506,9 +518,9 @@ class SUMO(Environment):
                          or self.__time_before_learning >= self.max_steps)):
                     total_count += 1
                     od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}" 
-                    self.trips_per_od[od_pair] += 1
                     reward += self.__bonus
                     if self.__flags['debug']:
+                        self.trips_per_od[od_pair] += 1 
                         index = math.floor(self.__vehicles[vehID]["travel_time"] / self.__class_interval)
                         if index >= len(self.__classifier):
                             self.__classifier[-1] += 1
