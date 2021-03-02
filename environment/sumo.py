@@ -423,7 +423,7 @@ class SUMO(Environment):
             curr_outgoing = list(map(lambda edge:edge.getID(), self.__net.getEdge(self.__vehicles[vehID]['current_link']).getOutgoing()))
 
             if self.__vehicles[vehID]["destination"] not in curr_outgoing:
-                if deleg_succ > 0.25 and delegation != "" and self.__curr_avg_tt < 450:
+                if deleg_succ > 1 and delegation != "" and self.__curr_avg_tt < 450:
                     action = delegation
 
             if not vehicles[vehID][1]:
