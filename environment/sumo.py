@@ -288,11 +288,11 @@ class SUMO(Environment):
         if self.__flags['over5k_log']: self.__make_log_folder(over_5k)
         if self.__flags['sample_log']: self.__make_log_folder(self.sample_path)
 
+        routeSet = set()
         for vehID in self.get_vehicles_ID_list():
             routeID = 'r_' + vehID
-            routeSet = set()
             if routeID not in routeSet:
-                _, action = self._agents[vehID].take_action()
+                _, action = self._agents[vehID].take_action(available_actions=[self.__vehicles[vehID]['original_route'][0]])
                 traci.route.add(routeID, [action])
                 routeSet.add(routeID)
 
@@ -433,7 +433,8 @@ class SUMO(Environment):
 
             # use only current link and action in updated route to avoid making
             # agent try to go back to the beggining of the route
-            cur_route = [self.__vehicles[vehID]['route'][-2]+self.__vehicles[vehID]['route'][-1], action]
+            cur_route = [self.__vehicles[vehID]['current_link'], action]
+            # cur_route = [self.__vehicles[vehID]['route'][-2]+self.__vehicles[vehID]['route'][-1], action]
 
             traci.vehicle.setRoute(vehID, cur_route)
 
@@ -489,8 +490,8 @@ class SUMO(Environment):
                 if len(self.__od_pair_set) <= self.__MIN_OD_SIZE:
                     od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
                     self.__od_pair_load[od_pair] += 1
-                routeID = f"r_{vehID}"
-                traci.vehicle.setRouteID(vehID, routeID)
+                # routeID = f"r_{vehID}"
+                # traci.vehicle.setRouteID(vehID, routeID)
 
     def __update_departed_info(self):
         for vehID in self.sub_results[tc.VAR_DEPARTED_VEHICLES_IDS]:
@@ -581,7 +582,7 @@ class SUMO(Environment):
 
                         #get the next node, and add it to the route
                         node = self.__get_edge_destination(self.__vehicles[vehID]["current_link"])
-                        self.__vehicles[vehID]['route'].append(self.__get_edge_destination(self.__vehicles[vehID]['current_link']))
+                        self.__vehicles[vehID]['route'].append(node)
 
                         if node != self.__vehicles[vehID]['destination']:
                             if self.current_time > self.__time_before_learning:
@@ -597,9 +598,17 @@ class SUMO(Environment):
                                     possible_actions #available actions
                                 ]
                             else:
+                                try:
+                                    curr_index = self.__vehicles[vehID]['original_route'].index(self.__vehicles[vehID]['current_link'])
+                                except ValueError:
+                                    print("original route:", self.__vehicles[vehID]['original_route'])
+                                    print("current link:", self.__vehicles[vehID]['current_link'])
+                                    print(f"O - D:{self.__vehicles[vehID]['origin']} - {self.__vehicles[vehID]['destination']}")
+                                    sys.exit(f"Vehicle {vehID} out of its original route, please verify")
+                                original_edge = self.__vehicles[vehID]['original_route'][curr_index + 1]
                                 self.__vehicles_to_process_act[vehID] = [
                                     node, #next state
-                                    [self.__vehicles[vehID]['original_route'][len(self.__vehicles[vehID]['route']) - 1]] #available actions
+                                    [original_edge] #available actions
                                 ]
 
     def __update_queue(self, link_id, travel_time):
