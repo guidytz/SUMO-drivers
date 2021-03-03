@@ -489,8 +489,8 @@ class SUMO(Environment):
                 if len(self.__od_pair_set) <= self.__MIN_OD_SIZE:
                     od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}"
                     self.__od_pair_load[od_pair] += 1
-                # routeID = f"r_{vehID}"
-                # traci.vehicle.setRouteID(vehID, routeID)
+                routeID = f"r_{vehID}"
+                traci.vehicle.setRouteID(vehID, routeID)
 
     def __update_departed_info(self):
         for vehID in self.sub_results[tc.VAR_DEPARTED_VEHICLES_IDS]:
