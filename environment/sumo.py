@@ -77,7 +77,6 @@ class SUMO(Environment):
             self.__class_interval = class_interval
             self.__top_class_value = top_class_value
             self.__classifier = self.__create_data_classifier(self.__class_interval, self.__top_class_value)
-
         #..............................
 
         #read the network file
@@ -754,6 +753,7 @@ class SUMO(Environment):
         date_folder = self.start_time.strftime("%m_%d_%y")
         learning_str = "learning" if learning else "not_learning"
         succ = int(self.__comm_succ_rate * 100)
+        network_name = self.__net_file[self.__net_file.find("/")+1:self.__net_file.rfind("/")]
         try:
             os.mkdir(f"csv/{folder_name}/{date_folder}")
         except OSError as e:
@@ -773,7 +773,7 @@ class SUMO(Environment):
                 print(f"Couldn't create folder {learning_str}/{succ}, error message: {e.strerror}")
                 return 
         str_list = [
-            f"csv/{folder_name}/{date_folder}/{learning_str}/{succ}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}.csv"
+            f"csv/{folder_name}/{date_folder}/{learning_str}/{succ}/sim_{network_name}_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}.csv"
         ]
         df.to_csv("".join(str_list), index=idx)
 
