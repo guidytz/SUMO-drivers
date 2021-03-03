@@ -754,28 +754,22 @@ class SUMO(Environment):
         learning_str = "learning" if learning else "not_learning"
         succ = int(self.__comm_succ_rate * 100)
         network_name = self.__net_file[self.__net_file.find("/")+1:self.__net_file.rfind("/")]
-        try:
-            os.mkdir(f"csv/{folder_name}/{date_folder}")
-        except OSError as e:
-            if e.errno != 17:
-                print(f"Couldn't create folder {date_folder}, error message: {e.strerror}")
-                return 
-        try:
-            os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}")
-        except OSError as e:
-            if e.errno != 17:
-                print(f"Couldn't create folder {learning_str}, error message: {e.strerror}")
-                return 
-        try:
-            os.mkdir(f"csv/{folder_name}/{date_folder}/{learning_str}/{succ}")
-        except OSError as e:
-            if e.errno != 17:
-                print(f"Couldn't create folder {learning_str}/{succ}, error message: {e.strerror}")
-                return 
+        self.__create_folder(f"csv/{folder_name}/{date_folder}")
+        self.__create_folder(f"csv/{folder_name}/{date_folder}/{network_name}")
+        self.__create_folder(f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}")
+        self.__create_folder(f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}/{succ}")
         str_list = [
-            f"csv/{folder_name}/{date_folder}/{learning_str}/{succ}/sim_{network_name}_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}.csv"
+            f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}/{succ}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}.csv"
         ]
         df.to_csv("".join(str_list), index=idx)
+
+    def __create_folder(self, folder_name):
+        try:
+            os.mkdir(folder_name)
+        except OSError as e:
+            if e.errno != 17:
+                print(f"Couldn't create folder {folder_name}, error message: {e.strerror}")
+                return 
 
     def __measure_occupation(self):
         pass
