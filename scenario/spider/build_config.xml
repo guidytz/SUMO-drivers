@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Thu Apr  9 09:23:32 2020 by Eclipse SUMO netgenerate Version v1_5_0+1110-7b2fc6436d
+-->
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netgenerateConfiguration.xsd">
+
+    <spider_network>
+        <spider value="true"/>
+        <spider.arm-number value="10"/>
+        <spider.circle-number value="4"/>
+        <spider.omit-center value="true"/>
+    </spider_network>
+
+    <output>
+        <output-file value="spider4c10a.net.xml"/>
+    </output>
+
+    <building_defaults>
+        <default.lanenumber value="2"/>
+        <default-junction-type value="allway_stop"/>
+    </building_defaults>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+    </junctions>
+
+</configuration>
