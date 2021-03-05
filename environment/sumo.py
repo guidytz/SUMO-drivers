@@ -78,7 +78,6 @@ class SUMO(Environment):
             self.__top_class_value = top_class_value
             self.__classifier = self.__create_data_classifier(self.__class_interval, self.__top_class_value)
         #..............................
-
         #read the network file
         self.__net = sumolib.net.readNet(self.__net_file)
         # graph_file = self.__net_file
@@ -753,13 +752,13 @@ class SUMO(Environment):
         date_folder = self.start_time.strftime("%m_%d_%y")
         learning_str = "learning" if learning else "not_learning"
         succ = int(self.__comm_succ_rate * 100)
-        network_name = self.__net_file[self.__net_file.find("/")+1:self.__net_file.rfind("/")]
+        network_name = self.__net_file[self.__net_file.find("scenario/")+9:self.__net_file.rfind("/")]
         self.__create_folder(f"csv/{folder_name}/{date_folder}")
         self.__create_folder(f"csv/{folder_name}/{date_folder}/{network_name}")
         self.__create_folder(f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}")
         self.__create_folder(f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}/{succ}")
         str_list = [
-            f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}/{succ}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M')}.csv"
+            f"csv/{folder_name}/{date_folder}/{network_name}/{learning_str}/{succ}/sim_{self.max_steps}_steps_{self.start_time.strftime('%H-%M-%S')}.csv"
         ]
         df.to_csv("".join(str_list), index=idx)
 

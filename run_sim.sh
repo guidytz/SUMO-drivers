@@ -29,10 +29,10 @@ run()
    for j in $(eval echo "{5..$num_sims..5}")
    do  
       python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 60 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 120 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 180 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 240 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
+      sleep 10 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
+      sleep 20 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
+      sleep 30 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
+      sleep 40 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
       wait
       now=$(date +"%d/%m/%Y - %H:%M")
       echo -e "Finished running $j \t simulations with $s_rate% C2I success rate at \t $now"
