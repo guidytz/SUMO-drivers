@@ -19,6 +19,7 @@ import sumolib
 import math
 from igraph import *
 from math import isnan
+import functools 
 
 class SUMO(Environment):
     """
@@ -257,6 +258,7 @@ class SUMO(Environment):
         self.__best_avg = np.inf
         self.__best_cfg = dict()
         self.__curr_avg_tt = float('inf')
+        self.__last_routes = dict()
         travel_avg_df = pd.DataFrame({"Step":[], "Average travel time":[]})
         cars_over_5k = occupation = occupation_df = occ_mea_init = occ_mea_end = occ_mea_int = self.__occ_dict = None
         higher_count = 0
@@ -388,6 +390,7 @@ class SUMO(Environment):
             plt.show()
 
         self.__save_to_csv("MovingAverage", travel_avg_df, with_rl)
+        self.__save_to_file(self.__last_routes)
         
         if self.__flags['debug']:
             self.__save_to_csv("ClassDivision", class_df, with_rl)
@@ -518,6 +521,7 @@ class SUMO(Environment):
                     total_count += 1
                     od_pair = f"{self.__vehicles[vehID]['origin']}|{self.__vehicles[vehID]['destination']}" 
                     reward += self.__bonus
+                    self.__update_route(vehID)
                     if self.__flags['debug']:
                         self.trips_per_od[od_pair] += 1 
                         index = math.floor(self.__vehicles[vehID]["travel_time"] / self.__class_interval)
@@ -819,3 +823,26 @@ class SUMO(Environment):
         # for e in self.__net_graph.es:
         #     name = f"{self.__net_graph.vs[e.source]['name']}{self.__net_graph.vs[e.target]['name']}"
         #     self.__btw_dic[name] = btw[e.index]
+
+    def __update_route(self, vehID):
+        if vehID in self.__last_routes:
+            curr_route = self.__vehicles[vehID]['route']
+            last_route = self.__last_routes[vehID]
+            if functools.reduce(lambda x, y : x and y, map(lambda p, q: p == q, curr_route, last_route), True):
+                return
+            self.__last_routes[vehID] = curr_route
+        else:
+            self.__last_routes[vehID] = self.__vehicles[vehID]['route']
+
+    def __save_to_file(self, dic):
+        network_name = self.__net_file[self.__net_file.find("scenario/")+9:self.__net_file.rfind("/")]
+        path = f"log/last_routes_{network_name}_{self.max_steps}_steps_{self.start_time.strftime('%H-%M-%S')}.txt"
+        try:
+            with open(path, 'w') as txt_file:
+                for key in dic.keys():
+                    txt_file.write(f"{key}: [ ")
+                    for node in dic[key]:
+                        txt_file.write(f"{node} ")
+                    txt_file.write("]\n")
+        except IOError:
+            print(f"Unable to open {path} file")
