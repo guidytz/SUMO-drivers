@@ -3,7 +3,7 @@
 <configuration>
     <input>
         <net-file value="cottbus.net.xml"/>
-	<route-files value="cottbus.rou.xml"/>
+	<route-files value="cottbus_d1000.rou.xml"/>
     </input>
     <time>
         <begin value="0"/>
