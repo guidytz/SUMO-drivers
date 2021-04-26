@@ -23,16 +23,24 @@ run()
    s_rate=$4
    b_gap=$5
 
+   mult_step=5
+   sleep_step=2
+   if [ $num_sims -lt 5 ]
+   then 
+      mult_step=$num_sims
+   fi
+
    succ_rate=$(bc -l <<<"scale=2;$s_rate/100")
    echo ""
    echo "Starting to run simulations with communication success rate $s_rate%" 
-   for j in $(eval echo "{5..$num_sims..5}")
+   for j in $(eval echo "{$mult_step..$num_sims..$mult_step}")
    do  
-      python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 10 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 20 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 30 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
-      sleep 40 && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
+      sleep_time=0
+      for i in $(eval echo "{1..$mult_step..1}")
+      do
+         sleep $sleep_time && python3 main.py -c $network -s $step -w $wait -r $succ_rate -b $b_gap > /dev/null 2>&1 &
+         let "sleep_time+=sleep_step"
+      done
       wait
       now=$(date +"%d/%m/%Y - %H:%M")
       echo -e "Finished running $j \t simulations with $s_rate% C2I success rate at \t $now"
