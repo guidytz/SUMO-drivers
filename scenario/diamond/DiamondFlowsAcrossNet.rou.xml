@@ -1,0 +1,14 @@
+<routes>
+  <flow id="A5E9" begin="0" end="1000" from="gneE63-n" to="gneE64" number="400"/>
+  <flow id="A5E1" begin="0" end="1000" from="gneE63-n" to="gneE65" number="400" color="red"/>
+  <flow id="A5J5" begin="0" end="1000" from="gneE63-n" to="gneE66" number="400" color="green"/>
+  <flow id="E1E9" begin="0" end="1000" from="gneE65-n" to="gneE64" number="400"/>
+  <flow id="E1J5" begin="0" end="1000" from="gneE65-n" to="gneE66" number="400" color="green"/>
+  <flow id="E1A5" begin="0" end="1000" from="gneE65-n" to="gneE63" number="400" color="cyan"/>
+  <flow id="J5A5" begin="0" end="1000" from="gneE66-n" to="gneE63" number="400" color="cyan"/>
+  <flow id="J5E9" begin="0" end="1000" from="gneE66-n" to="gneE64" number="400" color="yellow"/>
+  <flow id="J5E1" begin="0" end="1000" from="gneE66-n" to="gneE65" number="400" color="red"/>
+  <flow id="E9A5" begin="0" end="1000" from="gneE64-n" to="gneE63" number="400" color="cyan"/>
+  <flow id="E9J5" begin="0" end="1000" from="gneE64-n" to="gneE66" number="400" color="green"/>
+  <flow id="E9E1" begin="0" end="1000" from="gneE64-n" to="gneE65" number="400" color="red"/>
+</routes>
