@@ -11,7 +11,7 @@ helpFunction()
    echo -e "\t-w Number of steps for simulation to wait before learning (default = 3000)"
    echo -e "\t-r C2I communication success rate (in case -u is true, 100 must be multiple of this value) (default = 100)"
    echo -e "\t-u Flag to use comunication success rate as a step"
-   echo -e "\t-b Step gap to recalate betweenness (default == 1000)"
+   echo -e "\t-b Step gap to recalculate betweenness (default == 1000)"
    exit 1
 }
 
