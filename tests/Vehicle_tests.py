@@ -1,6 +1,5 @@
 import unittest
 import unittest.mock as mock
-from sumo_ql import environment
 from sumo_ql.environment import Vehicle
 
 
@@ -17,7 +16,8 @@ class VehicleTest(unittest.TestCase):
         self.assertEqual(self.__vehicle.od_pair, "A1|B5")
 
     def test_update_current_link(self):
-        self.__vehicle.reset(200.0)
+        self.__vehicle.reset()
+        self.__vehicle.load_time = 200.0
         with self.assertRaises(RuntimeError):
             self.__vehicle.update_current_link("A1A2", 100.0)
 
@@ -31,9 +31,11 @@ class VehicleTest(unittest.TestCase):
 
     def test_route_building(self):
         self.__vehicle.update_current_link("A1A2", 20.0)
-        self.__vehicle.update_current_link("A2A3", 60.0)
-
         self.assertEqual(self.__vehicle.route, ["A1", "A2"])
+
+        self.__vehicle.update_current_link("A2A3", 60.0)
+        self.assertEqual(self.__vehicle.route, ["A1", "A2", "A3"])
+
 
         self.__vehicle.set_arrival(80.0)
         self.assertEqual(self.__vehicle.route, ["A1", "A2", "A3"])
