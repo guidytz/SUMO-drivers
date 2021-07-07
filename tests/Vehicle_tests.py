@@ -1,17 +1,23 @@
 import unittest
 import unittest.mock as mock
-from sumo_ql.environment import Vehicle
+
+from sumo_ql.environment.vehicle import Vehicle
+from sumo_ql.environment.sumo_environment import SumoEnvironment
 
 
 class VehicleTest(unittest.TestCase):
-
     def setUp(self):
-        environment = mock.Mock()
-        environment.simulation_time.return_value = 0.0
-        environment.get_link_destination = lambda link : link[-2:]
-        environment.is_border_node = lambda node : node == "A3"
-        self.__vehicle = Vehicle("1", "A1", "B5", 500, 400, environment)
-    
+        environment = mock.Mock(spec=SumoEnvironment)
+        environment.get_link_destination = lambda link: link[-2:]
+        environment.is_border_node = lambda node: node == "A3"
+        self.__vehicle = Vehicle(vehicle_id="1",
+                                 origin="A1",
+                                 destination="B5",
+                                 arrival_bonus=500,
+                                 wrong_destination_penalty=400,
+                                 original_route=[],
+                                 environment=environment)
+
     def test_od_pair(self):
         self.assertEqual(self.__vehicle.od_pair, "A1|B5")
 
@@ -24,7 +30,7 @@ class VehicleTest(unittest.TestCase):
     def test_set_arrival(self):
         with self.assertRaises(RuntimeError):
             self.__vehicle.set_arrival(200.0)
-    
+
         self.__vehicle.update_current_link("A1A2", 100.0)
         with self.assertRaises(RuntimeError):
             self.__vehicle.set_arrival(50.0)
@@ -35,7 +41,6 @@ class VehicleTest(unittest.TestCase):
 
         self.__vehicle.update_current_link("A2A3", 60.0)
         self.assertEqual(self.__vehicle.route, ["A1", "A2", "A3"])
-
 
         self.__vehicle.set_arrival(80.0)
         self.assertEqual(self.__vehicle.route, ["A1", "A2", "A3"])
@@ -60,9 +65,6 @@ class VehicleTest(unittest.TestCase):
 
         self.__vehicle.update_current_link("A1A2", 10.0)
         self.assertTrue(self.__vehicle.ready_to_act)
-        
-        self.__vehicle.action_set()
-        self.assertFalse(self.__vehicle.ready_to_act)
 
         self.__vehicle.update_current_link("A2B2", 10.0)
         self.assertTrue(self.__vehicle.ready_to_act)
@@ -88,17 +90,25 @@ class VehicleTest(unittest.TestCase):
 
     def test_travel_time(self):
         with self.assertRaises(RuntimeError):
-            self.__vehicle.travel_time
+            _ = self.__vehicle.travel_time
 
         with self.assertRaises(RuntimeError):
             self.__vehicle.update_current_link("A1A2", 10.0)
-            self.__vehicle.travel_time
+            _ = self.__vehicle.travel_time
 
         self.__vehicle.update_current_link("A1A2", 10.0)
         self.__vehicle.update_current_link("A2A4", 30.0)
         self.__vehicle.update_current_link("A4B5", 80.0)
         self.__vehicle.set_arrival(110.0)
         self.assertEqual(self.__vehicle.travel_time, 100.0)
+
+    def test_is_in_link(self):
+        self.__vehicle.update_current_link("A1A2", 10.0)
+        self.assertTrue(self.__vehicle.is_in_link("A1A2"))
+        self.assertFalse(self.__vehicle.is_in_link("A2B2"))
+
+        self.__vehicle.update_current_link("A2B2", 10.0)
+        self.assertTrue(self.__vehicle.is_in_link("A2B2"))
 
 
 if __name__ == "__main__":
