@@ -143,7 +143,7 @@ class Vehicle:
         return self.__route
 
     def compute_reward(self, use_bonus_or_penalty: bool = True) -> int:
-        """Method that computes the reward the agent should receive based on its last action. 
+        """Method that computes the reward the agent should receive based on its last action.
         The reward is based on the vehicle's last travel time plus a bonus (if the destination is the vehicle's expected
         destination) or minus a penalty (if the vehicle reaches a destination node that isn't its expected destination)
 
