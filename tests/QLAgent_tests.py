@@ -3,6 +3,7 @@ from gym import spaces
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.agent.q_learning import QLAgent
 
+
 class QLAgentTest(unittest.TestCase):
     def setUp(self) -> None:
         action_space = {

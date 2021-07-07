@@ -1,6 +1,7 @@
 import unittest
 import unittest.mock as mock
-from sumo_ql.environment import CommunicationDevice
+from sumo_ql.environment.communication_device import CommunicationDevice
+
 
 class CommunicationDeviceTests(unittest.TestCase):
     def setUp(self):

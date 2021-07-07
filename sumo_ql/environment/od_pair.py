@@ -4,6 +4,7 @@ class ODPair:
         Args:
             straight_distance (float): distance between the origin and destination as a straight line.
     """
+
     def __init__(self, straight_distance: float):
         self.__straight_distance = straight_distance
         self.__min_load = -1
