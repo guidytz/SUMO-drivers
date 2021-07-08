@@ -47,10 +47,11 @@ class SumoEnvironment(MultiAgentEnv):
                  max_vehicles: int = 750,
                  right_arrival_bonus: int = 1000,
                  wrong_arrival_penalty: int = 1000,
-                 communication_success_rate: int = 1,
+                 communication_success_rate: float = 1,
                  max_comm_dev_queue_size: int = 30,
                  steps_to_populate: int = 3000,
-                 use_gui: bool = False) -> None:
+                 use_gui: bool = False,
+                 data_collector: DataCollector = None) -> None:
         self.__sumocfg_file = sumocfg_file
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
@@ -59,6 +60,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
         self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
+        self.__collector = data_collector or DataCollector() # in case of being None
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
@@ -66,7 +68,6 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: Dict[str, dict] = dict()
         self.__loaded_vehicles: List[str] = list()
-        self.__collector: DataCollector = DataCollector(self.__network_file.split('/')[-2])
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -82,6 +83,7 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     wrong_arrival_penalty)
 
     def reset(self):
+        self.__collector.reset()
         self.__current_step = 0
         sumo_cmd = [
             self.__sumo_bin,
