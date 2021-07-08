@@ -368,7 +368,7 @@ class SumoEnvironment(MultiAgentEnv):
                 print(f"Tried to choose link {next_link_id} to reach node {self.get_link_destination(next_link_id)}.")
                 print(f"{traci.vehicle.getRoadID(vehicle_id) = }")
 
-    def __update_comm_dev_info(self, link_id: str, reward: int):
+    def __update_comm_dev_info(self, link_id: str, reward: int) -> None:
         """Method that receives a reward and a link id to update the information to the destination node CommDev about
         it.
 

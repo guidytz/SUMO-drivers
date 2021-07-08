@@ -39,7 +39,7 @@ class QLAgent:
         """
         return self.__exploration_strategy.choose(self.__q_table, state, self.__action_space, available_actions)
 
-    def learn(self, action: int, current_state: str, next_state: str, reward: int) -> None:
+    def learn(self, action: int, current_state: str, next_state: str, reward: float) -> None:
         """Method that updates the Q-table based on the reward received for the action taken at the given current state,
 
 
@@ -47,7 +47,7 @@ class QLAgent:
             action (int): The action taken.
             current_state (str): The state where the action was taken.
             next_state (str): The next state reached with the action.
-            reward (int): The reward received for taking the action within the given state.
+            reward (float): The reward received for taking the action within the given state.
 
         Raises:
             RuntimeError: the method raises a RuntimeError if the new state given is not in Q-table

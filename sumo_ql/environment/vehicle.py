@@ -200,7 +200,7 @@ class Vehicle:
 
         Args:
             link (str): new current link's id
-            current_time (int): time step the vehile has entered the new link
+            current_time (int): time step the vehicle has entered the new link
 
         Raises:
             RuntimeError: the method raises a RuntimeError if the vehicle hasn't departed yet and the time given is
@@ -215,6 +215,15 @@ class Vehicle:
         self.__current_link = link
         self.__append_destination_node()
         self.__last_link_departure_time = current_time
+
+    @property
+    def is_correct_arrival(self) -> bool:
+        """Property that returns a boolean stating if the vehicle arrived at the right destination.
+
+        Returns:
+            bool: attribute indicating if the vehicle arrived at the right destination.
+        """
+        return self.route[-1] == self.destination
 
     def __compute_last_link_travel_time(self, current_time: int) -> None:
         """Method that computes the travel time taken in last link traveled using time the vehicle departed in the link

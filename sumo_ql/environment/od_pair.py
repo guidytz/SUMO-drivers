@@ -5,7 +5,7 @@ class ODPair:
             straight_distance (float): distance between the origin and destination as a straight line.
     """
 
-    def __init__(self, straight_distance: float):
+    def __init__(self, straight_distance: float) -> None:
         self.__straight_distance = straight_distance
         self.__min_load = -1
         self.__current_load = 0
@@ -20,7 +20,7 @@ class ODPair:
         return self.__min_load
 
     @min_load.setter
-    def min_load(self, val: int):
+    def min_load(self, val: int) -> None:
         """Setter for the minimum load of the OD-pair.
 
         Args:
@@ -44,7 +44,7 @@ class ODPair:
         return self.__current_load >= self.__min_load
 
     @property
-    def straight_distance(self):
+    def straight_distance(self) -> float:
         """Property that returns the straight line distance between the origin and destination of the OD-pair.
 
         Returns:
