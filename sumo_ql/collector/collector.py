@@ -13,16 +13,23 @@ class DataCollector:
         sim_filename (str): Name of the simulation for saving purposes
         steps_to_measure (int, optional): Steps to calculate moving average. Defaults to 100.
         custom_path (str, optional): Custom path to save the files. Defaults to ''.
+        additional_folders (List[str], optional): additional folders to add in order to distingish simulations. 
+        Defaults to list().
         debug (bool, optional): Debug flag to save debuging data. Defaults to False.
     """
 
-    def __init__(self, sim_filename: str,
+    def __init__(self, sim_filename: str = "default",
                  steps_to_measure: int = 100,
                  custom_path: str = '',
+                 additional_folders: List[str] = None,
                  debug: bool = False) -> None:
+        if sim_filename == "default":
+            print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
+            print("Results will be saved in a default folder and might not be distinguishable from other simulations")
         self.__sim_filename = sim_filename
         self.__steps_to_measure = steps_to_measure
         self.__path = custom_path if custom_path != '' else f"{os.getcwd()}/results"
+        self.__additional_folders = additional_folders
         self.__debug = debug
         self.__travel_times = np.array([])
         self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
@@ -47,6 +54,13 @@ class DataCollector:
 
         self.__save_to_csv("MovingAverage", self.__travel_avg_df)
 
+    def reset(self) -> None:
+        """Method that resets the collector data to make a new run.
+        """
+        self.__start_time = datetime.now()
+        self.__travel_times = np.array([])
+        self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
+
     def __update_df(self, step: int) -> None:
         """Method that updates the internal dataframe with the new moving average if the current step is the one to make
         the measurement.
@@ -60,7 +74,7 @@ class DataCollector:
             self.__travel_avg_df = self.__travel_avg_df.append(df_update, ignore_index=True)
             self.__travel_times = np.array([])
 
-    def __create_folder(self, folder_name: str):
+    def __create_folder(self, folder_name: str) -> None:
         """Method that creates a folder to save the files if it wasn't created yet.
 
         Args:
@@ -76,12 +90,14 @@ class DataCollector:
                 print(f"Couldn't create folder {folder_name}, error message: {error.strerror}")
                 raise OSError(error).with_traceback(error.__traceback__)
 
-    def __save_to_csv(self, folder_name: str, data_frame: pd.DataFrame) -> None:
-        """Method that saves the data collected to a csv file.
+    def __verify_and_create_folder_path(self, folder_name: str) -> str:
+        """Method that creates the folder hierarchy where the simulation files will be stored. 
 
         Args:
-            folder_name (str): folder name to save the file in.
-            data_frame (pd.DataFrame): dataframe that stores the data to be saved.
+            folder_name (str): Main simulation folder name
+
+        Returns:
+            str: Complete path to the final folder.
         """
         date_folder = self.__start_time.strftime("%m_%d_%y")
         folder_str = self.__path
@@ -92,5 +108,22 @@ class DataCollector:
         self.__create_folder(folder_str)
         folder_str += f"/{date_folder}"
         self.__create_folder(folder_str)
+
+        if self.__additional_folders is not None:
+            for additional_folder in self.__additional_folders:
+                folder_str += f"/{additional_folder}"
+                self.__create_folder(folder_str)
+
+        return folder_str
+
+
+    def __save_to_csv(self, folder_name: str, data_frame: pd.DataFrame) -> None:
+        """Method that saves the data collected to a csv file.
+
+        Args:
+            folder_name (str): Main simulation folder name to save the file in.
+            data_frame (pd.DataFrame): dataframe that stores the data to be saved.
+        """
+        folder_str = self.__verify_and_create_folder_path(folder_name)
         csv_filename = folder_str + f"/sim_{self.__start_time.strftime('%H-%M-%S')}.csv"
         data_frame.to_csv(csv_filename, index=False)
