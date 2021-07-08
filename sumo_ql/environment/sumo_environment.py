@@ -16,6 +16,7 @@ from traci.exceptions import TraCIException
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle
 from sumo_ql.environment.od_pair import ODPair
+from sumo_ql.collector.collector import DataCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
@@ -28,7 +29,7 @@ class SumoEnvironment(MultiAgentEnv):
         sumocfg_file (str): string with the path to the .sumocfg file that holds network and route information
         simulation_time (int, optional): Time to run the simulation. Defaults to 50000.
         max_vehicles (int, optional): Number of vehicles to keep running in the simulation. Defaults to 750.
-        right_arrival_bonus (int, optional): Bonus vehicles recieve when arriving at the right destination.
+        right_arrival_bonus (int, optional): Bonus vehicles receive when arriving at the right destination.
         Defaults to 1000.
         wrong_arrival_penalty (int, optional): Penalty vehicles receive when arriving at the wrong destination.
         Defaults to 1000.
@@ -65,6 +66,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: Dict[str, dict] = dict()
         self.__loaded_vehicles: List[str] = list()
+        self.__collector: DataCollector = DataCollector(self.__network_file.split('/')[-2])
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -121,6 +123,7 @@ class SumoEnvironment(MultiAgentEnv):
     def close(self) -> None:
         """Method that closes the traci run.
         """
+        self.__collector.save()
         traci.close()
 
     def get_comm_dev(self, node_id: str) -> CommunicationDevice:
@@ -193,7 +196,7 @@ class SumoEnvironment(MultiAgentEnv):
         return -1
 
     def __populate_network(self) -> None:
-        """Method that performs the steps defined to populate the netowrk with vehicles (following their original route
+        """Method that performs the steps defined to populate the network with vehicles (following their original route
         defined in the route file) before considering the learning process.
         """
         while self.__current_step < self.__steps_to_populate:
@@ -434,6 +437,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         done = dict()
+        travel_times = list()
         for vehicle_id in arrived_vehicles:
             try:
                 self.__vehicles[vehicle_id].set_arrival(self.__current_step)
@@ -449,8 +453,12 @@ class SumoEnvironment(MultiAgentEnv):
             rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
+            if self.__vehicles[vehicle_id].is_correct_arrival:
+                travel_times.append(self.__vehicles[vehicle_id].travel_time)
 
             self.__verify_reinsertion_necessity(vehicle_id)
+
+        self.__collector.append_travel_times(travel_times, self.__current_step)
 
         return rewards, done
 
@@ -475,7 +483,7 @@ class SumoEnvironment(MultiAgentEnv):
 
     def __handle_step_vehicle_updates(self) -> Union[dict, dict]:
         """Method that collects information on the vehicles from traci in the current step and performs the methods
-        that update this data corretly.
+        that update this data correctly.
 
         Returns:
             Union[dict, dict]: a dictionary containing the rewards from all the vehicles that received a reward in the
