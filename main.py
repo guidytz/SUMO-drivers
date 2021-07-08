@@ -1,16 +1,9 @@
-'''
-Created Date: Wednesday, January 22nd 2020, 10:51 am
-Author: Guilherme Dytz dos Santos
------
-Last Modified: Saturday, March 14th 2020, 2:47 pm
-Modified By: guilhermedytz
-'''
-# pylint: disable=fixme, line-too-long, invalid-name, missing-docstring
 import sys
 import argparse
-from environment.sumo import SUMO
-from agent.q_learning import QLearner
-from exploration.epsilon_greedy import EpsilonGreedy
+from typing import Dict
+from sumo_ql.environment.sumo_environment import SumoEnvironment
+from sumo_ql.agent.q_learning import QLAgent
+from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 
 
 if __name__ == '__main__':
@@ -26,14 +19,16 @@ if __name__ == '__main__':
                        help="Time steps before agents start the learning (default = 3000)")
     parse.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
                        help="uses SUMO GUI instead of CLI")
-    parse.add_argument("-m", "--mav", action="store",type=int, dest="mav", default=100,
+    parse.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=100,
                        help="Moving gap size (default = 100 steps)")
-    parse.add_argument("--no-c2i", action="store_false", dest="c2i", default=True,
-                       help="Toggle not to use car-to-infrastructure communication")
-    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="sr", default=1,
+    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=1,
                        help="Communication success rate (default = 1)")
-    parse.add_argument("-b", "--btw-gap", action="store", type=int, dest="btw_gap", default=1000,
-                       help="Gap of time to recalculate betweenness (default = 500)")
+    parse.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
+                       help="CommDev queue size (default = 30)")
+    parse.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
+                       help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
+    parse.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
+                       help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
 
     options = parse.parse_args()
     if not options.cfgfile:
@@ -42,21 +37,64 @@ if __name__ == '__main__':
         parse.print_help()
         sys.exit()
 
-    env = SUMO(options.cfgfile, 
-               use_gui=options.gui, 
-               time_before_learning=options.wait_learn, 
-               max_veh=options.demand,
-               calc_btw_gap=options.btw_gap)
+    env = SumoEnvironment(sumocfg_file=options.cfgfile,
+                          simulation_time=options.steps,
+                          max_vehicles=options.demand,
+                          right_arrival_bonus=options.bonus,
+                          wrong_arrival_penalty=options.penalty,
+                          communication_success_rate=options.comm_succ_rate,
+                          max_comm_dev_queue_size=options.queue_size,
+                          steps_to_populate=options.wait_learn,
+                          use_gui=options.gui)
 
-    agents = list()
-    for veh in env.get_vehicles_ID_list():
-        veh_dict = env.get_vehicle_dict(veh)
-        exp = EpsilonGreedy(0.05, 0, -1)
-        agent = QLearner(veh, env, veh_dict['origin'], veh_dict['destination'], 0.5, 0.9, exp)
-        agents.append(agent)
+    observations = env.reset()
+    agents: Dict[str, QLAgent] = dict()
+    done = {'__all__': False}
+    while not done['__all__']:
+        actions = dict()
+        for vehicle_id in observations:
+            if observations[vehicle_id]['reinserted']:
+                if vehicle_id not in agents:
+                    agents[vehicle_id] = QLAgent(action_space=env.action_space,
+                                                 exploration_strategy=EpsilonGreedy(initial_epsilon=0.05,
+                                                                                    min_epsilon=0.05))
 
-    env.register_agents(agents)
-    env.update_c2i_params(options.c2i, options.sr)
+        for vehicle_id in observations:
+            if observations[vehicle_id]['ready_to_act'] and vehicle_id in agents:
+                commDev = env.get_comm_dev(observations[vehicle_id]['current_state'])
+                if commDev.communication_success:
+                    expected_rewards = commDev.get_outgoing_links_expected_rewards()
+                    for link, expected_reward in expected_rewards.items():
+                        origin = env.get_link_origin(link)
+                        destination = env.get_link_destination(link)
+                        action = env.get_action(origin, destination)
+                        agents[vehicle_id].learn(action, origin, destination, expected_reward)
+                actions[vehicle_id] = agents[vehicle_id].act(observations[vehicle_id]['current_state'],
+                                                             observations[vehicle_id]['available_actions'])
+        observations, rewards, done, _ = env.step(actions)
 
-    env.run_episode(options.steps, options.mav)
-
+        for vehicle_id, reward in rewards.items():
+            if vehicle_id in agents:
+                if vehicle_id in done:
+                    try:
+                        previous_state = observations[vehicle_id]['previous_state']
+                        next_state = observations[vehicle_id]['current_state']
+                        action = env.get_action(previous_state, next_state)
+                        agents[vehicle_id].learn(action, previous_state, next_state, reward)
+                    except Exception as exception:
+                        print(f"{vehicle_id = }")
+                        print(f"{observations = }")
+                        print(f"{rewards = }")
+                        raise Exception(exception).with_traceback(exception.__traceback__)
+                else:
+                    try:
+                        previous_state = observations[vehicle_id]['last_link_state']
+                        next_state = observations[vehicle_id]['previous_state']
+                        action = env.get_action(previous_state, next_state)
+                        agents[vehicle_id].learn(action, previous_state, next_state, reward)
+                    except Exception as exception:
+                        print(f"{vehicle_id = }")
+                        print(f"{observations = }")
+                        print(f"{rewards = }")
+                        raise Exception(exception).with_traceback(exception.__traceback__)
+    env.close()
