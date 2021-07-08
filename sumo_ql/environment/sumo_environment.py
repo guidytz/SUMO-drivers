@@ -58,7 +58,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__simulation_time = simulation_time
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
-        self.__steps_to_populate = steps_to_populate
+        self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
