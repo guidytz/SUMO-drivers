@@ -377,7 +377,8 @@ class SumoEnvironment(MultiAgentEnv):
             reward (int): reward received for taking this link.
         """
         node_id = self.get_link_destination(link_id)
-        self.__comm_dev[node_id].update_stored_rewards(link_id, reward)
+        if self.__comm_dev[node_id].communication_success:
+            self.__comm_dev[node_id].update_stored_rewards(link_id, reward)
 
     def __handle_loaded_vehicles(self) -> None:
         """Method that updates information necessary in the observation for all the vehicles loaded in the simulation
