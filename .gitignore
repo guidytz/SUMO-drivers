@@ -8,3 +8,4 @@ debug
 csv
 results
 log
+*.egg-info
