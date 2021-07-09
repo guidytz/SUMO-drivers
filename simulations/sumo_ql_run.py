@@ -1,9 +1,7 @@
 import sys
-import os
 import argparse
 from typing import Dict
 
-sys.path.append(os.getcwd())
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy

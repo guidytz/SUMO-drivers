@@ -3,14 +3,14 @@
 A python code to handle Multi-agent Reinforcement Learning using [SUMO](https://github.com/eclipse/sumo) as a microscopic 
 traffic simulation. 
 
-> Currently working with SUMO v.1.9.2
+## Requirements
 
-## Dependencies
-SUMO environment needs to be installed in order to run the code correctly.
+* Python 3.8+.
+* SUMO v 1.9.2.
 
 ### SUMO Installation
 
-In Ubuntu, simply run:
+In Ubuntu, run:
 
 ```bash
 sudo add-apt-repository ppa:sumo/stable
@@ -27,11 +27,13 @@ export SUMO_HOME="/usr/share/sumo"
 
 Other options for installing SUMO in different systems can be found in [SUMO's documentation page](https://sumo.dlr.de/docs)
 
-### Adding traci, sumolib and libsumo as python packages
-To be able to run the code, is necessary to install traci, sumolib and libsumo as python packages.
-Simply run:
-```
-pip install traci sumolib libsumo
+### Installing the package
+
+To install the package, run:
+```bash
+git clone https://github.com/guidytz/SUMO-QL
+cd SUMO-QL
+python3 -m pip install -e .
 ```
 
 ## Usage
@@ -55,11 +57,18 @@ python3 simulations/sumo_ql_run.py -h
 
 After running the experiments, results can be found in results folder generated.
 
+### Performance boost using Libsumo
+To increase performance, declare the following environment variable before running the simulation:
+```bash
+export LIBSUMO_AS_TRACI=1
+```
+This allows the simulation use Libsumo instead of Traci, which enhances the performance considerably. However, simulations using sumo-gui are not available using this method. See [Libsumo documentation](https://sumo.dlr.de/docs/Libsumo.html).
+
 ## Documentation
 It is possible to see the module documentation using [pdoc](https://pdoc3.github.io/pdoc/). 
 Just install pdoc using:
 ```bash
-pip install pdoc
+python3 -m pip install pdoc
 ```
 
 Then run the following line to open a server with the documentation:
