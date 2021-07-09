@@ -64,7 +64,7 @@ pip install pdoc
 
 Then run the following line to open a server with the documentation:
 ```bash
-pdoc3 --http : sumo_ql
+pdoc --http : sumo_ql
 ```
 
 ## Utilities
