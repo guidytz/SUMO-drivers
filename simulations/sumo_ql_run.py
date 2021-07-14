@@ -1,6 +1,11 @@
 import sys
+import os
+import errno
 import argparse
 from typing import Dict
+from datetime import datetime
+from multiprocessing import Pool
+import logging
 
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent
@@ -8,58 +13,53 @@ from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import DataCollector
 
 
-class SumoQLRun:
-    """Class responsible for running the simulations.
+def run_sim(args: argparse.Namespace, iteration: int = -1) -> None:
+    """Function used to run the simulations, given a set of arguments passed to the script and the iteration (run
+    number).
 
     Args:
-        sumocfg_file (str): string with the path to the .sumocfg file that holds network and route information
-        simulation_time (int): Time to run the simulation.
-        max_vehicles (int): Number of vehicles to keep running in the simulation.
-        right_arrival_bonus (int): Bonus vehicles receive when arriving at the right destination.
-        wrong_arrival_penalty (int): Penalty vehicles receive when arriving at the wrong destination.
-        communication_success_rate (float): The rate (between 0 and 1) in which the communication with the CommDevs
-        succeeds.
-        max_comm_dev_queue_size (int): Maximum queue size to hold information on the CommDevs.
-        steps_to_populate (int): Steps to populate the network without using the learning steps.
-        moving_average_gap (int): Step gap to take the travel times moving average measurement.
-        use_gui (bool): Flag that determines if the simulation should use sumo-gui.
+        args (argparse.Namespace): namespace containing all the arguments passed to the script
+        iteration (int, optional): Iteration of simulation run (necessary for log purposes on multiple runs).
+        Defaults to -1 (when running only one simulation, then the iteration number is discarded).
+
+    Raises:
+        OSError: the function raises an OSError if the log directory can't be created.  
+        Exception: If any unknown error occurs during the simulation, it raises an exception.
     """
+    agents: Dict[str, QLAgent] = dict()
+    observations = None
+    rewards = None
+    env: SumoEnvironment = None
 
-    def __init__(self, sumocfg_file: str,
-                 simulation_time: int,
-                 max_vehicles: int,
-                 right_arrival_bonus: int,
-                 wrong_arrival_penalty: int,
-                 communication_success_rate: float,
-                 max_comm_dev_queue_size: int,
-                 steps_to_populate: int,
-                 moving_average_gap: int,
-                 use_gui: bool) -> None:
-        data_collector = self.__generate_data_collector(sumocfg_file,
-                                                        simulation_time,
-                                                        steps_to_populate,
-                                                        communication_success_rate,
-                                                        moving_average_gap)
-        self.__agents = None
-        self.__observations = None
-        self.__rewards = None
+    def create_log(dirname: str, date: datetime) -> None:
+        """Method that creates a log file that has information of beginning and end of simulations when making multiple
+        runs.
 
-        self.__env = SumoEnvironment(sumocfg_file,
-                                     simulation_time,
-                                     max_vehicles,
-                                     right_arrival_bonus,
-                                     wrong_arrival_penalty,
-                                     communication_success_rate,
-                                     max_comm_dev_queue_size,
-                                     steps_to_populate,
-                                     use_gui,
-                                     data_collector=data_collector)
+        Args:
+            dirname (str): directory name where the log will be saved (within the log directory).
+            date (datetime): datetime object that is used to know when the multiple runs started.
 
-    def __generate_data_collector(self, cfgfile: str,
-                                  sim_steps: int,
-                                  pop_steps: int,
-                                  comm_succ_rate: float,
-                                  moving_avg_gap: int) -> DataCollector:
+        Raises:
+            OSError: the method raises an OSError if the directory couldn't be created (it doesn't raise the error if
+            the directory already exists).
+        """
+        try:
+            os.mkdir(f"log/{dirname}")
+        except OSError as error:
+            if error.errno != errno.EEXIST:
+                print(f"Couldn't create folder log/{dirname}, error message: {error.strerror}")
+                raise OSError(error).with_traceback(error.__traceback__)
+        logging.basicConfig(format='%(asctime)s: %(message)s',
+                            datefmt='%d-%m-%Y %H:%M:%S',
+                            filename=f'log/{dirname}/mult_sims_{date.strftime("%d-%m-%y_%H-%M-%S")}.log',
+                            level=logging.INFO)
+
+    def generate_data_collector(cfgfile: str,
+                                sim_steps: int,
+                                pop_steps: int,
+                                comm_succ_rate: float,
+                                moving_avg_gap: int,
+                                n_runs: int = 1) -> DataCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -85,69 +85,89 @@ class SumoQLRun:
         steps_folder = f"steps_{sim_steps // 1000}K"
         additional_folders.append(steps_folder)
 
+        if n_runs > 1:
+            date = datetime.now()
+            additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
+            create_log(main_simulation_name, date)
+
         return DataCollector(sim_filename=main_simulation_name,
                              steps_to_measure=moving_avg_gap,
                              additional_folders=additional_folders)
 
-    def run(self) -> None:
+    def create_environment(args: argparse.Namespace) -> SumoEnvironment:
+        """Method that creates a SUMO environment given the arguments necessary to it.
+
+        Args:
+            args (argparse.Namespace): namespace that contains the arguments passed to the script.
+
+        Returns:
+            SumoEnvironment: an environment object used in the learning process.
+        """
+        data_collector = generate_data_collector(cfgfile=args.cfgfile,
+                                                 sim_steps=args.steps,
+                                                 pop_steps=args.wait_learn,
+                                                 comm_succ_rate=args.comm_succ_rate,
+                                                 moving_avg_gap=args.mav,
+                                                 n_runs=args.n_runs)
+
+        environment = SumoEnvironment(sumocfg_file=args.cfgfile,
+                                      simulation_time=args.steps,
+                                      max_vehicles=args.demand,
+                                      right_arrival_bonus=args.bonus,
+                                      wrong_arrival_penalty=args.penalty,
+                                      communication_success_rate=args.comm_succ_rate,
+                                      max_comm_dev_queue_size=args.queue_size,
+                                      steps_to_populate=args.wait_learn,
+                                      use_gui=args.gui,
+                                      data_collector=data_collector)
+        return environment
+
+    def run(iteration) -> None:
         """Method that runs a simulation.
         """
-        self.__observations = self.__env.reset()
-        self.__agents: Dict[str, QLAgent] = dict()
+        if iteration != -1:
+            logging.info("Iteration %s started.", iteration)
+        observations = env.reset()
         done = {'__all__': False}
         while not done['__all__']:
             actions = dict()
-            for vehicle_id in self.__observations:
-                if self.__observations[vehicle_id]['reinserted'] and vehicle_id not in self.__agents:
-                    self.__create_agent(vehicle_id)
+            for vehicle_id in observations:
+                if observations[vehicle_id]['reinserted'] and vehicle_id not in agents:
+                    create_agent(vehicle_id)
 
-            for vehicle_id in self.__observations:
-                if self.__observations[vehicle_id]['ready_to_act'] and vehicle_id in self.__agents:
-                    self.__handle_communication(vehicle_id, self.__observations[vehicle_id]['current_state'])
-                    current_state = self.__observations[vehicle_id]['current_state']
-                    available_actions = self.__observations[vehicle_id]['available_actions']
-                    actions[vehicle_id] = self.__agents[vehicle_id].act(current_state, available_actions)
+            for vehicle_id in observations:
+                if observations[vehicle_id]['ready_to_act'] and vehicle_id in agents:
+                    handle_communication(vehicle_id, observations[vehicle_id]['current_state'])
+                    current_state = observations[vehicle_id]['current_state']
+                    available_actions = observations[vehicle_id]['available_actions']
+                    actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
 
-            self.__observations, self.__rewards, done, _ = self.__env.step(actions)
+            observations, rewards, done, _ = env.step(actions)
 
-            for vehicle_id, reward in self.__rewards.items():
-                if vehicle_id in self.__agents:
+            for vehicle_id, reward in rewards.items():
+                if vehicle_id in agents:
                     if vehicle_id in done:
-                        previous_state = self.__observations[vehicle_id]['previous_state']
-                        next_state = self.__observations[vehicle_id]['current_state']
-                        self.__handle_learning(vehicle_id, previous_state, next_state, reward)
+                        previous_state = observations[vehicle_id]['previous_state']
+                        next_state = observations[vehicle_id]['current_state']
+                        handle_learning(vehicle_id, previous_state, next_state, reward)
                     else:
-                        previous_state = self.__observations[vehicle_id]['last_link_state']
-                        next_state = self.__observations[vehicle_id]['previous_state']
-                        self.__handle_learning(vehicle_id, previous_state, next_state, reward)
-        self.__env.close()
+                        previous_state = observations[vehicle_id]['last_link_state']
+                        next_state = observations[vehicle_id]['previous_state']
+                        handle_learning(vehicle_id, previous_state, next_state, reward)
+        env.close()
+        if iteration != -1:
+            logging.info("Iteration %s finished.", iteration)
 
-    def __create_agent(self, vehicle_id: str) -> None:
+    def create_agent(vehicle_id: str) -> None:
         """Method that creates a learning agent and puts it in the agents dictionary.
 
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
-        self.__agents[vehicle_id] = QLAgent(action_space=self.__env.action_space,
-                                            exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        agents[vehicle_id] = QLAgent(action_space=env.action_space,
+                                     exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
 
-    def __handle_communication(self, vehicle_id: str, state: str):
-        """Method that retrieves CommDevs information if the C2I communication succeeds to update the agent's knowledge
-        about the network.
-
-        Args:
-            vehicle_id (str): ID of the vehicle that will communicate with the CommDev.
-            state (str): the state the CommDev is present.
-        """
-        comm_dev = self.__env.get_comm_dev(state)
-        if comm_dev.communication_success:
-            expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
-            for link, expected_reward in expected_rewards.items():
-                origin = self.__env.get_link_origin(link)
-                destination = self.__env.get_link_destination(link)
-                self.__handle_learning(vehicle_id, origin, destination, expected_reward)
-
-    def __handle_learning(self, vehicle_id: str, origin_node: str, destination_node: str, reward: int):
+    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: int) -> None:
         """Method that takes care of the learning process for the agent given.
 
         Args:
@@ -160,13 +180,33 @@ class SumoQLRun:
             Exception: it raises an Exception if anything goes wrong.
         """
         try:
-            action = self.__env.get_action(origin_node, destination_node)
-            self.__agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+            action = env.get_action(origin_node, destination_node)
+            agents[vehicle_id].learn(action, origin_node, destination_node, reward)
         except Exception as exception:
             print(f"{vehicle_id = }")
-            print(f"{self.__observations = }")
-            print(f"{self.__rewards = }")
+            print(f"{observations = }")
+            print(f"{rewards = }")
             raise Exception(exception).with_traceback(exception.__traceback__)
+
+    def handle_communication(vehicle_id: str, state: str) -> None:
+        """Method that retrieves CommDevs information if the C2I communication succeeds to update the agent's knowledge
+        about the network.
+
+        Args:
+            vehicle_id (str): ID of the vehicle that will communicate with the CommDev.
+            state (str): the state the CommDev is present.
+        """
+        comm_dev = env.get_comm_dev(state)
+        if comm_dev.communication_success:
+            expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
+            for link, expected_reward in expected_rewards.items():
+                origin = env.get_link_origin(link)
+                destination = env.get_link_destination(link)
+                handle_learning(vehicle_id, origin, destination, expected_reward)
+
+    # Run the simulation
+    env = create_environment(args)
+    run(iteration)
 
 
 if __name__ == '__main__':
@@ -192,6 +232,10 @@ if __name__ == '__main__':
                        help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
     parse.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
                        help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
+    parse.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
+                       help="Number of multiple simulation runs (default = 1)")
+    parse.add_argument("--parallel", action="store_true", dest="parallel", default=False,
+                       help="Set the script to run simulations in parallel using number of available CPU")
 
     options = parse.parse_args()
     if not options.cfgfile:
@@ -200,14 +244,15 @@ if __name__ == '__main__':
         parse.print_help()
         sys.exit()
 
-    application = SumoQLRun(sumocfg_file=options.cfgfile,
-                            simulation_time=options.steps,
-                            max_vehicles=options.demand,
-                            right_arrival_bonus=options.bonus,
-                            wrong_arrival_penalty=options.penalty,
-                            communication_success_rate=options.comm_succ_rate,
-                            max_comm_dev_queue_size=options.queue_size,
-                            steps_to_populate=options.wait_learn,
-                            moving_average_gap=options.mav,
-                            use_gui=options.gui)
-    application.run()
+if options.n_runs > 1:
+    if options.parallel:
+        sys.setrecursionlimit(3000)
+        with Pool(processes=os.cpu_count()) as pool:
+            _ = [pool.apply_async(run_sim, args=(options, it)) for it in range(options.n_runs)]
+            pool.close()
+            pool.join()
+    else:
+        for i in range(options.n_runs):
+            run_sim(options, i)
+else:
+    run_sim(options)

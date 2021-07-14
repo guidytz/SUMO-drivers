@@ -2,6 +2,7 @@ import os
 from typing import List
 import errno
 from datetime import datetime
+from random import SystemRandom
 import numpy as np
 import pandas as pd
 
@@ -13,7 +14,7 @@ class DataCollector:
         sim_filename (str): Name of the simulation for saving purposes
         steps_to_measure (int, optional): Steps to calculate moving average. Defaults to 100.
         custom_path (str, optional): Custom path to save the files. Defaults to ''.
-        additional_folders (List[str], optional): additional folders to add in order to distingish simulations. 
+        additional_folders (List[str], optional): additional folders to add in oself.__randomer to distingish simulations. 
         Defaults to list().
         debug (bool, optional): Debug flag to save debuging data. Defaults to False.
     """
@@ -34,6 +35,8 @@ class DataCollector:
         self.__travel_times = np.array([])
         self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
         self.__start_time = datetime.now()
+        self.__random = SystemRandom()
+        self.__random.seed(datetime.now())
 
     def append_travel_times(self, travel_times: List[int], step: int) -> None:
         """Method that receives a list of travel times and the step they were retrieved and saves them to calculate the
@@ -125,5 +128,6 @@ class DataCollector:
             data_frame (pd.DataFrame): dataframe that stores the data to be saved.
         """
         folder_str = self.__verify_and_create_folder_path(folder_name)
-        csv_filename = folder_str + f"/sim_{self.__start_time.strftime('%H-%M-%S')}.csv"
+        file_signature = f"{self.__start_time.strftime('%H-%M-%S')}_{self.__random.randint(0, 1000):03}"
+        csv_filename = folder_str + f"/sim_{file_signature}.csv"
         data_frame.to_csv(csv_filename, index=False)
