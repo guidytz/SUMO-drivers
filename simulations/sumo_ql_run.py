@@ -13,17 +13,18 @@ from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import DataCollector
 
 
-def run_sim(args: argparse.Namespace, iteration: int = -1) -> None:
+def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
     """Function used to run the simulations, given a set of arguments passed to the script and the iteration (run
     number).
 
     Args:
         args (argparse.Namespace): namespace containing all the arguments passed to the script
+        date (datetime): datetime object that indicates the simulations beggining. Defaults to datetime.now().
         iteration (int, optional): Iteration of simulation run (necessary for log purposes on multiple runs).
         Defaults to -1 (when running only one simulation, then the iteration number is discarded).
 
     Raises:
-        OSError: the function raises an OSError if the log directory can't be created.  
+        OSError: the function raises an OSError if the log directory can't be created.
         Exception: If any unknown error occurs during the simulation, it raises an exception.
     """
     agents: Dict[str, QLAgent] = dict()
@@ -59,6 +60,7 @@ def run_sim(args: argparse.Namespace, iteration: int = -1) -> None:
                                 pop_steps: int,
                                 comm_succ_rate: float,
                                 moving_avg_gap: int,
+                                date: datetime,
                                 n_runs: int = 1) -> DataCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
@@ -86,7 +88,6 @@ def run_sim(args: argparse.Namespace, iteration: int = -1) -> None:
         additional_folders.append(steps_folder)
 
         if n_runs > 1:
-            date = datetime.now()
             additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
             create_log(main_simulation_name, date)
 
@@ -108,6 +109,7 @@ def run_sim(args: argparse.Namespace, iteration: int = -1) -> None:
                                                  pop_steps=args.wait_learn,
                                                  comm_succ_rate=args.comm_succ_rate,
                                                  moving_avg_gap=args.mav,
+                                                 date=date,
                                                  n_runs=args.n_runs)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
@@ -245,14 +247,15 @@ if __name__ == '__main__':
         sys.exit()
 
 if options.n_runs > 1:
+    curr_date = datetime.now()
     if options.parallel:
         sys.setrecursionlimit(3000)
         with Pool(processes=os.cpu_count()) as pool:
-            _ = [pool.apply_async(run_sim, args=(options, it)) for it in range(options.n_runs)]
+            _ = [pool.apply_async(run_sim, args=(options, curr_date, it)) for it in range(options.n_runs)]
             pool.close()
             pool.join()
     else:
         for i in range(options.n_runs):
-            run_sim(options, i)
+            run_sim(options, curr_date, i)
 else:
     run_sim(options)

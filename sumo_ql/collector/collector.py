@@ -14,8 +14,8 @@ class DataCollector:
         sim_filename (str): Name of the simulation for saving purposes
         steps_to_measure (int, optional): Steps to calculate moving average. Defaults to 100.
         custom_path (str, optional): Custom path to save the files. Defaults to ''.
-        additional_folders (List[str], optional): additional folders to add in oself.__randomer to distingish simulations. 
-        Defaults to list().
+        additional_folders (List[str], optional): additional folders to add in path to distingish simulations.
+        Defaults to None.
         debug (bool, optional): Debug flag to save debuging data. Defaults to False.
     """
 
@@ -36,7 +36,6 @@ class DataCollector:
         self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
         self.__start_time = datetime.now()
         self.__random = SystemRandom()
-        self.__random.seed(datetime.now())
 
     def append_travel_times(self, travel_times: List[int], step: int) -> None:
         """Method that receives a list of travel times and the step they were retrieved and saves them to calculate the
