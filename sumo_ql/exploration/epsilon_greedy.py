@@ -4,7 +4,7 @@ from typing import Dict
 from typing import List
 from gym import spaces
 
-MAX_SAMPLE_COUNTER = 20
+MAX_SAMPLE_COUNTER = 30
 
 
 class EpsilonGreedy:
@@ -46,6 +46,10 @@ class EpsilonGreedy:
             available_actions (List[int]): list of available indexes within that state, as not all possible actions for
             the state will be available (they depend on the link the vehicle is coming from).
 
+        Raises:
+            RuntimeError: if no available action is given.
+            RuntimeError: if the method can't sample any of the given actions.
+
         Returns:
             int: value (index) of the action chosen
         """
@@ -57,11 +61,16 @@ class EpsilonGreedy:
                     break
                 counter += 1
             if counter >= MAX_SAMPLE_COUNTER:
-                print(f"{available_actions = }")
-                print(f"{state = }")
-                print(f"{action = }")
-                print(f"{action_space[state] = }")
-                raise RuntimeError("Something went wrong in sample")
+                if len(available_actions) == 1:
+                    action = available_actions[0]
+                elif len(available_actions) == 0:
+                    raise RuntimeError("Couldn't take any action, no available actions given.")
+                else:
+                    print(f"{available_actions = }")
+                    print(f"{state = }")
+                    print(f"{action = }")
+                    print(f"{action_space[state] = }")
+                    raise RuntimeError("Something went wrong in sample, couldn't take any of the available actions.")
         else:
             available_values = []
             for action in range(len(q_table[state])):
