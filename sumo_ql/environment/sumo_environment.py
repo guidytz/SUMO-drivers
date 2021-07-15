@@ -170,7 +170,10 @@ class SumoEnvironment(MultiAgentEnv):
         Returns:
             bool: Boolean that returns the value of the test
         """
-        return len(self.__network.getNode(node_id).getOutgoing()) <= 1
+        for link in self.__network.getNode(node_id).getIncoming():
+            if len(link.getOutgoing()) > 0:
+                return False
+        return True
 
     @property
     def action_space(self) -> dict:
