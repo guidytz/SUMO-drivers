@@ -477,7 +477,11 @@ class SumoEnvironment(MultiAgentEnv):
         """
         for vehicle_id in departed_vehicles:
             self.__vehicles[vehicle_id].update_current_link(traci.vehicle.getRoadID(vehicle_id), self.__current_step)
-            traci.vehicle.subscribe(vehicle_id, [tc.VAR_ROAD_ID])
+            traci.vehicle.subscribe(vehicle_id, [tc.VAR_ROAD_ID, 
+                                                 tc.VAR_CO2EMISSION, 
+                                                 tc.VAR_COEMISSION,
+                                                 tc.VAR_HCEMISSION,
+                                                 tc.VAR_FUELCONSUMPTION])
             if self.__vehicles[vehicle_id].ready_to_act:
                 self.__observations[vehicle_id]['reinserted'] = False
                 self.__observations[vehicle_id]['ready_to_act'] = True
