@@ -2,7 +2,7 @@ import sys
 import os
 import errno
 import argparse
-from typing import Dict
+from typing import Dict, List
 from datetime import datetime
 from multiprocessing import Pool
 import logging
@@ -61,7 +61,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 comm_succ_rate: float,
                                 moving_avg_gap: int,
                                 date: datetime,
-                                n_runs: int = 1) -> DataCollector:
+                                n_runs: int = 1,
+                                debug_params: List[str] = None) -> DataCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -93,7 +94,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
 
         return DataCollector(sim_filename=main_simulation_name,
                              steps_to_measure=moving_avg_gap,
-                             additional_folders=additional_folders)
+                             additional_folders=additional_folders,
+                             debug_params=debug_params)
 
     def create_environment(args: argparse.Namespace) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.
@@ -104,13 +106,17 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Returns:
             SumoEnvironment: an environment object used in the learning process.
         """
+        debug_params = None
+        if args.debug_params is not None:
+            debug_params = args.debug_params.split()
         data_collector = generate_data_collector(cfgfile=args.cfgfile,
                                                  sim_steps=args.steps,
                                                  pop_steps=args.wait_learn,
                                                  comm_succ_rate=args.comm_succ_rate,
                                                  moving_avg_gap=args.mav,
                                                  date=date,
-                                                 n_runs=args.n_runs)
+                                                 n_runs=args.n_runs,
+                                                 debug_params=debug_params)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
                                       simulation_time=args.steps,
@@ -238,6 +244,8 @@ if __name__ == '__main__':
                        help="Number of multiple simulation runs (default = 1)")
     parse.add_argument("--parallel", action="store_true", dest="parallel", default=False,
                        help="Set the script to run simulations in parallel using number of available CPU")
+    parse.add_argument("--debug-params", action="store", dest="debug_params", default=None,
+                       help="Get a string with debug params to collect separated by a single space (default = None)")
 
     options = parse.parse_args()
     if not options.cfgfile:
@@ -246,16 +254,16 @@ if __name__ == '__main__':
         parse.print_help()
         sys.exit()
 
-if options.n_runs > 1:
-    curr_date = datetime.now()
-    if options.parallel:
-        sys.setrecursionlimit(3000)
-        with Pool(processes=os.cpu_count()) as pool:
-            _ = [pool.apply_async(run_sim, args=(options, curr_date, it)) for it in range(options.n_runs)]
-            pool.close()
-            pool.join()
+    if options.n_runs > 1:
+        curr_date = datetime.now()
+        if options.parallel:
+            sys.setrecursionlimit(3000)
+            with Pool(processes=os.cpu_count()) as pool:
+                _ = [pool.apply_async(run_sim, args=(options, curr_date, it)) for it in range(options.n_runs)]
+                pool.close()
+                pool.join()
+        else:
+            for i in range(options.n_runs):
+                run_sim(options, curr_date, i)
     else:
-        for i in range(options.n_runs):
-            run_sim(options, curr_date, i)
-else:
-    run_sim(options)
+        run_sim(options)

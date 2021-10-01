@@ -413,6 +413,9 @@ class SumoEnvironment(MultiAgentEnv):
         for vehicle_id in running_vehicles:
             traci_vehicle_info = traci.vehicle.getSubscriptionResults(vehicle_id)
             current_link_id = traci_vehicle_info[tc.VAR_ROAD_ID]
+            if self.__collector.has_debug:
+                del traci_vehicle_info[tc.VAR_ROAD_ID]
+                self.__collector.append_debug_data(traci_vehicle_info, self.__current_step)
             if not self.__vehicles[vehicle_id].is_in_link(current_link_id) and self.__is_link(current_link_id):
                 vehicle_last_link = self.__vehicles[vehicle_id].current_link
                 self.__vehicles[vehicle_id].update_current_link(current_link_id, self.__current_step)
@@ -481,6 +484,8 @@ class SumoEnvironment(MultiAgentEnv):
                                                  tc.VAR_CO2EMISSION, 
                                                  tc.VAR_COEMISSION,
                                                  tc.VAR_HCEMISSION,
+                                                 tc.VAR_PMXEMISSION,
+                                                 tc.VAR_NOXEMISSION,
                                                  tc.VAR_FUELCONSUMPTION])
             if self.__vehicles[vehicle_id].ready_to_act:
                 self.__observations[vehicle_id]['reinserted'] = False

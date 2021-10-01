@@ -1,11 +1,12 @@
 import os
-from typing import List
+from typing import Any, List, Dict
 import errno
 from datetime import datetime
 from random import SystemRandom
 import numpy as np
 import pandas as pd
-
+import traci.constants as tc
+import sys
 
 class DataCollector:
     """Class responsible for collecting data from the simulation and saving it to csv files.
@@ -23,7 +24,7 @@ class DataCollector:
                  steps_to_measure: int = 100,
                  custom_path: str = '',
                  additional_folders: List[str] = None,
-                 debug: bool = False) -> None:
+                 debug_params: List[str] = None) -> None:
         if sim_filename == "default":
             print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
             print("Results will be saved in a default folder and might not be distinguishable from other simulations")
@@ -31,7 +32,7 @@ class DataCollector:
         self.__steps_to_measure = steps_to_measure
         self.__path = custom_path if custom_path != '' else f"{os.getcwd()}/results"
         self.__additional_folders = additional_folders
-        self.__debug = debug
+        self.__debug: pd.DataFrame = self.__set_debug_df(debug_params)
         self.__travel_times = np.array([])
         self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
         self.__start_time = datetime.now()
@@ -46,13 +47,28 @@ class DataCollector:
             step (int): step in which the travel times were retrieved.
         """
         self.__travel_times = np.append(self.__travel_times, travel_times)
-        self.__update_df(step)
+        self.__update_travel_time_df(step)
+
+    def append_debug_data(self, data_dict, step):
+        if self.has_debug and self.__time_to_measure(step):
+            converted_dict = {self.__conv_str(key): [value]
+                                for key, value in data_dict.items()
+                                    if self.__conv_str(key) in self.__debug.keys()}
+            try:
+                new_data_df = pd.DataFrame(converted_dict)
+            except ValueError as ve:
+                print(f"{converted_dict = }")
+                print(ve)
+                sys.exit()
+            self.__debug = self.__debug.append(new_data_df, ignore_index = True)
 
     def save(self):
         """Method that saves the data stored to csv file.
         """
-        if self.__debug:  # TODO implement debuging structures as necessary
-            print("No debug structure is defined yet!")
+        if self.has_debug:
+            print("saved debug")
+            self.__debug = self.__debug.loc[~(self.__debug==0.0).all(axis=1)]
+            self.__save_to_csv("Debug", self.__debug)
 
         self.__save_to_csv("MovingAverage", self.__travel_avg_df)
 
@@ -62,15 +78,24 @@ class DataCollector:
         self.__start_time = datetime.now()
         self.__travel_times = np.array([])
         self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
+        if self.has_debug:
+            self.__debug = pd.DataFrame({key: [] for key in self.__debug.keys()})
 
-    def __update_df(self, step: int) -> None:
+    @property
+    def has_debug(self):
+        return self.__debug is not None
+
+    def __time_to_measure(self, step):
+        return step % self.__steps_to_measure == 0
+
+    def __update_travel_time_df(self, step: int) -> None:
         """Method that updates the internal dataframe with the new moving average if the current step is the one to make
         the measurement.
 
         Args:
             step (int): current step
         """
-        if step % self.__steps_to_measure == 0 and self.__travel_times.size != 0:
+        if self.__time_to_measure(step) and self.__travel_times.size != 0:
             avg_travel_time = self.__travel_times.mean()
             df_update = pd.DataFrame({"Step": [step], "Average travel time": [avg_travel_time]})
             self.__travel_avg_df = self.__travel_avg_df.append(df_update, ignore_index=True)
@@ -130,3 +155,43 @@ class DataCollector:
         file_signature = f"{self.__start_time.strftime('%H-%M-%S')}_{self.__random.randint(0, 1000):03}"
         csv_filename = folder_str + f"/sim_{file_signature}.csv"
         data_frame.to_csv(csv_filename, index=False)
+
+    def __conv_str(self, key: Any):
+        known_conversions: Dict[int, str] = {
+            tc.VAR_COEMISSION:      "CO",
+            tc.VAR_CO2EMISSION:     "CO2",
+            tc.VAR_HCEMISSION:      "HC",
+            tc.VAR_PMXEMISSION:     "PMx",
+            tc.VAR_NOXEMISSION:     "NOx",
+            tc.VAR_FUELCONSUMPTION: "Fuel"
+        }
+        if isinstance(key, str):
+            return key
+        elif key in known_conversions.keys():
+            return known_conversions[key]
+        else:
+            return f"UNKNOWN: {key}"
+
+    def __set_debug_df(self, debug_params: List[Any]) -> None:
+        if debug_params is None:
+            return None
+
+        debug: pd.DataFrame = pd.DataFrame()
+        known_params: List[str] = [
+            "CO",
+            "CO2",
+            "HC",
+            "PMx",
+            "NOx",
+            "Fuel"
+        ]
+        converted_params = list(map(self.__conv_str, debug_params))
+        for param in converted_params:
+            if param in known_params:
+                param_df = pd.DataFrame({param: []})
+                debug = debug.append(param_df, ignore_index = True)
+            else:
+                print(f"Warning: param {param} is not known for debug purposes.")
+        if len(debug.keys()) == 0:
+            return None
+        return debug
