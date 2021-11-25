@@ -6,6 +6,8 @@ from typing import Dict, List
 from datetime import datetime
 from multiprocessing import Pool
 import logging
+import numpy as np
+from sklearn.preprocessing import MaxAbsScaler as scaller
 
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent
@@ -106,9 +108,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Returns:
             SumoEnvironment: an environment object used in the learning process.
         """
-        debug_params = None
-        if args.debug_params is not None:
-            debug_params = args.debug_params.split()
         data_collector = generate_data_collector(cfgfile=args.cfgfile,
                                                  sim_steps=args.steps,
                                                  pop_steps=args.wait_learn,
@@ -116,7 +115,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  moving_avg_gap=args.mav,
                                                  date=date,
                                                  n_runs=args.n_runs,
-                                                 debug_params=debug_params)
+                                                 debug_params=args.debug_params)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
                                       simulation_time=args.steps,
@@ -127,7 +126,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       max_comm_dev_queue_size=args.queue_size,
                                       steps_to_populate=args.wait_learn,
                                       use_gui=args.gui,
-                                      data_collector=data_collector)
+                                      data_collector=data_collector,
+                                      objectives=args.debug_params)
         return environment
 
     def run(iteration) -> None:
@@ -136,6 +136,10 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         if iteration != -1:
             logging.info("Iteration %s started.", iteration)
         observations = env.reset()
+        print(observations['data_fit'])
+        print(scaller().fit_transform(observations['data_fit']))
+        input()
+        del observations['data_fit']
         done = {'__all__': False}
         while not done['__all__']:
             actions = dict()
@@ -175,7 +179,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         agents[vehicle_id] = QLAgent(action_space=env.action_space,
                                      exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
 
-    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: int) -> None:
+    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: np.array) -> None:
         """Method that takes care of the learning process for the agent given.
 
         Args:
@@ -189,7 +193,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         try:
             action = env.get_action(origin_node, destination_node)
-            agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+            agents[vehicle_id].learn(action, origin_node, destination_node, reward[0])
         except Exception as exception:
             print(f"{vehicle_id = }")
             print(f"{observations = }")
@@ -232,8 +236,8 @@ if __name__ == '__main__':
                        help="uses SUMO GUI instead of CLI")
     parse.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=100,
                        help="Moving gap size (default = 100 steps)")
-    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=1,
-                       help="Communication success rate (default = 1)")
+    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
+                       help="Communication success rate (default = 0.0)")
     parse.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
                        help="CommDev queue size (default = 30)")
     parse.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
@@ -244,7 +248,7 @@ if __name__ == '__main__':
                        help="Number of multiple simulation runs (default = 1)")
     parse.add_argument("--parallel", action="store_true", dest="parallel", default=False,
                        help="Set the script to run simulations in parallel using number of available CPU")
-    parse.add_argument("--debug-params", action="store", dest="debug_params", default=None,
+    parse.add_argument("--objectives", action="store", nargs="+", dest="debug_params", default=list(),
                        help="Get a string with debug params to collect separated by a single space (default = None)")
 
     options = parse.parse_args()
