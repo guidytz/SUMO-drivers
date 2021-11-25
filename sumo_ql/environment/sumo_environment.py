@@ -21,6 +21,30 @@ from sumo_ql.collector.collector import DataCollector
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
 
+class Objectives:
+    def __init__(self, params) -> None:
+        self.__known_objectives: List[int] = self.__retrieve_objectives(params)
+
+    @property
+    def known_objectives(self) -> List[int]:
+        return self.__known_objectives
+
+    def is_valid(self, objective):
+        return objective in self.__known_objectives
+
+    def __retrieve_objectives(self, params) -> List[int]:
+        known_conversions: Dict[str, int] = {
+                "TravelTime": tc.VAR_ROAD_ID,
+                "CO": tc.VAR_COEMISSION,
+                "CO2": tc.VAR_CO2EMISSION,
+                "HC": tc.VAR_HCEMISSION,
+                "PMx": tc.VAR_PMXEMISSION,
+                "NOx": tc.VAR_NOXEMISSION,
+                "Fuel": tc.VAR_FUELCONSUMPTION
+            }
+
+        return list(filter(lambda x: x is not None, [known_conversions.get(par) for par in params]))
+
 
 class SumoEnvironment(MultiAgentEnv):
     """Class responsible for handling the environment in which the simulation takes place.
@@ -51,7 +75,8 @@ class SumoEnvironment(MultiAgentEnv):
                  max_comm_dev_queue_size: int = 30,
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
-                 data_collector: DataCollector = None) -> None:
+                 data_collector: DataCollector = None,
+                 objectives: List[str] = [tc.VAR_ROAD_ID]) -> None:
         self.__sumocfg_file = sumocfg_file
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
@@ -68,6 +93,8 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: Dict[str, dict] = dict()
         self.__loaded_vehicles: List[str] = list()
+        self.__objectives: Objectives = Objectives(objectives)
+        self.__data_fit = np.empty((0,len(self.__objectives.known_objectives)))
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -105,10 +132,13 @@ class SumoEnvironment(MultiAgentEnv):
             for od_pair in self.__od_pairs:
                 self.__od_pairs[od_pair].reset()
 
+        self.__data_fit = np.empty((0, len(self.__objectives.known_objectives)))
         self.__populate_network()
         return self.__observations
 
     def step(self, action_dict):
+        if self.__observations.get("data_fit"):
+            del self.__observations["data_fit"]
         rewards = dict()
         done = dict()
         self.__handle_loaded_vehicles()
@@ -200,14 +230,20 @@ class SumoEnvironment(MultiAgentEnv):
                 return action
         return -1
 
+    @property
+    def __populating_network(self):
+        return self.__current_step < self.__steps_to_populate
+
     def __populate_network(self) -> None:
         """Method that performs the steps defined to populate the network with vehicles (following their original route
         defined in the route file) before considering the learning process.
         """
-        while self.__current_step < self.__steps_to_populate:
+        while self.__populating_network:
             self.__handle_loaded_vehicles()
             self.__sumo_step()
             self.__handle_step_vehicle_updates()
+        self.__observations["data_fit"] = self.__data_fit
+        del self.__data_fit
 
     def __sumo_step(self) -> None:
         """Method that performs a simulation step.
@@ -275,7 +311,7 @@ class SumoEnvironment(MultiAgentEnv):
                 total_distance += od_pairs_dict[od_pair].straight_distance
 
             vehicles_dict[vehicle_id] = Vehicle(vehicle_id, origin_id, destination_id, right_arrival_bonus,
-                                                wrong_arrival_penalty, route, self)
+                                                wrong_arrival_penalty, route, self, self.__objectives)
 
             self.__observations[vehicle_id] = {'reinserted': False,
                                                'ready_to_act': False,
@@ -309,19 +345,13 @@ class SumoEnvironment(MultiAgentEnv):
         Args:
             vehicle_id (str): ID of the vehicle to be reinserted.
         """
-        route_id = f"r_{vehicle_id}"
-        try:
-            traci.vehicle.add(vehicle_id, route_id)
-        except TraCIException:
-            print(f"Warning: tried to reinsert vehicle {vehicle_id} to a non existent route. Please verify.")
-            traci.route.add(route_id, self.__vehicles[vehicle_id].original_route)
-            traci.vehicle.add(vehicle_id, route_id)
-        self.__loaded_vehicles.append(vehicle_id)
+        if self.__vehicles[vehicle_id].insert():
+            self.__loaded_vehicles.append(vehicle_id)
 
         if len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS:
             self.__od_pairs[self.__vehicles[vehicle_id].od_pair].increase_load()
 
-    def __get_action_link(self, node_id: str, action: int) -> str:
+    def get_action_link(self, node_id: str, action: int) -> str:
         """Method that returns the link that corresponds to the action performed, given a node/state where it was
         performed.
 
@@ -355,23 +385,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         for vehicle_id, action in actions.items():
             self.__observations[vehicle_id]['ready_to_act'] = False
-            try:
-                current_link_id = self.__vehicles[vehicle_id].current_link
-                node_id = self.get_link_destination(current_link_id)
-                next_link_id = self.__get_action_link(node_id, action)
-                current_route = [current_link_id, next_link_id]
-            except RuntimeError:
-                node_id = self.__vehicles[vehicle_id].origin
-                next_link_id = self.__get_action_link(node_id, action)
-                current_route = [next_link_id]
-
-            try:
-                traci.vehicle.setRoute(vehicle_id, current_route)
-            except TraCIException:
-                print(f"Warning: could not set next link for vehicle ID {vehicle_id}.")
-                print(f"Current route: {self.__vehicles[vehicle_id].route}.")
-                print(f"Tried to choose link {next_link_id} to reach node {self.get_link_destination(next_link_id)}.")
-                print(f"{traci.vehicle.getRoadID(vehicle_id) = }")
+            self.__vehicles[vehicle_id].update_route(action)
 
     def __update_comm_dev_info(self, link_id: str, reward: int) -> None:
         """Method that receives a reward and a link id to update the information to the destination node CommDev about
@@ -413,13 +427,16 @@ class SumoEnvironment(MultiAgentEnv):
         for vehicle_id in running_vehicles:
             traci_vehicle_info = traci.vehicle.getSubscriptionResults(vehicle_id)
             current_link_id = traci_vehicle_info[tc.VAR_ROAD_ID]
+            del traci_vehicle_info[tc.VAR_ROAD_ID]
+            self.__vehicles[vehicle_id].update_emission(traci_vehicle_info)
             if self.__collector.has_debug:
-                del traci_vehicle_info[tc.VAR_ROAD_ID]
                 self.__collector.append_debug_data(traci_vehicle_info, self.__current_step)
             if not self.__vehicles[vehicle_id].is_in_link(current_link_id) and self.__is_link(current_link_id):
                 vehicle_last_link = self.__vehicles[vehicle_id].current_link
                 self.__vehicles[vehicle_id].update_current_link(current_link_id, self.__current_step)
                 rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
+                if self.__populating_network:
+                    self.__data_fit = np.append(self.__data_fit, [rewards[vehicle_id]], axis = 0)
                 self.__update_comm_dev_info(vehicle_last_link, rewards[vehicle_id])
 
                 self.__retrieve_observation_states(vehicle_id)
@@ -448,18 +465,20 @@ class SumoEnvironment(MultiAgentEnv):
         done = dict()
         travel_times = list()
         for vehicle_id in arrived_vehicles:
+            self.__vehicles[vehicle_id].update()
             try:
                 self.__vehicles[vehicle_id].set_arrival(self.__current_step)
             except RuntimeError as error:
                 print(error)
                 print(self.__vehicles[vehicle_id])
-                print(traci.vehicle.getSubscriptionResults(vehicle_id))
             done[vehicle_id] = True
 
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
 
             rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
+            if self.__populating_network:
+                self.__data_fit = np.append(self.__data_fit, [rewards[vehicle_id]], axis = 0)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
             if self.__vehicles[vehicle_id].is_correct_arrival:
@@ -479,14 +498,7 @@ class SumoEnvironment(MultiAgentEnv):
             network in the current step.
         """
         for vehicle_id in departed_vehicles:
-            self.__vehicles[vehicle_id].update_current_link(traci.vehicle.getRoadID(vehicle_id), self.__current_step)
-            traci.vehicle.subscribe(vehicle_id, [tc.VAR_ROAD_ID, 
-                                                 tc.VAR_CO2EMISSION, 
-                                                 tc.VAR_COEMISSION,
-                                                 tc.VAR_HCEMISSION,
-                                                 tc.VAR_PMXEMISSION,
-                                                 tc.VAR_NOXEMISSION,
-                                                 tc.VAR_FUELCONSUMPTION])
+            self.__vehicles[vehicle_id].departure(self.__current_step)
             if self.__vehicles[vehicle_id].ready_to_act:
                 self.__observations[vehicle_id]['reinserted'] = False
                 self.__observations[vehicle_id]['ready_to_act'] = True

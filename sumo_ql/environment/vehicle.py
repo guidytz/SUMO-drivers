@@ -1,9 +1,14 @@
 from __future__ import annotations
 from typing import List
 from typing import TYPE_CHECKING
+from collections import defaultdict
+import numpy as np
+import traci
+import traci.constants as tc
+from traci.exceptions import TraCIException
 
 if TYPE_CHECKING:
-    from sumo_ql.environment.sumo_environment import SumoEnvironment
+    from sumo_ql.environment.sumo_environment import SumoEnvironment, Objectives
 
 
 class Vehicle:
@@ -26,7 +31,8 @@ class Vehicle:
                  arrival_bonus: int,
                  wrong_destination_penalty: int,
                  original_route: List[str],
-                 environment: SumoEnvironment) -> None:
+                 environment: SumoEnvironment,
+                 objectives: Objectives) -> None:
         self.__id = vehicle_id
         self.__origin = origin
         self.__destination = destination
@@ -41,6 +47,9 @@ class Vehicle:
         self.__last_link_departure_time = -1.0
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
+        self.__consumption = defaultdict(lambda: np.array([]))
+        self.__objectives = objectives
+        self.__color = None
 
     def reset(self) -> None:
         """Method that resets important attributes to the vehicle
@@ -142,7 +151,7 @@ class Vehicle:
         """
         return self.__route
 
-    def compute_reward(self, use_bonus_or_penalty: bool = True) -> int:
+    def compute_reward(self, use_bonus_or_penalty: bool = True) -> np.array:
         """Method that computes the reward the agent should receive based on its last action.
         The reward is based on the vehicle's last travel time plus a bonus (if the destination is the vehicle's expected
         destination) or minus a penalty (if the vehicle reaches a destination node that isn't its expected destination)
@@ -157,15 +166,23 @@ class Vehicle:
         Returns:
             int: reward calculated
         """
+        reward = list()
         if not self.departed:
             raise RuntimeError(f"Vehicle {self.__id}  hasn't departed yet!")
-        reward = - self.__travel_time_last_link
-        if self.reached_destination and use_bonus_or_penalty:
-            if self.__route[-1] != self.__destination:
-                reward -= self.__wrong_destination_penalty
-            else:
-                reward += self.__arrival_bonus
-        return reward
+        if self.__objectives.is_valid(tc.VAR_ROAD_ID):
+            reward.append(- self.__travel_time_last_link)
+            if self.reached_destination and use_bonus_or_penalty:
+                if self.__route[-1] != self.__destination:
+                    reward[0] -= self.__wrong_destination_penalty
+                else:
+                    reward[0] += self.__arrival_bonus
+
+        for key in self.__consumption:
+            if self.__objectives.is_valid(key):
+                reward.append(-self.__consumption[key].sum())
+                self.__consumption[key] = np.array([])
+
+        return np.array(reward)
 
     @property
     def ready_to_act(self) -> bool:
@@ -224,6 +241,52 @@ class Vehicle:
             bool: attribute indicating if the vehicle arrived at the right destination.
         """
         return self.route[-1] == self.destination
+
+    def update_emission(self, consumption_data: dict) -> None:
+        for key, value in consumption_data.items():
+            self.__consumption[key] = np.append(self.__consumption[key], [value])
+
+    def insert(self) -> bool:
+        route_id = f"r_{self.vehicle_id}"
+        inserted = True
+        try:
+            traci.vehicle.add(self.vehicle_id, route_id)
+        except TraCIException:
+            print(f"Warning: tried to insert vehicle {self.vehicle_id} to a non existent route. Please verify.")
+            traci.route.add(route_id, self.original_route)
+            traci.vehicle.add(self.vehicle_id, route_id)
+            inserted = False
+        traci.vehicle.setColor(self.vehicle_id, self.__color)
+
+        return inserted
+
+    def update_route(self, action: int) -> bool:
+        try:
+            node_id = self.__environment.get_link_destination(self.current_link)
+            next_link_id = self.__environment.get_action_link(node_id, action)
+            current_route = [self.current_link, next_link_id]
+        except RuntimeError:
+            node_id = self.origin
+            next_link_id = self.__environment.get_action_link(node_id, action)
+            current_route = [next_link_id]
+
+        try:
+            traci.vehicle.setRoute(self.vehicle_id, current_route)
+        except TraCIException:
+            destination = self.__environment.get_link_destination(next_link_id)
+            print(f"Warning: could not set next link for vehicle ID {self.vehicle_id}.")
+            print(f"Current route: {self.route}.")
+            print(f"Tried to choose link {next_link_id} to reach node {destination}.")
+            print(f"{traci.vehicle.getRoadID(self.vehicle_id) = }")
+
+    def update(self) -> None:
+        self.update_emission(traci.vehicle.getSubscriptionResults(self.vehicle_id))
+
+    def departure(self, step: int) -> None:
+        self.update_current_link(traci.vehicle.getRoadID(self.vehicle_id), step)
+        traci.vehicle.subscribe(self.vehicle_id, self.__objectives.known_objectives)
+        if not self.__color:
+            self.__color = traci.vehicle.getColor(self.vehicle_id)
 
     def __compute_last_link_travel_time(self, current_time: int) -> None:
         """Method that computes the travel time taken in last link traveled using time the vehicle departed in the link
