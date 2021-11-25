@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Union
 from typing import TYPE_CHECKING
 from collections import defaultdict
 import numpy as np
@@ -41,7 +41,9 @@ class Vehicle:
         self.__original_route = original_route
         self.__environment = environment
         self.__current_link = None
+        self.__last_link = None
         self.__load_time = -1.0
+        self.__just_changed = False
         self.__departure_time = -1.0
         self.__arrival_time = -1.0
         self.__last_link_departure_time = -1.0
@@ -151,6 +153,14 @@ class Vehicle:
         """
         return self.__route
 
+    @property
+    def current_link(self):
+        return self.__current_link
+
+    @property
+    def last_link(self):
+        return self.__last_link
+
     def compute_reward(self, use_bonus_or_penalty: bool = True) -> np.array:
         """Method that computes the reward the agent should receive based on its last action.
         The reward is based on the vehicle's last travel time plus a bonus (if the destination is the vehicle's expected
@@ -199,41 +209,6 @@ class Vehicle:
         return destination_node != self.__destination and not self.__environment.is_border_node(destination_node)
 
     @property
-    def current_link(self) -> str:
-        """Property that returns the vehicle's current link
-
-        Raises:
-            RuntimeError: the method raises a RuntimeError if the vehicle hasn't departed yet
-
-        Returns:
-            str: vehicle's current link id
-        """
-        if not self.departed:
-            raise RuntimeError(f"Vehicle {self.__id} hasn't departed yet!")
-        return self.__current_link
-
-    def update_current_link(self, link: str, current_time: int) -> None:
-        """Method to update the vehicle's current link.
-
-        Args:
-            link (str): new current link's id
-            current_time (int): time step the vehicle has entered the new link
-
-        Raises:
-            RuntimeError: the method raises a RuntimeError if the vehicle hasn't departed yet and the time given is
-            lower than the load time
-        """
-        if not self.departed:
-            if current_time < self.__load_time:
-                raise RuntimeError("Invalid departure time: value lower than load time!")
-            self.__departure_time = current_time
-        else:
-            self.__compute_last_link_travel_time(current_time)
-        self.__current_link = link
-        self.__append_destination_node()
-        self.__last_link_departure_time = current_time
-
-    @property
     def is_correct_arrival(self) -> bool:
         """Property that returns a boolean stating if the vehicle arrived at the right destination.
 
@@ -279,11 +254,47 @@ class Vehicle:
             print(f"Tried to choose link {next_link_id} to reach node {destination}.")
             print(f"{traci.vehicle.getRoadID(self.vehicle_id) = }")
 
-    def update(self) -> None:
-        self.update_emission(traci.vehicle.getSubscriptionResults(self.vehicle_id))
+    def update(self, current_time):
+        traci_vehicle_info = traci.vehicle.getSubscriptionResults(self.vehicle_id)
+        self.__last_link = self.current_link
+        if (current_link := traci_vehicle_info.pop(tc.VAR_ROAD_ID, self.current_link)) != self.current_link:
+            if self.__environment.is_link(current_link):
+                self.__last_link = self.__update_current_link(current_link, current_time)
+                self.__just_changed = True
+        self.update_emission(traci_vehicle_info)
+
+    def __update_current_link(self, link: str, current_time: int) -> None:
+        """Method to update the vehicle's current link.
+
+        Args:
+            link (str): new current link's id
+            current_time (int): time step the vehicle has entered the new link
+
+        Raises:
+            RuntimeError: the method raises a RuntimeError if the vehicle hasn't departed yet and the time given is
+            lower than the load time
+        """
+        if not self.departed:
+            if current_time < self.__load_time:
+                raise RuntimeError("Invalid departure time: value lower than load time!")
+            self.__departure_time = current_time
+        else:
+            self.__compute_last_link_travel_time(current_time)
+        last_link = self.__current_link
+        self.__current_link = link
+        self.__append_destination_node()
+        self.__last_link_departure_time = current_time
+
+        return last_link
+
+    @property
+    def changed_link(self):
+        if (changed := self.__just_changed):
+            self.__just_changed = False
+        return changed
 
     def departure(self, step: int) -> None:
-        self.update_current_link(traci.vehicle.getRoadID(self.vehicle_id), step)
+        self.__update_current_link(traci.vehicle.getRoadID(self.vehicle_id), step)
         traci.vehicle.subscribe(self.vehicle_id, self.__objectives.known_objectives)
         if not self.__color:
             self.__color = traci.vehicle.getColor(self.vehicle_id)

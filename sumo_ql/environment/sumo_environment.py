@@ -264,7 +264,7 @@ class SumoEnvironment(MultiAgentEnv):
         name += minidom.parse(self.__sumocfg_file).getElementsByTagName(attribute)[0].attributes['value'].value
         return name
 
-    def __is_link(self, edge_id: str) -> bool:
+    def is_link(self, edge_id: str) -> bool:
         """Method that tests if the given link id is from a proper network edge;
 
         Args:
@@ -425,15 +425,11 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         for vehicle_id in running_vehicles:
-            traci_vehicle_info = traci.vehicle.getSubscriptionResults(vehicle_id)
-            current_link_id = traci_vehicle_info[tc.VAR_ROAD_ID]
-            del traci_vehicle_info[tc.VAR_ROAD_ID]
-            self.__vehicles[vehicle_id].update_emission(traci_vehicle_info)
-            if self.__collector.has_debug:
-                self.__collector.append_debug_data(traci_vehicle_info, self.__current_step)
-            if not self.__vehicles[vehicle_id].is_in_link(current_link_id) and self.__is_link(current_link_id):
-                vehicle_last_link = self.__vehicles[vehicle_id].current_link
-                self.__vehicles[vehicle_id].update_current_link(current_link_id, self.__current_step)
+            self.__vehicles[vehicle_id].update(self.__current_step)
+            # if self.__collector.has_debug:
+            #     self.__collector.append_debug_data(traci_vehicle_info, self.__current_step)
+            if self.__vehicles[vehicle_id].changed_link:
+                vehicle_last_link = self.__vehicles[vehicle_id].last_link
                 rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
                 if self.__populating_network:
                     self.__data_fit = np.append(self.__data_fit, [rewards[vehicle_id]], axis = 0)
@@ -465,7 +461,7 @@ class SumoEnvironment(MultiAgentEnv):
         done = dict()
         travel_times = list()
         for vehicle_id in arrived_vehicles:
-            self.__vehicles[vehicle_id].update()
+            self.__vehicles[vehicle_id].update(self.__current_step)
             try:
                 self.__vehicles[vehicle_id].set_arrival(self.__current_step)
             except RuntimeError as error:
