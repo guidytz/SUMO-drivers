@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Union
+from typing import List, Dict
 from typing import TYPE_CHECKING
 from collections import defaultdict
 import numpy as np
@@ -8,7 +8,7 @@ import traci.constants as tc
 from traci.exceptions import TraCIException
 
 if TYPE_CHECKING:
-    from sumo_ql.environment.sumo_environment import SumoEnvironment, Objectives
+    from sumo_ql.environment.sumo_environment import SumoEnvironment
 
 
 class Vehicle:
@@ -49,7 +49,7 @@ class Vehicle:
         self.__last_link_departure_time = -1.0
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
-        self.__consumption = defaultdict(lambda: np.array([]))
+        self.__emission = defaultdict(lambda: np.array([]))
         self.__objectives = objectives
         self.__color = None
 
@@ -146,7 +146,7 @@ class Vehicle:
 
     @property
     def route(self) -> List[str]:
-        """'property that returns the vehicle's current route
+        """property that returns the vehicle's current route
 
         Returns:
             List[str]: vehicle's current route
@@ -154,11 +154,21 @@ class Vehicle:
         return self.__route
 
     @property
-    def current_link(self):
+    def current_link(self) -> str:
+        """property that returns the vehicle's current link
+
+        Returns:
+            str: link ID the vehicle is currently in
+        """
         return self.__current_link
 
     @property
-    def last_link(self):
+    def last_link(self) -> str:
+        """property that returns the link the vehicle last passed through before the current one
+
+        Returns:
+            str: last link ID the vehicle passed through before the current one
+        """
         return self.__last_link
 
     def compute_reward(self, use_bonus_or_penalty: bool = True) -> np.array:
@@ -187,10 +197,10 @@ class Vehicle:
                 else:
                     reward[0] += self.__arrival_bonus
 
-        for key in self.__consumption:
+        for key in self.__emission:
             if self.__objectives.is_valid(key):
-                reward.append(-self.__consumption[key].sum())
-                self.__consumption[key] = np.array([])
+                reward.append(-self.__emission[key].sum())
+                self.__emission[key] = np.array([])
 
         return np.array(reward)
 
@@ -217,11 +227,12 @@ class Vehicle:
         """
         return self.route[-1] == self.destination
 
-    def update_emission(self, consumption_data: dict) -> None:
-        for key, value in consumption_data.items():
-            self.__consumption[key] = np.append(self.__consumption[key], [value])
-
     def insert(self) -> bool:
+        """Method that inserts vehicle within the network using the original route
+
+        Returns:
+            bool: boolean that indicates if the insertion was successful
+        """
         route_id = f"r_{self.vehicle_id}"
         inserted = True
         try:
@@ -235,7 +246,12 @@ class Vehicle:
 
         return inserted
 
-    def update_route(self, action: int) -> bool:
+    def update_route(self, action: int) -> None:
+        """Method that updates the vehicles current route, given an action (link) chosen
+
+        Args:
+            action (int): action that determines the link chosen to go through
+        """
         try:
             node_id = self.__environment.get_link_destination(self.current_link)
             next_link_id = self.__environment.get_action_link(node_id, action)
@@ -254,59 +270,41 @@ class Vehicle:
             print(f"Tried to choose link {next_link_id} to reach node {destination}.")
             print(f"{traci.vehicle.getRoadID(self.vehicle_id) = }")
 
-    def update(self, current_time):
+    def update_data(self, current_time: int) -> None:
+        """Method that performs an update in all vehicle's data like link updates and emission data
+
+        Args:
+            current_time (int): current simulation step
+        """
         traci_vehicle_info = traci.vehicle.getSubscriptionResults(self.vehicle_id)
         self.__last_link = self.current_link
         if (current_link := traci_vehicle_info.pop(tc.VAR_ROAD_ID, self.current_link)) != self.current_link:
             if self.__environment.is_link(current_link):
                 self.__last_link = self.__update_current_link(current_link, current_time)
                 self.__just_changed = True
-        self.update_emission(traci_vehicle_info)
-
-    def __update_current_link(self, link: str, current_time: int) -> None:
-        """Method to update the vehicle's current link.
-
-        Args:
-            link (str): new current link's id
-            current_time (int): time step the vehicle has entered the new link
-
-        Raises:
-            RuntimeError: the method raises a RuntimeError if the vehicle hasn't departed yet and the time given is
-            lower than the load time
-        """
-        if not self.departed:
-            if current_time < self.__load_time:
-                raise RuntimeError("Invalid departure time: value lower than load time!")
-            self.__departure_time = current_time
-        else:
-            self.__compute_last_link_travel_time(current_time)
-        last_link = self.__current_link
-        self.__current_link = link
-        self.__append_destination_node()
-        self.__last_link_departure_time = current_time
-
-        return last_link
+        self.__update_emission(traci_vehicle_info)
 
     @property
-    def changed_link(self):
+    def changed_link(self) -> bool:
+        """property that indicates if the vehicle has just changed to a new link
+
+        Returns:
+            bool: boolean that indicates if the vehicle has changed to a new link
+        """
         if (changed := self.__just_changed):
             self.__just_changed = False
         return changed
 
-    def departure(self, step: int) -> None:
-        self.__update_current_link(traci.vehicle.getRoadID(self.vehicle_id), step)
-        traci.vehicle.subscribe(self.vehicle_id, self.__objectives.known_objectives)
-        if not self.__color:
-            self.__color = traci.vehicle.getColor(self.vehicle_id)
-
-    def __compute_last_link_travel_time(self, current_time: int) -> None:
-        """Method that computes the travel time taken in last link traveled using time the vehicle departed in the link
-        and the current time.
+    def departure(self, current_time: int) -> None:
+        """Method that updates vehicle data when it just entered the network
 
         Args:
-            current_time (int): current time step
+            current_time (int): current simulation step
         """
-        self.__travel_time_last_link = current_time - self.__last_link_departure_time
+        self.__update_current_link(traci.vehicle.getRoadID(self.vehicle_id), current_time)
+        traci.vehicle.subscribe(self.vehicle_id, self.__objectives.known_objectives)
+        if self.__color is None:
+            self.__color = traci.vehicle.getColor(self.vehicle_id)
 
     def set_arrival(self, current_time: int) -> None:
         """Method that sets the arrival time according to the current time step given.
@@ -372,9 +370,100 @@ class Vehicle:
         """
         return link == self.__current_link
 
+    def __update_current_link(self, link: str, current_time: int) -> None:
+        """Method to update the vehicle's current link.
+
+        Args:
+            link (str): new current link's id
+            current_time (int): time step the vehicle has entered the new link
+
+        Raises:
+            RuntimeError: the method raises a RuntimeError if the vehicle hasn't departed yet and the time given is
+            lower than the load time
+        """
+        if not self.departed:
+            if current_time < self.__load_time:
+                raise RuntimeError("Invalid departure time: value lower than load time!")
+            self.__departure_time = current_time
+        else:
+            self.__compute_last_link_travel_time(current_time)
+        last_link = self.__current_link
+        self.__current_link = link
+        self.__append_destination_node()
+        self.__last_link_departure_time = current_time
+
+        return last_link
+
+    def __update_emission(self, consumption_data: dict) -> None:
+        """Method that updates emission data given a dictionary with emission for each type
+
+        Args:
+            consumption_data (dict): dictionary containing emission for each type available in simulation
+        """
+        for key, value in consumption_data.items():
+            self.__emission[key] = np.append(self.__emission[key], [value])
+
+    def __compute_last_link_travel_time(self, current_time: int) -> None:
+        """Method that computes the travel time taken in last link traveled using time the vehicle departed in the link
+        and the current time.
+
+        Args:
+            current_time (int): current time step
+        """
+        self.__travel_time_last_link = current_time - self.__last_link_departure_time
+
     def __append_destination_node(self) -> None:
         """Method that appends the destination node of the vehicle's current link to its route.
         """
         if self.__current_link is not None:
             destination_node = self.__environment.get_link_destination(self.__current_link)
             self.__route.append(destination_node)
+
+
+class Objectives:
+    """Class that holds objective params for Multi-objective learning
+    """
+    def __init__(self, params) -> None:
+        self.__known_objectives: List[int] = Objectives.__retrieve_objectives(params)
+
+    @property
+    def known_objectives(self) -> List[int]:
+        """Known objectives for the current simulation
+
+        Returns:
+            List[int]: list containing all the objetives for the given simulation
+        """
+        return self.__known_objectives
+
+    def is_valid(self, objective: int) -> bool:
+        """Method that returns a boolean that indicates if a given param is a valid objective
+
+        Args:
+            objective (int): param to test if it's a valid objetive
+
+        Returns:
+            bool: boolean indicating if the param given is a valid objective
+        """
+        return objective in self.__known_objectives
+
+    @staticmethod
+    def __retrieve_objectives(params: List[str]) -> List[int]:
+        """Function that converts a list of string objetives to their respective IDs
+
+        Args:
+            params (List[str]): list of objective strings to convert to IDs
+
+        Returns:
+            List[int]: list of valid objective IDs for the given string listt
+        """
+        known_conversions: Dict[str, int] = {
+                "TravelTime": tc.VAR_ROAD_ID,
+                "CO": tc.VAR_COEMISSION,
+                "CO2": tc.VAR_CO2EMISSION,
+                "HC": tc.VAR_HCEMISSION,
+                "PMx": tc.VAR_PMXEMISSION,
+                "NOx": tc.VAR_NOXEMISSION,
+                "Fuel": tc.VAR_FUELCONSUMPTION
+            }
+
+        return list(filter(lambda x: x is not None, [known_conversions.get(par) for par in params]))

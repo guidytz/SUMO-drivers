@@ -11,39 +11,14 @@ from gym import spaces
 import traci
 import traci.constants as tc
 import sumolib
-from traci.exceptions import TraCIException
 
 from sumo_ql.environment.communication_device import CommunicationDevice
-from sumo_ql.environment.vehicle import Vehicle
+from sumo_ql.environment.vehicle import Vehicle, Objectives
 from sumo_ql.environment.od_pair import ODPair
 from sumo_ql.collector.collector import DataCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
-
-class Objectives:
-    def __init__(self, params) -> None:
-        self.__known_objectives: List[int] = self.__retrieve_objectives(params)
-
-    @property
-    def known_objectives(self) -> List[int]:
-        return self.__known_objectives
-
-    def is_valid(self, objective):
-        return objective in self.__known_objectives
-
-    def __retrieve_objectives(self, params) -> List[int]:
-        known_conversions: Dict[str, int] = {
-                "TravelTime": tc.VAR_ROAD_ID,
-                "CO": tc.VAR_COEMISSION,
-                "CO2": tc.VAR_CO2EMISSION,
-                "HC": tc.VAR_HCEMISSION,
-                "PMx": tc.VAR_PMXEMISSION,
-                "NOx": tc.VAR_NOXEMISSION,
-                "Fuel": tc.VAR_FUELCONSUMPTION
-            }
-
-        return list(filter(lambda x: x is not None, [known_conversions.get(par) for par in params]))
 
 
 class SumoEnvironment(MultiAgentEnv):
@@ -425,7 +400,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         for vehicle_id in running_vehicles:
-            self.__vehicles[vehicle_id].update(self.__current_step)
+            self.__vehicles[vehicle_id].update_data(self.__current_step)
             # if self.__collector.has_debug:
             #     self.__collector.append_debug_data(traci_vehicle_info, self.__current_step)
             if self.__vehicles[vehicle_id].changed_link:
@@ -461,7 +436,7 @@ class SumoEnvironment(MultiAgentEnv):
         done = dict()
         travel_times = list()
         for vehicle_id in arrived_vehicles:
-            self.__vehicles[vehicle_id].update(self.__current_step)
+            self.__vehicles[vehicle_id].update_data(self.__current_step)
             try:
                 self.__vehicles[vehicle_id].set_arrival(self.__current_step)
             except RuntimeError as error:
