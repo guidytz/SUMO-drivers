@@ -2,12 +2,11 @@ import sys
 import os
 import errno
 import argparse
-from typing import Dict, List
+from typing import Dict, List, Union
 from datetime import datetime
 from multiprocessing import Pool
 import logging
 import numpy as np
-from sklearn.preprocessing import MaxAbsScaler as scaller
 
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent
@@ -33,6 +32,20 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     observations = None
     rewards = None
     env: SumoEnvironment = None
+    if args.collect:
+        if (collect_fit := args.n_runs == 1):
+            print("Making a data fit collect run.")
+        else:
+            print("Warning: data fit collect only happens in single run simulations.")
+
+
+    def create_dir(dirname: str) -> None:
+        try:
+            os.mkdir(f"{dirname}")
+        except OSError as error:
+            if error.errno != errno.EEXIST:
+                print(f"Couldn't create folder {dirname}, error message: {error.strerror}")
+                raise OSError(error).with_traceback(error.__traceback__)
 
     def create_log(dirname: str, date: datetime) -> None:
         """Method that creates a log file that has information of beginning and end of simulations when making multiple
@@ -46,12 +59,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             OSError: the method raises an OSError if the directory couldn't be created (it doesn't raise the error if
             the directory already exists).
         """
-        try:
-            os.mkdir(f"log/{dirname}")
-        except OSError as error:
-            if error.errno != errno.EEXIST:
-                print(f"Couldn't create folder log/{dirname}, error message: {error.strerror}")
-                raise OSError(error).with_traceback(error.__traceback__)
+        create_dir("log")
+        create_dir(f"log/{dirname}")
         logging.basicConfig(format='%(asctime)s: %(message)s',
                             datefmt='%d-%m-%Y %H:%M:%S',
                             filename=f'log/{dirname}/mult_sims_{date.strftime("%d-%m-%y_%H-%M-%S")}.log',
@@ -64,7 +73,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 moving_avg_gap: int,
                                 date: datetime,
                                 n_runs: int = 1,
-                                debug_params: List[str] = None) -> DataCollector:
+                                objectives: List[str] = None) -> DataCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -97,7 +106,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         return DataCollector(sim_filename=main_simulation_name,
                              steps_to_measure=moving_avg_gap,
                              additional_folders=additional_folders,
-                             debug_params=debug_params)
+                             debug_params=objectives)
 
     def create_environment(args: argparse.Namespace) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.
@@ -115,7 +124,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  moving_avg_gap=args.mav,
                                                  date=date,
                                                  n_runs=args.n_runs,
-                                                 debug_params=args.debug_params)
+                                                 objectives=args.objectives)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
                                       simulation_time=args.steps,
@@ -127,7 +136,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       steps_to_populate=args.wait_learn,
                                       use_gui=args.gui,
                                       data_collector=data_collector,
-                                      objectives=args.debug_params)
+                                      objectives=args.objectives,
+                                      fit_data_collect=collect_fit)
         return environment
 
     def run(iteration) -> None:
@@ -136,10 +146,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         if iteration != -1:
             logging.info("Iteration %s started.", iteration)
         observations = env.reset()
-        print(observations['data_fit'])
-        print(scaller().fit_transform(observations['data_fit']))
-        input()
-        del observations['data_fit']
         done = {'__all__': False}
         while not done['__all__']:
             actions = dict()
@@ -220,42 +226,46 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     env = create_environment(args)
     run(iteration)
 
+def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
+    parser = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
 
-if __name__ == '__main__':
-    parse = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
-
-    parse.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
+    parser.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
                        help="define the config SUMO file (mandatory)")
-    parse.add_argument("-d", "--demand", action="store", type=int, dest="demand",
+    parser.add_argument("-d", "--demand", action="store", type=int, dest="demand",
                        default=750, help="desired network demand (default = 750)")
-    parse.add_argument("-s", "--steps", action="store", type=int, default=60000,
+    parser.add_argument("-s", "--steps", action="store", type=int, default=60000,
                        help="number of max steps (default = 60000)", dest="steps")
-    parse.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
+    parser.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
                        help="Time steps before agents start the learning (default = 3000)")
-    parse.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
+    parser.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
                        help="uses SUMO GUI instead of CLI")
-    parse.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=100,
+    parser.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=100,
                        help="Moving gap size (default = 100 steps)")
-    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
+    parser.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
                        help="Communication success rate (default = 0.0)")
-    parse.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
+    parser.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
                        help="CommDev queue size (default = 30)")
-    parse.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
+    parser.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
                        help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
-    parse.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
+    parser.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
                        help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
-    parse.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
+    parser.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
                        help="Number of multiple simulation runs (default = 1)")
-    parse.add_argument("--parallel", action="store_true", dest="parallel", default=False,
+    parser.add_argument("--parallel", action="store_true", dest="parallel", default=False,
                        help="Set the script to run simulations in parallel using number of available CPU")
-    parse.add_argument("--objectives", action="store", nargs="+", dest="debug_params", default=list(),
+    parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=list(),
                        help="Get a string with debug params to collect separated by a single space (default = None)")
+    parser.add_argument("--collect", action="store_true", dest="collect", default=False,
+                       help="Set the run to collect info about the reward values to use as normalizer latter.")
 
-    options = parse.parse_args()
+    return parser.parse_args(), parser
+
+def main():
+    options, parser = parse_args()
     if not options.cfgfile:
         print('Wrong usage of script!')
         print()
-        parse.print_help()
+        parser.print_help()
         sys.exit()
 
     if options.n_runs > 1:
@@ -271,3 +281,7 @@ if __name__ == '__main__':
                 run_sim(options, curr_date, i)
     else:
         run_sim(options)
+
+
+if __name__ == '__main__':
+    main()
