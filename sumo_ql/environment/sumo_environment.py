@@ -15,7 +15,7 @@ import sumolib
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle, Objectives
 from sumo_ql.environment.od_pair import ODPair
-from sumo_ql.collector.collector import DataCollector
+from sumo_ql.collector.collector import DataCollector, ObjectiveCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
@@ -51,7 +51,8 @@ class SumoEnvironment(MultiAgentEnv):
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
                  data_collector: DataCollector = None,
-                 objectives: List[str] = [tc.VAR_ROAD_ID]) -> None:
+                 objectives: List[str] = None,
+                 fit_data_collect: bool = False) -> None:
         self.__sumocfg_file = sumocfg_file
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
@@ -68,8 +69,12 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: Dict[str, dict] = dict()
         self.__loaded_vehicles: List[str] = list()
-        self.__objectives: Objectives = Objectives(objectives)
-        self.__data_fit = np.empty((0,len(self.__objectives.known_objectives)))
+        self.__objectives: Objectives = (Objectives(objectives) if objectives is not None 
+                                                                else Objectives([tc.VAR_ROAD_ID]))
+        self.__data_fit = None
+        if fit_data_collect:
+            bar_pos = self.__sumocfg_file.rfind('/')
+            self.__data_fit = ObjectiveCollector(self.__objectives.objective_str, self.__sumocfg_file[:bar_pos])
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -107,13 +112,10 @@ class SumoEnvironment(MultiAgentEnv):
             for od_pair in self.__od_pairs:
                 self.__od_pairs[od_pair].reset()
 
-        self.__data_fit = np.empty((0, len(self.__objectives.known_objectives)))
         self.__populate_network()
         return self.__observations
 
     def step(self, action_dict):
-        if self.__observations.get("data_fit"):
-            del self.__observations["data_fit"]
         rewards = dict()
         done = dict()
         self.__handle_loaded_vehicles()
@@ -131,6 +133,8 @@ class SumoEnvironment(MultiAgentEnv):
         """Method that closes the traci run.
         """
         self.__collector.save()
+        if self.__data_fit is not None:
+            self.__data_fit.save()
         traci.close()
 
     def get_comm_dev(self, node_id: str) -> CommunicationDevice:
@@ -217,8 +221,6 @@ class SumoEnvironment(MultiAgentEnv):
             self.__handle_loaded_vehicles()
             self.__sumo_step()
             self.__handle_step_vehicle_updates()
-        self.__observations["data_fit"] = self.__data_fit
-        del self.__data_fit
 
     def __sumo_step(self) -> None:
         """Method that performs a simulation step.
@@ -406,8 +408,8 @@ class SumoEnvironment(MultiAgentEnv):
             if self.__vehicles[vehicle_id].changed_link:
                 vehicle_last_link = self.__vehicles[vehicle_id].last_link
                 rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
-                if self.__populating_network:
-                    self.__data_fit = np.append(self.__data_fit, [rewards[vehicle_id]], axis = 0)
+                self.__update_data_fit(rewards[vehicle_id])
+
                 self.__update_comm_dev_info(vehicle_last_link, rewards[vehicle_id])
 
                 self.__retrieve_observation_states(vehicle_id)
@@ -446,10 +448,9 @@ class SumoEnvironment(MultiAgentEnv):
 
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
+            self.__update_data_fit(reward)
 
             rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
-            if self.__populating_network:
-                self.__data_fit = np.append(self.__data_fit, [rewards[vehicle_id]], axis = 0)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
             if self.__vehicles[vehicle_id].is_correct_arrival:
@@ -529,3 +530,7 @@ class SumoEnvironment(MultiAgentEnv):
         current_link = self.__vehicles[vehicle_id].current_link
         self.__observations[vehicle_id]['current_state'] = self.get_link_destination(current_link)
         self.__observations[vehicle_id]['previous_state'] = self.get_link_origin(current_link)
+
+    def __update_data_fit(self, reward):
+        if self.__data_fit is not None:
+            self.__data_fit.append_rewards([reward])

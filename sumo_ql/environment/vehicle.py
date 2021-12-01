@@ -6,6 +6,7 @@ import numpy as np
 import traci
 import traci.constants as tc
 from traci.exceptions import TraCIException
+# from sklearn.preprocessing import MaxAbsScaler as scaller
 
 if TYPE_CHECKING:
     from sumo_ql.environment.sumo_environment import SumoEnvironment
@@ -37,7 +38,7 @@ class Vehicle:
         self.__origin = origin
         self.__destination = destination
         self.__arrival_bonus = arrival_bonus
-        self.__wrong_destination_penalty = wrong_destination_penalty
+        self.__wrong_destination_penalty = -wrong_destination_penalty
         self.__original_route = original_route
         self.__environment = environment
         self.__current_link = None
@@ -74,6 +75,7 @@ class Vehicle:
         self.__last_link_departure_time = -1.0
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
+        self.__emission = defaultdict(lambda: np.array([]))
 
     @property
     def vehicle_id(self) -> str:
@@ -191,16 +193,19 @@ class Vehicle:
             raise RuntimeError(f"Vehicle {self.__id}  hasn't departed yet!")
         if self.__objectives.is_valid(tc.VAR_ROAD_ID):
             reward.append(- self.__travel_time_last_link)
-            if self.reached_destination and use_bonus_or_penalty:
-                if self.__route[-1] != self.__destination:
-                    reward[0] -= self.__wrong_destination_penalty
-                else:
-                    reward[0] += self.__arrival_bonus
 
         for key in self.__emission:
             if self.__objectives.is_valid(key):
                 reward.append(-self.__emission[key].sum())
-                self.__emission[key] = np.array([])
+                self.__emission[key] = np.array([]) if not self.reached_destination else self.__emission[key]
+
+        if self.reached_destination and use_bonus_or_penalty:
+            if self.__route[-1] != self.__destination:
+                append = -self.__wrong_destination_penalty
+            else:
+                append = self.__arrival_bonus
+
+            reward = list(map(lambda val: val + append, reward))
 
         return np.array(reward)
 
@@ -423,6 +428,16 @@ class Vehicle:
 class Objectives:
     """Class that holds objective params for Multi-objective learning
     """
+    __conversions: Dict[str, int] = {
+                "TravelTime": tc.VAR_ROAD_ID,
+                "CO": tc.VAR_COEMISSION,
+                "CO2": tc.VAR_CO2EMISSION,
+                "HC": tc.VAR_HCEMISSION,
+                "PMx": tc.VAR_PMXEMISSION,
+                "NOx": tc.VAR_NOXEMISSION,
+                "Fuel": tc.VAR_FUELCONSUMPTION
+            }
+
     def __init__(self, params) -> None:
         self.__known_objectives: List[int] = Objectives.__retrieve_objectives(params)
 
@@ -435,6 +450,10 @@ class Objectives:
         """
         return self.__known_objectives
 
+    @property
+    def objective_str(self):
+        return [string for string, value in self.__conversions.items() if value in self.known_objectives]
+
     def is_valid(self, objective: int) -> bool:
         """Method that returns a boolean that indicates if a given param is a valid objective
 
@@ -446,8 +465,8 @@ class Objectives:
         """
         return objective in self.__known_objectives
 
-    @staticmethod
-    def __retrieve_objectives(params: List[str]) -> List[int]:
+    @classmethod
+    def __retrieve_objectives(cls, params: List[str]) -> List[int]:
         """Function that converts a list of string objetives to their respective IDs
 
         Args:
@@ -456,14 +475,5 @@ class Objectives:
         Returns:
             List[int]: list of valid objective IDs for the given string listt
         """
-        known_conversions: Dict[str, int] = {
-                "TravelTime": tc.VAR_ROAD_ID,
-                "CO": tc.VAR_COEMISSION,
-                "CO2": tc.VAR_CO2EMISSION,
-                "HC": tc.VAR_HCEMISSION,
-                "PMx": tc.VAR_PMXEMISSION,
-                "NOx": tc.VAR_NOXEMISSION,
-                "Fuel": tc.VAR_FUELCONSUMPTION
-            }
 
-        return list(filter(lambda x: x is not None, [known_conversions.get(par) for par in params]))
+        return list(filter(lambda x: x is not None, [cls.__conversions.get(par) for par in params]))
