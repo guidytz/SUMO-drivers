@@ -195,3 +195,35 @@ class DataCollector:
         if len(debug.keys()) == 0:
             return None
         return debug
+
+
+class ObjectiveCollector:
+
+    def __init__(self, objecitve_list: List[str], sim_path: str) -> None:
+        self.__objectives = objecitve_list
+        self.__collector = pd.DataFrame({obj: [] for obj in self.__objectives})
+        self.__sim_path = sim_path
+
+    @property
+    def __sim_path(self):
+        return self.__existing_path
+
+    @__sim_path.setter
+    def __sim_path(self, path):
+        if os.path.exists(path):
+            self.__existing_path = path
+        else:
+            raise FileNotFoundError(f"The path `{path}` informed does not exist.")
+
+    def append_rewards(self, reward_list: List[np.array]) -> None:
+        reward_list = np.array(reward_list)
+        n_obj = len(self.__objectives)
+        new_data = pd.DataFrame({obj: reward_list[:, i] for obj, i in zip(self.__objectives, range(n_obj))})
+        self.__collector = self.__collector.append(new_data, ignore_index=True)
+
+    def save(self):
+        filename = f"{self.__sim_path}/fit_data_{'_'.join(self.__objectives)}.csv"
+        self.__collector.to_csv(filename, index=False)
+
+    def __str__(self) -> str:
+        return f"{self.__collector}"
