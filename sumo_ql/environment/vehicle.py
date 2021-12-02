@@ -189,7 +189,7 @@ class Vehicle:
             RuntimeError: the method raises a RuntimeError if the vehicle hasn't dearted yet
 
         Returns:
-            int: reward calculated
+            np.array: reward calculated
         """
         reward = list()
         if not self.departed:
@@ -213,14 +213,19 @@ class Vehicle:
             reward = list(map(lambda val: val + append, reward))
         array = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
         return array
-    
+
     @property
     def normalizer(self) -> scaler:
         if self.__normalizer is None:
             path = self.__environment.sim_path
             fit_file = f"{path}/fit_data_{'_'.join(self.__objectives.objective_str)}.csv"
-            fit_data = pd.read_csv(fit_file).to_numpy()
-            self.__normalizer = scaler().fit(fit_data)
+            try:
+                fit_data = pd.read_csv(fit_file).to_numpy()
+                self.__normalizer = scaler().fit(fit_data)
+            except FileNotFoundError:
+                err_str = "Fit data must be in scenario directory."
+                err_str += " Please run simulation with flag '--collect' before"
+                raise RuntimeError(err_str) from FileNotFoundError
         return self.__normalizer
 
     @property
