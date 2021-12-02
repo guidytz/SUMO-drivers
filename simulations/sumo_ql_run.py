@@ -32,6 +32,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     observations = None
     rewards = None
     env: SumoEnvironment = None
+    collect_fit: bool = False
     if args.collect:
         if (collect_fit := args.n_runs == 1):
             print("Making a data fit collect run.")

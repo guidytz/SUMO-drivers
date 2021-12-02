@@ -192,6 +192,10 @@ class SumoEnvironment(MultiAgentEnv):
         """
         return self.__action_space
 
+    @property
+    def sim_path(self):
+        return self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
+
     def get_action(self, previous_state: str, next_state: str) -> int:
         """Method that returns the action (link index) given an origin and destination node.
         The method returns -1 if the action was not found.
@@ -404,7 +408,7 @@ class SumoEnvironment(MultiAgentEnv):
             self.__vehicles[vehicle_id].update_data(self.__current_step)
             if self.__vehicles[vehicle_id].changed_link:
                 vehicle_last_link = self.__vehicles[vehicle_id].last_link
-                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
+                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
                 self.__update_data_fit(rewards[vehicle_id])
 
                 self.__update_comm_dev_info(vehicle_last_link, rewards[vehicle_id])
@@ -443,11 +447,13 @@ class SumoEnvironment(MultiAgentEnv):
                 print(self.__vehicles[vehicle_id])
             done[vehicle_id] = True
 
-            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
+            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False, 
+                                                                normalize=self.__not_collecting)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
+            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_data_fit(reward)
 
-            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
+            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
             if self.__vehicles[vehicle_id].is_correct_arrival:
@@ -532,3 +538,7 @@ class SumoEnvironment(MultiAgentEnv):
     def __update_data_fit(self, reward):
         if self.__data_fit is not None:
             self.__data_fit.append_rewards([reward])
+            
+    @property
+    def __not_collecting(self):
+        return self.__data_fit is None

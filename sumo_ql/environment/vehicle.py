@@ -3,10 +3,11 @@ from typing import List, Dict
 from typing import TYPE_CHECKING
 from collections import defaultdict
 import numpy as np
+import pandas as pd
 import traci
 import traci.constants as tc
 from traci.exceptions import TraCIException
-# from sklearn.preprocessing import MaxAbsScaler as scaller
+from sklearn.preprocessing import MaxAbsScaler as scaler
 
 if TYPE_CHECKING:
     from sumo_ql.environment.sumo_environment import SumoEnvironment
@@ -54,6 +55,7 @@ class Vehicle:
         self.__cumulative_em = defaultdict(lambda: 0)
         self.__objectives = objectives
         self.__color = None
+        self.__normalizer = None
 
     def reset(self) -> None:
         """Method that resets important attributes to the vehicle
@@ -174,7 +176,7 @@ class Vehicle:
         """
         return self.__last_link
 
-    def compute_reward(self, use_bonus_or_penalty: bool = True) -> np.array:
+    def compute_reward(self, use_bonus_or_penalty: bool = True, normalize: bool = False) -> np.array:
         """Method that computes the reward the agent should receive based on its last action.
         The reward is based on the vehicle's last travel time plus a bonus (if the destination is the vehicle's expected
         destination) or minus a penalty (if the vehicle reaches a destination node that isn't its expected destination)
@@ -198,7 +200,7 @@ class Vehicle:
         for key in self.__emission:
             if self.__objectives.is_valid(key):
                 em_sum = self.__emission[key].sum()
-                reward.append(-em_sum)
+                reward.append(- em_sum)
                 self.__cumulative_em[key] += em_sum
                 self.__emission[key] = np.array([]) if not self.reached_destination else self.__emission[key]
 
@@ -209,8 +211,17 @@ class Vehicle:
                 append = self.__arrival_bonus
 
             reward = list(map(lambda val: val + append, reward))
-
-        return np.array(reward)
+        array = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
+        return array
+    
+    @property
+    def normalizer(self) -> scaler:
+        if self.__normalizer is None:
+            path = self.__environment.sim_path
+            fit_file = f"{path}/fit_data_{'_'.join(self.__objectives.objective_str)}.csv"
+            fit_data = pd.read_csv(fit_file).to_numpy()
+            self.__normalizer = scaler().fit(fit_data)
+        return self.__normalizer
 
     @property
     def ready_to_act(self) -> bool:
