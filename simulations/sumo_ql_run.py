@@ -106,7 +106,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         return DataCollector(sim_filename=main_simulation_name,
                              steps_to_measure=moving_avg_gap,
                              additional_folders=additional_folders,
-                             debug_params=objectives)
+                             param_list=objectives)
 
     def create_environment(args: argparse.Namespace) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.
@@ -254,7 +254,7 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
     parser.add_argument("--parallel", action="store_true", dest="parallel", default=False,
                        help="Set the script to run simulations in parallel using number of available CPU")
     parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=list(),
-                       help="Get a string with debug params to collect separated by a single space (default = None)")
+                       help="List with objective params to use separated by a single space (default = [TravelTime])")
     parser.add_argument("--collect", action="store_true", dest="collect", default=False,
                        help="Set the run to collect info about the reward values to use as normalizer latter.")
 

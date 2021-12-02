@@ -69,8 +69,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: Dict[str, dict] = dict()
         self.__loaded_vehicles: List[str] = list()
-        self.__objectives: Objectives = (Objectives(objectives) if objectives is not None 
-                                                                else Objectives([tc.VAR_ROAD_ID]))
+        self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
         if fit_data_collect:
             bar_pos = self.__sumocfg_file.rfind('/')
@@ -403,8 +402,6 @@ class SumoEnvironment(MultiAgentEnv):
         rewards = dict()
         for vehicle_id in running_vehicles:
             self.__vehicles[vehicle_id].update_data(self.__current_step)
-            # if self.__collector.has_debug:
-            #     self.__collector.append_debug_data(traci_vehicle_info, self.__current_step)
             if self.__vehicles[vehicle_id].changed_link:
                 vehicle_last_link = self.__vehicles[vehicle_id].last_link
                 rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
@@ -436,7 +433,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         done = dict()
-        travel_times = list()
+        data_collected = list()
         for vehicle_id in arrived_vehicles:
             self.__vehicles[vehicle_id].update_data(self.__current_step)
             try:
@@ -454,11 +451,12 @@ class SumoEnvironment(MultiAgentEnv):
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
             if self.__vehicles[vehicle_id].is_correct_arrival:
-                travel_times.append(self.__vehicles[vehicle_id].travel_time)
+                data_collected.append(self.__vehicles[vehicle_id].cumulative_data)
 
             self.__verify_reinsertion_necessity(vehicle_id)
 
-        self.__collector.append_travel_times(travel_times, self.__current_step)
+        if len(data_collected) > 1 or self.__collector.time_to_measure(self.__current_step):
+            self.__collector.append_data(data_collected, self.__current_step)
 
         return rewards, done
 

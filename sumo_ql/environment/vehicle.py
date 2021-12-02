@@ -51,6 +51,7 @@ class Vehicle:
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
         self.__emission = defaultdict(lambda: np.array([]))
+        self.__cumulative_em = defaultdict(lambda: 0)
         self.__objectives = objectives
         self.__color = None
 
@@ -196,7 +197,9 @@ class Vehicle:
 
         for key in self.__emission:
             if self.__objectives.is_valid(key):
-                reward.append(-self.__emission[key].sum())
+                em_sum = self.__emission[key].sum()
+                reward.append(-em_sum)
+                self.__cumulative_em[key] += em_sum
                 self.__emission[key] = np.array([]) if not self.reached_destination else self.__emission[key]
 
         if self.reached_destination and use_bonus_or_penalty:
@@ -363,6 +366,10 @@ class Vehicle:
             raise RuntimeError("Vehicle hasn't reached destination yet!")
 
         return self.__arrival_time - self.__departure_time
+
+    @property
+    def cumulative_data(self) -> List[int]:
+        return [self.travel_time] + list(self.__cumulative_em.values())
 
     def is_in_link(self, link: str) -> bool:
         """Method that tests if the vehicle is in the given link.
