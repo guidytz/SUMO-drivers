@@ -169,7 +169,7 @@ class ObjectiveCollector:
 
     def save(self):
         filename = f"{self.__sim_path}/fit_data_{'_'.join(self.__objectives)}.csv"
-        self.__collector.to_csv(filename, index=False)
+        self.__collector.to_csv(filename, index=False, mode='a')
 
     def __str__(self) -> str:
         return f"{self.__collector}"
