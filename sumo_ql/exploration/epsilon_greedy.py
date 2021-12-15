@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict
 from typing import List
 from gym import spaces
+import numpy as np
 
 MAX_SAMPLE_COUNTER = 30
 
@@ -17,8 +18,7 @@ class EpsilonGreedy:
         seed (int, optional): seed to use in random choice. Defaults to datetime.now().
     """
 
-    def __init__(self,
-                 initial_epsilon: float = 1.0,
+    def __init__(self, initial_epsilon: float = 1.0,
                  min_epsilon: float = 0.05,
                  decay: float = 0.99,
                  seed: int = datetime.now()) -> None:
@@ -29,7 +29,7 @@ class EpsilonGreedy:
 
         rd.seed(seed)
 
-    def choose(self, q_table: Dict[str, List[float]],
+    def choose(self, q_table: Dict[str, List[float]] or np.ndarray,
                state: str,
                action_space: Dict[str, spaces.Discrete],
                available_actions: List[int]) -> int:
@@ -53,43 +53,42 @@ class EpsilonGreedy:
         Returns:
             int: value (index) of the action chosen
         """
-        if rd.random() < self.__epsilon:
-            counter = 0
-            while counter < MAX_SAMPLE_COUNTER:
-                action = int(action_space[state].sample())
-                if action in available_actions:
-                    break
-                counter += 1
-            if counter >= MAX_SAMPLE_COUNTER:
-                if len(available_actions) == 1:
-                    action = available_actions[0]
-                elif len(available_actions) == 0:
-                    raise RuntimeError("Couldn't take any action, no available actions given.")
-                else:
-                    print(f"{available_actions = }")
-                    print(f"{state = }")
-                    print(f"{action = }")
-                    print(f"{action_space[state] = }")
-                    raise RuntimeError("Something went wrong in sample, couldn't take any of the available actions.")
+        action = -1
+        if self.__pickup_random:
+            try:
+                action = rd.choice(available_actions)
+            except IndexError:
+                raise RuntimeError("Couldn't take any action, no available actions given.") from IndexError
+            if action not in range(action_space[state].n):
+                raise RuntimeError("Available action not in state's action space.")
+        elif isinstance(q_table, dict):
+            action = self.__choose_dict(q_table, state, available_actions)
+        elif isinstance(q_table, np.ndarray):
+            action = self.__choose_array(q_table, available_actions)
         else:
-            available_values = []
-            for action in range(len(q_table[state])):
-                if action in available_actions:
-                    available_values.append(q_table[state][action])
-            max_value = max(available_values)
-            equal_list = list()
-            for index, value in enumerate(q_table[state]):
-                if value == max_value and index in available_actions:
-                    equal_list.append(index)
-
-            if len(equal_list) != 1:
-                action = rd.choice(equal_list)
-            else:
-                action = equal_list[0]
+            raise RuntimeError("Q-table is istance of unknown class.")
 
         self.__decay_epsilon_value()
 
         return action
+
+    def __choose_dict(self, q_table: Dict[str, List[float]],
+                            state: str,
+                            available_actions: List[int]) -> int:
+
+        max_value = max(q_table[state][action] for action in available_actions)
+        equal_list = [action for action in available_actions if max_value == q_table[state][action]]
+
+        return rd.choice(equal_list)
+
+    def __choose_array(self, q_set: np.ndarray,
+                             available_actions: List[int]) -> int:
+
+        low_std_obj = np.argmin([obj.std() for obj in q_set.T])
+        max_value = max(q_set.T[low_std_obj])
+        equal_list = [action for action in available_actions if max_value == q_set.T[low_std_obj][action]]
+        
+        return rd.choice(equal_list)
 
     def reset(self) -> None:
         """Method that resets the current epsilon value to its initial one.
@@ -100,3 +99,7 @@ class EpsilonGreedy:
         """Method that performs a decay in epsilon value if possible.
         """
         self.__epsilon = max(self.__epsilon*self.__decay, self.__min_epsilon)
+
+    @property
+    def __pickup_random(self):
+        return rd.random() < self.__epsilon
