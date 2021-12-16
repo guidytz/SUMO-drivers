@@ -85,10 +85,18 @@ class EpsilonGreedy:
                              available_actions: List[int]) -> int:
 
         low_std_obj = np.argmin([obj.std() for obj in q_set.T])
-        max_value = max(q_set.T[low_std_obj])
+        max_value = max(q_set.T[low_std_obj][action] for action in available_actions)
         equal_list = [action for action in available_actions if max_value == q_set.T[low_std_obj][action]]
-        
-        return rd.choice(equal_list)
+
+        try:
+            action = rd.choice(equal_list)
+        except IndexError:
+            print("No action to choose")
+            print(f"{available_actions = }")
+            print(f"{max_value = }")
+            print(f"{q_set.T[low_std_obj] = }")
+            raise RuntimeError from IndexError
+        return action
 
     def reset(self) -> None:
         """Method that resets the current epsilon value to its initial one.

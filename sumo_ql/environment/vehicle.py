@@ -54,6 +54,7 @@ class Vehicle:
         self.__emission = defaultdict(lambda: np.array([]))
         self.__cumulative_em = defaultdict(lambda: 0)
         self.__objectives = objectives
+        self.__link_inclusion = [tc.VAR_ROAD_ID] if tc.VAR_ROAD_ID not in self.__objectives.known_objectives else []
         self.__color = None
         self.__normalizer = None
 
@@ -326,7 +327,7 @@ class Vehicle:
             current_time (int): current simulation step
         """
         self.__update_current_link(traci.vehicle.getRoadID(self.vehicle_id), current_time)
-        traci.vehicle.subscribe(self.vehicle_id, self.__objectives.known_objectives)
+        traci.vehicle.subscribe(self.vehicle_id, self.__link_inclusion + self.__objectives.known_objectives)
         if self.__color is None:
             self.__color = traci.vehicle.getColor(self.vehicle_id)
 

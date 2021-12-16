@@ -82,7 +82,7 @@ class DataCollector:
         """
         if self.time_to_measure(step) and self.__data_collected[0].size != 0:
             avg_data = [data.mean() for data in self.__data_collected]
-            df_update = pd.DataFrame(dict({"Step": [step]}, 
+            df_update = pd.DataFrame(dict({"Step": [step]},
                                         **{obj: [val] for obj, val in zip(self.__param_list, avg_data)}))
             self.__data_df = self.__data_df.append(df_update, ignore_index=True)
             self.__data_collected = [np.array([]) for _ in self.__param_list]
