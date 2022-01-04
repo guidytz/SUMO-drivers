@@ -430,7 +430,7 @@ class Vehicle:
             consumption_data (dict): dictionary containing emission for each type available in simulation
         """
         if self.__just_changed:
-            self.__emission = {key: np.array([]) for key in self.__emission}
+            self.__emission = defaultdict(lambda: np.array([]))
         for key, value in consumption_data.items():
             self.__emission[key] = np.append(self.__emission[key], [value])
 
