@@ -80,6 +80,7 @@ class Vehicle:
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
         self.__emission = defaultdict(lambda: np.array([]))
+        self.__cumulative_em = defaultdict(lambda: 0)
 
     @property
     def vehicle_id(self) -> str:
@@ -202,8 +203,6 @@ class Vehicle:
             if self.__objectives.is_valid(key):
                 em_sum = self.__emission[key].sum()
                 reward.append(- em_sum)
-                self.__cumulative_em[key] += em_sum
-                self.__emission[key] = np.array([]) if not self.reached_destination else self.__emission[key]
 
         if self.reached_destination and use_bonus_or_penalty:
             if self.__route[-1] != self.__destination:
@@ -430,6 +429,8 @@ class Vehicle:
             consumption_data (dict): dictionary containing emission for each type available in simulation
         """
         if self.__just_changed:
+            for key in self.__emission:
+                self.__cumulative_em[key] += self.__emission[key].sum()
             self.__emission = defaultdict(lambda: np.array([]))
         for key, value in consumption_data.items():
             self.__emission[key] = np.append(self.__emission[key], [value])
