@@ -8,7 +8,7 @@ import seaborn as sns
 if __name__ == "__main__":
     sns.set_theme(style="darkgrid")
     palette = itertools.cycle(sns.color_palette("colorblind"))
-    
+
     parser = argparse.ArgumentParser(
         description='Script to plot a scatter graph using a csv file with two columns')
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
             axes[i].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
             sns.scatterplot(x="Step", y=col, data=df, ax=axes[i], color=next(palette))
     else:
-        axes.ticklabel_format(axis='y', style='sci')
+        axes.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         sns.scatterplot(x="Step", y=columns[0], data=df, ax=axes, color=next(palette))
 
     plt.show()
