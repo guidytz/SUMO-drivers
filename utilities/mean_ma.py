@@ -1,5 +1,4 @@
 import os
-from re import IGNORECASE
 import sys
 import argparse
 import itertools
