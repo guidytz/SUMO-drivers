@@ -6,7 +6,6 @@ import itertools
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from seaborn.palettes import color_palette
 
 
 def main():

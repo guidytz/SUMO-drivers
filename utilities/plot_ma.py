@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     df = pd.read_csv(options.csv_file)
     columns = list(df.columns[1:])
-    fig, axes = plt.subplots(len(columns), 1, figsize=(10, len(columns) * 3.5), sharex=True, constrained_layout=True)
+    _, axes = plt.subplots(len(columns), 1, figsize=(10, len(columns) * 3.5), sharex=True, constrained_layout=True)
     if len(columns) > 1:
         for i, col in enumerate(columns):
             axes[i].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
