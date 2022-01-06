@@ -1,10 +1,14 @@
 import sys
 import argparse
+import itertools
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 if __name__ == "__main__":
+    sns.set_theme(style="darkgrid")
+    palette = itertools.cycle(sns.color_palette("colorblind"))
+    
     parser = argparse.ArgumentParser(
         description='Script to plot a scatter graph using a csv file with two columns')
 
@@ -19,7 +23,14 @@ if __name__ == "__main__":
         sys.exit()
 
     df = pd.read_csv(options.csv_file)
-    columns = list(df.columns)
-    df.plot(kind="scatter", x=columns[0], y=columns[1], s=5)
-    plt.ylabel("Average travel time")
+    columns = list(df.columns[1:])
+    fig, axes = plt.subplots(len(columns), 1, figsize=(10, len(columns) * 3.5), sharex=True, constrained_layout=True)
+    if len(columns) > 1:
+        for i, col in enumerate(columns):
+            axes[i].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+            sns.scatterplot(x="Step", y=col, data=df, ax=axes[i], color=next(palette))
+    else:
+        axes.ticklabel_format(axis='y', style='sci')
+        sns.scatterplot(x="Step", y=columns[0], data=df, ax=axes, color=next(palette))
+
     plt.show()
