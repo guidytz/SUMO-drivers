@@ -30,7 +30,7 @@ class DataCollector:
         self.__steps_to_measure = steps_to_measure
         self.__path = custom_path if custom_path != '' else f"{os.getcwd()}/results"
         self.__additional_folders = additional_folders
-        self.__param_list = param_list or ['Travel Time']
+        self.__param_list = param_list if "TravelTime" in param_list else ["TravelTime"] + param_list
         self.__param_list = [item.replace("TravelTime", "Travel Time") for item in self.__param_list]
         self.__data_collected = [np.array([]) for _ in self.__param_list]
         self.__data_df = pd.DataFrame(dict({"Step": []}, **{obj: [] for obj in self.__param_list}))

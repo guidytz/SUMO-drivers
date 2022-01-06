@@ -255,7 +255,7 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                        help="Number of multiple simulation runs (default = 1)")
     parser.add_argument("--parallel", action="store_true", dest="parallel", default=False,
                        help="Set the script to run simulations in parallel using number of available CPU")
-    parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=list(),
+    parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=["TravelTime"],
                        help="List with objective params to use separated by a single space (default = [TravelTime])")
     parser.add_argument("--collect", action="store_true", dest="collect", default=False,
                        help="Set the run to collect info about the reward values to use as normalizer latter.")
