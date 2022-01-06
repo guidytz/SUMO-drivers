@@ -1,13 +1,18 @@
 import os
+from re import IGNORECASE
 import sys
 import argparse
+import itertools
 import pandas as pd
-import numpy
-import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
+from seaborn.palettes import color_palette
 
 
 def main():
+    sns.set_theme(style="darkgrid")
+    palette = itertools.cycle(sns.color_palette("colorblind"))
+
     parser = argparse.ArgumentParser(
         description='Script to take several csv files of same sort and take the average of the values to store')
 
@@ -26,23 +31,23 @@ def main():
     files = output.split('\n')
     files.pop()
 
-    df = pd.read_csv(f"{args.folder_path}/{files[0]}")["Step"].copy().to_frame()
-    for file, i in  zip(files, range(len(files))):
+    objectives = list(pd.read_csv(f"{args.folder_path}/{files[0]}").columns[1:])
+    full_df = pd.DataFrame(dict({"Step": []}, **{obj: [] for obj in objectives}))
+    for file in files:
         csv_df = pd.read_csv(f"{args.folder_path}/{file}")
-        df = df.join(csv_df.set_index("Step"), on="Step")
-        df = df.rename(columns={df.columns[-1]:f"file_{i}"})
+        csv_df = csv_df.iloc[50:]
+        full_df = full_df.append(csv_df, ignore_index=True)
 
-    df = df.set_index("Step")
-    mean = df.mean(axis=1, numeric_only=True)
-    std = df.std(axis=1, numeric_only=True)
-
-    plt.figure()
-    plt.plot(mean.index, mean)
-    plt.fill_between(std.index, mean - 2 * std, mean + 2 * std, alpha=0.2)
-    plt.xlabel("Step")
-    plt.ylabel("Average travel time")
+    _, axes = plt.subplots(len(objectives), 1, figsize=(10, len(objectives) * 3.5), 
+                            sharex=True, constrained_layout=True)
+    if len(objectives) > 1:
+        for i, obj in enumerate(objectives):
+            axes[i].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+            sns.lineplot(x='Step', y=obj, data=full_df, ax=axes[i], ci='sd', color=next(palette))
+    else:
+        axes.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        sns.lineplot(x='Step', y=objectives[0], data=full_df, ax=axes, ci='sd', color=next(palette))
     plt.show()
-
 
 
 if __name__ == "__main__":
