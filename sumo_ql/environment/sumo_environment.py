@@ -447,7 +447,7 @@ class SumoEnvironment(MultiAgentEnv):
                 print(self.__vehicles[vehicle_id])
             done[vehicle_id] = True
 
-            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False, 
+            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False,
                                                                 normalize=self.__not_collecting)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)

@@ -51,7 +51,8 @@ class Vehicle:
         self.__last_link_departure_time = -1.0
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
-        self.__emission = defaultdict(lambda: np.array([]))
+        self.__emission = defaultdict(lambda: 0)
+        self.__lst_em_rewards = defaultdict(lambda: 0)
         self.__cumulative_em = defaultdict(lambda: 0)
         self.__objectives = objectives
         self.__link_inclusion = [tc.VAR_ROAD_ID] if tc.VAR_ROAD_ID not in self.__objectives.known_objectives else []
@@ -79,7 +80,8 @@ class Vehicle:
         self.__last_link_departure_time = -1.0
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
-        self.__emission = defaultdict(lambda: np.array([]))
+        self.__emission = defaultdict(lambda: 0)
+        self.__lst_em_rewards = defaultdict(lambda: 0)
         self.__cumulative_em = defaultdict(lambda: 0)
 
     @property
@@ -201,7 +203,7 @@ class Vehicle:
 
         for key in self.__emission:
             if self.__objectives.is_valid(key):
-                em_sum = self.__emission[key].sum()
+                em_sum = self.__lst_em_rewards[key]
                 reward.append(- em_sum)
 
         if self.reached_destination and use_bonus_or_penalty:
@@ -346,6 +348,7 @@ class Vehicle:
             raise RuntimeError("Invalid arrival time: value lower than departure time!")
 
         self.__arrival_time = current_time
+        self.__update_emission({key: 0 for key in self.__emission})
 
     @property
     def reached_destination(self) -> bool:
@@ -428,12 +431,13 @@ class Vehicle:
         Args:
             consumption_data (dict): dictionary containing emission for each type available in simulation
         """
-        if self.__just_changed:
+        if self.__just_changed or self.reached_destination:
             for key in self.__emission:
-                self.__cumulative_em[key] += self.__emission[key].sum()
-            self.__emission = defaultdict(lambda: np.array([]))
+                self.__cumulative_em[key] += self.__emission[key]
+                self.__lst_em_rewards[key] = self.__emission[key]
+            self.__emission = defaultdict(lambda: 0)
         for key, value in consumption_data.items():
-            self.__emission[key] = np.append(self.__emission[key], [value])
+            self.__emission[key] += value
 
     def __compute_last_link_travel_time(self, current_time: int) -> None:
         """Method that computes the travel time taken in last link traveled using time the vehicle departed in the link

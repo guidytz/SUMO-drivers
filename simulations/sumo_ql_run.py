@@ -100,7 +100,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         steps_folder = f"steps_{sim_steps // 1000}K"
         additional_folders.append(steps_folder)
         additional_folders.append(f"opt_{'_'.join(objectives)}")
-        
+
         if n_runs > 1:
             additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
             create_log(main_simulation_name, date)
