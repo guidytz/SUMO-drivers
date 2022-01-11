@@ -11,7 +11,7 @@ import numpy as np
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import MainCollector
+from sumo_ql.collector.collector import MainCollector, DefaultCollector
 
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
@@ -149,19 +149,30 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             logging.info("Iteration %s started.", iteration)
         observations = env.reset()
         done = {'__all__': False}
+        network_name = str(args.cfgfile).split('/')[-2]
+        chosen_obj_collector = DefaultCollector(1,
+                                                f"results/ChosenObj/{network_name}/{date.strftime('%y_%m_%d')}",
+                                                ["Step"] + args.objectives)
+        
         while not done['__all__']:
             actions = dict()
             for vehicle_id in observations:
                 if observations[vehicle_id]['reinserted'] and vehicle_id not in agents:
                     create_agent(vehicle_id)
 
+            chosen_sum = [0 for obj in range(len(args.objectives))]
             for vehicle_id in observations:
                 if observations[vehicle_id]['ready_to_act'] and vehicle_id in agents:
                     handle_communication(vehicle_id, observations[vehicle_id]['current_state'])
                     current_state = observations[vehicle_id]['current_state']
                     available_actions = observations[vehicle_id]['available_actions']
-                    actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
-
+                    actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, available_actions)
+                    if chosen_obj != -1:
+                        chosen_sum[chosen_obj] += 1
+                    
+            obj_collection_dict = {key: [val] for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
+            obj_collection_dict["Step"] = [env.current_step]
+            chosen_obj_collector.append(obj_collection_dict)
             observations, rewards, done, _ = env.step(actions)
 
             for vehicle_id, reward in rewards.items():
@@ -175,6 +186,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                         next_state = observations[vehicle_id]['previous_state']
                         handle_learning(vehicle_id, previous_state, next_state, reward)
         env.close()
+        chosen_obj_collector.save()
         if iteration != -1:
             logging.info("Iteration %s finished.", iteration)
 

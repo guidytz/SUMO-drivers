@@ -1,11 +1,10 @@
 import random as rd
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Union
 from typing import List
 from gym import spaces
 import numpy as np
 
-MAX_SAMPLE_COUNTER = 30
 
 
 class EpsilonGreedy:
@@ -32,28 +31,32 @@ class EpsilonGreedy:
     def choose(self, q_table: Dict[str, List[float]] or np.ndarray,
                state: str,
                action_space: Dict[str, spaces.Discrete],
-               available_actions: List[int]) -> int:
+               available_actions: List[int]) -> int or Union[int, int]:
         """Method that computes the action choice given a Q-table, a state and an action space.
         If value is higher or equal than current epsilon, it chooses the greedy action (highest value in Q-table).
         If value is lower than current epsilon, it chooses randomly through available actions at the given state.
         The epsilon value decays at a decay rate each time this method is called until it reaches its minimum value.
 
         Args:
-            q_table (Dict[str, List[float]]): dictionary containing all the q values for each action in each state
-            available.
-            state (str): state id the agent is currently in
+            q_table (Dict[str, List[float]] or np.ndarray): Dictionary conaining all the q values for classical
+            Q-Learning or numpy array containing all non-dominated actions for Pareto Q-Learning.
+            state (str): state id the agent is currently in.
             action_space (Dict[str, spaces.Discrete]): dictionary containing all action spaces for each state available.
             available_actions (List[int]): list of available indexes within that state, as not all possible actions for
             the state will be available (they depend on the link the vehicle is coming from).
 
         Raises:
-            RuntimeError: if no available action is given.
-            RuntimeError: if the method can't sample any of the given actions.
+            RuntimeError: the method raises a RuntimeError in three situations: 
+                - if no available action is given.
+                - if the method can't sample any of the given actions.
+                - if class type of 'Q-table' is unkown.
 
         Returns:
-            int: value (index) of the action chosen
+            int: value (index) of the action chosen.
         """
         action = -1
+        chosen_obj = -1
+        self.__decay_epsilon_value()
         if self.__pickup_random:
             try:
                 action = rd.choice(available_actions)
@@ -64,29 +67,52 @@ class EpsilonGreedy:
         elif isinstance(q_table, dict):
             action = self.__choose_dict(q_table, state, available_actions)
         elif isinstance(q_table, np.ndarray):
-            action = self.__choose_array(q_table, available_actions)
+            action, chosen_obj = self.__choose_array(q_table, available_actions)
         else:
             raise RuntimeError("Q-table is istance of unknown class.")
 
-        self.__decay_epsilon_value()
-
-        return action
+        if isinstance(q_table, np.ndarray):
+            return action, chosen_obj
+        else:
+            return action
 
     def __choose_dict(self, q_table: Dict[str, List[float]],
                             state: str,
                             available_actions: List[int]) -> int:
+        """Method that chooses an action if the Q table given is a dictionary.
 
+        Args:
+            q_table (Dict[str, List[float]]): Dictionary conaining all the q values.
+            state (str): state id the agent is currently in.
+            available_actions (List[int]): list of available indexes within that state, as not all possible actions for
+            the state will be available (they depend on the link the vehicle is coming from).
+
+        Returns:
+            int: value (index) of the action chosen.
+        """
         max_value = max(q_table[state][action] for action in available_actions)
         equal_list = [action for action in available_actions if max_value == q_table[state][action]]
 
         return rd.choice(equal_list)
 
     def __choose_array(self, q_set: np.ndarray,
-                             available_actions: List[int]) -> int:
+                             available_actions: List[int]) -> Union[int, int]:
+        """Method that chooses an action if the Q table given is a numpy array.
 
-        low_std_obj = np.argmin([obj.std() for obj in q_set.T])
-        max_value = max(q_set.T[low_std_obj][action] for action in available_actions)
-        equal_list = [action for action in available_actions if max_value == q_set.T[low_std_obj][action]]
+        Args:
+            q_set (np.ndarray): numpy array containing all non dominated actions for the current state.
+            available_actions (List[int]): list of available indexes within that state, as not all possible actions for
+            the state will be available (they depend on the link the vehicle is coming from).
+
+        Raises:
+            RuntimeError: the method reaises a RuntimeError if it isn't able to choose an action.
+
+        Returns:
+            int: value (index) of the action chosen.
+        """
+        chosen_obj = np.argmin([obj.std() for obj in q_set.T])
+        max_value = max(q_set.T[chosen_obj][action] for action in available_actions)
+        equal_list = [action for action in available_actions if max_value == q_set.T[chosen_obj][action]]
 
         try:
             action = rd.choice(equal_list)
@@ -94,9 +120,9 @@ class EpsilonGreedy:
             print("No action to choose")
             print(f"{available_actions = }")
             print(f"{max_value = }")
-            print(f"{q_set.T[low_std_obj] = }")
+            print(f"{q_set.T[chosen_obj] = }")
             raise RuntimeError from IndexError
-        return action
+        return action, chosen_obj
 
     def reset(self) -> None:
         """Method that resets the current epsilon value to its initial one.
@@ -109,5 +135,10 @@ class EpsilonGreedy:
         self.__epsilon = max(self.__epsilon*self.__decay, self.__min_epsilon)
 
     @property
-    def __pickup_random(self):
+    def __pickup_random(self) -> bool:
+        """Property that determines if the action chosen should be optimal or random.
+
+        Returns:
+            bool: boolean value that returns True if the action chosen should be random and False otherwise.
+        """
         return rd.random() < self.__epsilon

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Union
 from gym import spaces
 import numpy as np
 
@@ -108,7 +108,7 @@ class PQLAgent(Agent):
         self.__visits = {state: [0 for _ in range(self._action_space[state].n)] for state in self._action_space.keys()}
 
 
-    def act(self, state: str, available_actions: List[int]) -> int:
+    def act(self, state: str, available_actions: List[int]) -> Union[int, int]:
         q_set = self.__compute_q_set(state)
         return self._exploration_strategy.choose(q_set, state, self._action_space, available_actions)
 

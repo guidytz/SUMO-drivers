@@ -77,7 +77,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__data_fit = None
         if fit_data_collect:
             bar_pos = self.__sumocfg_file.rfind('/')
-            self.__data_fit = ObjectiveCollector(self.__objectives.objective_str, self.__sumocfg_file[:bar_pos])
+            self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, self.__sumocfg_file[:bar_pos])
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -220,7 +220,25 @@ class SumoEnvironment(MultiAgentEnv):
             if self.get_link_destination(link.getID()) == next_state:
                 return action
         return -1
+    
+    @property
+    def current_step(self) -> int:
+        """Property that returns the simulation's current step.
 
+        Returns:
+            int: current step.
+        """
+        return self.__current_step
+    
+    @property
+    def objectives(self) -> Objectives:
+        """Property that returns the objectives structure use to store all agent's objectives.
+
+        Returns:
+            Objectives: structure that holds objectives used in the simulation.
+        """
+        return self.__objectives
+        
     @property
     def __populating_network(self):
         """Property that returns a boolean that indicates if the network is beeing populated.
