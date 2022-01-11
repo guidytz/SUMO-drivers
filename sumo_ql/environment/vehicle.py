@@ -26,6 +26,7 @@ class Vehicle:
         wrong_destination_penalty (int): penalty to subtract to reward if vehicle arrives at wrong destination
         environment (SumoEnvironment): objet of the environment the vehicle is within
     """
+    _normalizer = None
 
     def __init__(self, vehicle_id: str,
                  origin: str,
@@ -57,7 +58,6 @@ class Vehicle:
         self.__objectives = objectives
         self.__link_inclusion = [tc.VAR_ROAD_ID] if tc.VAR_ROAD_ID not in self.__objectives.known_objectives else []
         self.__color = None
-        self.__normalizer = None
 
     def reset(self) -> None:
         """Method that resets important attributes to the vehicle
@@ -218,17 +218,25 @@ class Vehicle:
 
     @property
     def normalizer(self) -> scaler:
-        if self.__normalizer is None:
+        """Property that returns the normalizer used to fit the reward data.
+
+        Raises:
+            RuntimeError: it raises a RuntimeError if the data file that contains fit data does not exist.
+
+        Returns:
+            scaler: the normalizer that can be used to normalize reward data.
+        """
+        if type(self)._normalizer is None:
             path = self.__environment.sim_path
-            fit_file = f"{path}/fit_data_{'_'.join(self.__objectives.objective_str)}.csv"
+            fit_file = f"{path}/fit_data_{'_'.join(self.__objectives.objectives_str_list)}.csv"
             try:
                 fit_data = pd.read_csv(fit_file).to_numpy()
-                self.__normalizer = scaler().fit(fit_data)
+                type(self)._normalizer = scaler().fit(fit_data)
             except FileNotFoundError:
                 err_str = "Fit data must be in scenario directory."
                 err_str += " Please run simulation with flag '--collect' before"
                 raise RuntimeError(err_str) from FileNotFoundError
-        return self.__normalizer
+        return type(self)._normalizer
 
     @property
     def ready_to_act(self) -> bool:
@@ -482,7 +490,12 @@ class Objectives:
         return self.__known_objectives
 
     @property
-    def objective_str(self):
+    def objectives_str_list(self) -> List[str]:
+        """Property that returns a list containing all objective strings for the current simulation's objectives.
+
+        Returns:
+            List[str]: list containing all objective strings.
+        """
         return [string for string, value in self.__conversions.items() if value in self.known_objectives]
 
     def is_valid(self, objective: int) -> bool:
