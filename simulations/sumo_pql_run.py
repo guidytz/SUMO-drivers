@@ -11,7 +11,7 @@ import numpy as np
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import DataCollector
+from sumo_ql.collector.collector import MainCollector
 
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
@@ -74,7 +74,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 moving_avg_gap: int,
                                 date: datetime,
                                 n_runs: int = 1,
-                                objectives: List[str] = None) -> DataCollector:
+                                objectives: List[str] = None) -> MainCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -104,10 +104,11 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
             create_log(main_simulation_name, date)
 
-        return DataCollector(sim_filename=main_simulation_name,
-                             steps_to_measure=moving_avg_gap,
+        return MainCollector(network_name=main_simulation_name,
+                             aggregation_interval=moving_avg_gap,
                              additional_folders=additional_folders,
-                             param_list=objectives)
+                             param_list=objectives,
+                             date=date)
 
     def create_environment(args: argparse.Namespace) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.

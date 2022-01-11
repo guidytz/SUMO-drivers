@@ -15,32 +15,36 @@ import sumolib
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle, Objectives
 from sumo_ql.environment.od_pair import ODPair
-from sumo_ql.collector.collector import DataCollector, ObjectiveCollector
+from sumo_ql.collector.collector import MainCollector, ObjectiveCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
 
-
 class SumoEnvironment(MultiAgentEnv):
     """Class responsible for handling the environment in which the simulation takes place.
 
-    Args:
-        sumocfg_file (str): string with the path to the .sumocfg file that holds network and route information
-        simulation_time (int, optional): Time to run the simulation. Defaults to 50000.
-        max_vehicles (int, optional): Number of vehicles to keep running in the simulation. Defaults to 750.
-        right_arrival_bonus (int, optional): Bonus vehicles receive when arriving at the right destination.
-        Defaults to 1000.
-        wrong_arrival_penalty (int, optional): Penalty vehicles receive when arriving at the wrong destination.
-        Defaults to 1000.
-        communication_success_rate (int, optional): The rate (between 0 and 1) in which the communication with the
-        CommDevs succeeds. Defaults to 1.
-        max_comm_dev_queue_size (int, optional): Maximum queue size to hold information on the CommDevs.
-        Defaults to 30.
-        steps_to_populate (int, optional): Steps to populate the network without using the learning steps.
-        Defaults to 3000.
-        use_gui (bool, optional): Flag that determines if the simulation should use sumo-gui. Defaults to False.
-    """
-
+        Args:
+            sumocfg_file (str): string with the path to the .sumocfg file that holds network and route information
+            simulation_time (int, optional): Time to run the simulation. Defaults to 50000.
+            max_vehicles (int, optional): Number of vehicles to keep running in the simulation. Defaults to 750.
+            right_arrival_bonus (int, optional): Bonus vehicles receive when arriving at the right destination.
+            Defaults to 1000.
+            wrong_arrival_penalty (int, optional): Penalty vehicles receive when arriving at the wrong destination.
+            Defaults to 1000.
+            communication_success_rate (int, optional): The rate (between 0 and 1) in which the communication with the
+            CommDevs succeeds. Defaults to 1.
+            max_comm_dev_queue_size (int, optional): Maximum queue size to hold information on the CommDevs.
+            Defaults to 30.
+            steps_to_populate (int, optional): Steps to populate the network without using the learning steps.
+            Defaults to 3000.
+            use_gui (bool, optional): Flag that determines if the simulation should use sumo-gui. Defaults to False.
+            data_collector (DataCollector, optional): Object from class responsible for collecting the experiments data. 
+            Defaults to empty DataCollector.
+            objectives (List[str], optional): Objectives the vehicles should compute so the agent can retrieve for the 
+            learning process. Defaults to Objective instance using only travel time.
+            fit_data_collect (bool, optional): Flag that determines if the run is only for collecting reward data to use
+            in future experiments (usually to normalize rewards). Defaults to False.
+        """
     def __init__(self, sumocfg_file: str,
                  simulation_time: int = 50000,
                  max_vehicles: int = 750,
@@ -50,7 +54,7 @@ class SumoEnvironment(MultiAgentEnv):
                  max_comm_dev_queue_size: int = 30,
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
-                 data_collector: DataCollector = None,
+                 data_collector: MainCollector = None,
                  objectives: List[str] = None,
                  fit_data_collect: bool = False) -> None:
         self.__sumocfg_file = sumocfg_file
@@ -61,7 +65,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
         self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
-        self.__collector = data_collector or DataCollector() # in case of being None
+        self.__collector = data_collector or MainCollector() # in case of being None
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
@@ -87,6 +91,7 @@ class SumoEnvironment(MultiAgentEnv):
 
         self.__vehicles, self.__od_pairs = self.__instantiate_vehicles_and_od_pairs(right_arrival_bonus,
                                                                                     wrong_arrival_penalty)
+
 
     def reset(self):
         self.__collector.reset()
@@ -125,11 +130,10 @@ class SumoEnvironment(MultiAgentEnv):
         self.__sumo_step()
         rewards, done = self.__handle_step_vehicle_updates()
         done.update({'__all__': self.__current_step >= self.__simulation_time})
-
         return self.__observations, rewards, done, {}
 
     def close(self) -> None:
-        """Method that closes the traci run.
+        """Method that closes the traci run and saves collected data to csv files.
         """
         self.__collector.save()
         if self.__data_fit is not None:
@@ -193,7 +197,12 @@ class SumoEnvironment(MultiAgentEnv):
         return self.__action_space
 
     @property
-    def sim_path(self):
+    def sim_path(self) -> str:
+        """Method that retuns the simulation file path of the current run.
+
+        Returns:
+            str: string containing the path to the file of the current run simulation.
+        """
         return self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
 
     def get_action(self, previous_state: str, next_state: str) -> int:
@@ -214,6 +223,11 @@ class SumoEnvironment(MultiAgentEnv):
 
     @property
     def __populating_network(self):
+        """Property that returns a boolean that indicates if the network is beeing populated.
+
+        Returns:
+            bool: boolean that returns True if the network is beeing populated or False otherwise.
+        """
         return self.__current_step < self.__steps_to_populate
 
     def __populate_network(self) -> None:
@@ -462,7 +476,7 @@ class SumoEnvironment(MultiAgentEnv):
             self.__verify_reinsertion_necessity(vehicle_id)
 
         if len(data_collected) > 1 or self.__collector.time_to_measure(self.__current_step):
-            self.__collector.append_data(data_collected, self.__current_step)
+            self.__collector.append_list(data_collected, self.__current_step)
 
         return rewards, done
 
@@ -504,7 +518,6 @@ class SumoEnvironment(MultiAgentEnv):
         rewards = self.__handle_running_vehicles(running_vehicles)
         arrived_rewards, done = self.__handle_arrived_vehicles(arrived_vehicles)
         rewards.update(arrived_rewards)
-
         return rewards, done
 
     def __retrieve_available_actions(self, vehicle_id: str) -> List[int]:
@@ -538,7 +551,7 @@ class SumoEnvironment(MultiAgentEnv):
     def __update_data_fit(self, reward):
         if self.__data_fit is not None:
             self.__data_fit.append_rewards([reward])
-            
+
     @property
     def __not_collecting(self):
         return self.__data_fit is None
