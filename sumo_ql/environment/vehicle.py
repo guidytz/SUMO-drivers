@@ -196,6 +196,7 @@ class Vehicle:
             np.array: reward calculated
         """
         reward = list()
+        bonus_or_penalty = 0
         if not self.departed:
             raise RuntimeError(f"Vehicle {self.__id}  hasn't departed yet!")
         if self.__objectives.is_valid(tc.VAR_ROAD_ID):
@@ -205,16 +206,15 @@ class Vehicle:
             if self.__objectives.is_valid(key):
                 em_sum = self.__lst_em_rewards[key]
                 reward.append(- em_sum)
-
         if self.reached_destination and use_bonus_or_penalty:
             if self.__route[-1] != self.__destination:
-                append = self.__wrong_destination_penalty
+                bonus_or_penalty = self.__wrong_destination_penalty
             else:
-                append = self.__arrival_bonus
+                bonus_or_penalty = self.__arrival_bonus
 
-            reward = list(map(lambda val: val + append, reward))
-        array = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
-        return array
+        norm_reward = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
+        reward = (lambda val: val + bonus_or_penalty)(norm_reward)
+        return reward
 
     @property
     def normalizer(self) -> scaler:
