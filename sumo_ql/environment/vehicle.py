@@ -208,7 +208,7 @@ class Vehicle:
 
         if self.reached_destination and use_bonus_or_penalty:
             if self.__route[-1] != self.__destination:
-                append = -self.__wrong_destination_penalty
+                append = self.__wrong_destination_penalty
             else:
                 append = self.__arrival_bonus
 
