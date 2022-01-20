@@ -22,9 +22,10 @@ class DefaultCollector:
         self._aggregation_interval = aggregation_interval
         self._path = path
         self._params = params
-        self._collector_df = self.__empty_df[self._params[1:]]
-        self._aggr_df = self.__empty_df
+        self._collector_df = self._empty_df[self._params[1:]]
+        self._aggr_df = self._empty_df
         self._random = SystemRandom()
+        self._name_addon = ""
 
     def append(self, data_dict: Dict[str, List[int]]) -> None:
         """Method the appends data present in the dictionary to the collector dataframe.
@@ -44,14 +45,14 @@ class DefaultCollector:
         """
         self._guarantee_folder_path()
         signature = f"{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}"
-        csv_filename = self._path + f"/sim_{signature}.csv"
+        csv_filename = self._path + f"/{self._name_addon}_sim_{signature}.csv"
         self._aggr_df.to_csv(csv_filename, index=False)
 
     def reset(self) -> None:
         """Method that resets the collector data to make a new run.
         """
-        self._collector_df = self.__empty_df[self._params[1:]]
-        self._aggr_df = self.__empty_df
+        self._collector_df = self._empty_df[self._params[1:]]
+        self._aggr_df = self._empty_df
         self._start_time = datetime.now()
 
     def _aggregate(self, curr_value: int) -> None:
@@ -63,8 +64,16 @@ class DefaultCollector:
         """
         aggregated_df = self._collector_df.mean().to_frame().transpose()
         aggregated_df[self._params[0]] = [curr_value]
+        self._update_main_dfs(aggregated_df)
+
+    def _update_main_dfs(self, aggregated_df):
+        """Method that updates main dfs when aggregation is done.
+
+        Args:
+            aggregated_df (pd.DataFrame): aggregated information to append to main df.
+        """
         self._aggr_df = self._aggr_df.append(aggregated_df[self._params], ignore_index=True)
-        self._collector_df = self.__empty_df[self._params[1:]]
+        self._collector_df = self._empty_df[self._params[1:]]
 
     def _should_aggregate(self, curr_value: int) -> bool:
         """Method that determines if the data collected should be aggregated in the main dataframe.
@@ -102,7 +111,7 @@ class DefaultCollector:
                 raise OSError(error).with_traceback(error.__traceback__)
 
     @property
-    def __empty_df(self) -> pd.DataFrame:
+    def _empty_df(self) -> pd.DataFrame:
         """Property that returns an empty dataframe using the params as columns.
 
         Returns:
@@ -202,3 +211,18 @@ class ObjectiveCollector:
 
     def __str__(self) -> str:
         return f"{self.__collector}"
+
+
+class LinkInfoCollector(DefaultCollector):
+    """Class that collects information from links and saves to csv.
+    This class basically modifies DefaultCollector to be able to group data by link.
+    """
+    def _aggregate(self, curr_value: int) -> None:
+        aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean').reset_index()
+        aggregated_df[self._params[0]] = curr_value
+        self._update_main_dfs(aggregated_df)
+
+    def save(self) -> None:
+        network_name = self._path[self._path.rfind("/") + 1:]
+        self._name_addon = f"link_data_{network_name}_{int(self._aggr_df.iloc[-1,0])}"
+        super().save()

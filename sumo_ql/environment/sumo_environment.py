@@ -15,10 +15,42 @@ import sumolib
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle, Objectives
 from sumo_ql.environment.od_pair import ODPair
-from sumo_ql.collector.collector import MainCollector, ObjectiveCollector
+from sumo_ql.collector.collector import LinkInfoCollector, MainCollector, ObjectiveCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
+
+COLLECT_LINK_INFO = False
+INTERVAL = 50
+KEY_LIST = [
+    tc.LAST_STEP_MEAN_SPEED,
+    tc.VAR_CURRENT_TRAVELTIME,
+    tc.LAST_STEP_OCCUPANCY,
+    tc.LAST_STEP_VEHICLE_NUMBER,
+    tc.LAST_STEP_VEHICLE_HALTING_NUMBER,
+    tc.VAR_COEMISSION,
+    tc.VAR_CO2EMISSION,
+    tc.VAR_HCEMISSION,
+    tc.VAR_PMXEMISSION,
+    tc.VAR_NOXEMISSION,
+    tc.VAR_FUELCONSUMPTION
+]
+CONVERSION_DICT = {
+    "Step": "Step",
+    "Link": "Link",
+    tc.LAST_STEP_MEAN_SPEED: "Average Link Speed",
+    tc.VAR_CURRENT_TRAVELTIME: "Average Link Travel Time",
+    tc.LAST_STEP_OCCUPANCY: "Average Link Occupancy",
+    tc.LAST_STEP_VEHICLE_NUMBER: "Average Running Vehicles",
+    tc.LAST_STEP_VEHICLE_HALTING_NUMBER: "Average Halting Vehicles",
+    tc.VAR_COEMISSION: "Average CO Emission",
+    tc.VAR_CO2EMISSION: "Average CO2 Emission",
+    tc.VAR_HCEMISSION: "Average HC Emission",
+    tc.VAR_PMXEMISSION: "Average PMx Emission",
+    tc.VAR_NOXEMISSION: "Average NOx Emission",
+    tc.VAR_FUELCONSUMPTION: "Average Fuel Consumption"
+}
+HALTING_SPEED = 0.1
 
 class SumoEnvironment(MultiAgentEnv):
     """Class responsible for handling the environment in which the simulation takes place.
@@ -75,9 +107,11 @@ class SumoEnvironment(MultiAgentEnv):
         self.__loaded_vehicles: List[str] = list()
         self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
+        network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
+        if COLLECT_LINK_INFO:
+            self.__link_collector = LinkInfoCollector(INTERVAL, network_filepath, list(CONVERSION_DICT.values()))
         if fit_data_collect:
-            bar_pos = self.__sumocfg_file.rfind('/')
-            self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, self.__sumocfg_file[:bar_pos])
+            self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -112,6 +146,9 @@ class SumoEnvironment(MultiAgentEnv):
             route_id = f"r_{vehicle_id}"
             traci.route.add(route_id, self.__vehicles[vehicle_id].original_route)
 
+        for edge in self.__network.getEdges():
+            traci.edge.subscribe(edge.getID(), KEY_LIST)
+
         if len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS:
             for od_pair in self.__od_pairs:
                 self.__od_pairs[od_pair].reset()
@@ -138,6 +175,8 @@ class SumoEnvironment(MultiAgentEnv):
         self.__collector.save()
         if self.__data_fit is not None:
             self.__data_fit.save()
+        if COLLECT_LINK_INFO:
+            self.__link_collector.save()
         traci.close()
 
     def get_comm_dev(self, node_id: str) -> CommunicationDevice:
@@ -220,7 +259,7 @@ class SumoEnvironment(MultiAgentEnv):
             if self.get_link_destination(link.getID()) == next_state:
                 return action
         return -1
-    
+
     @property
     def current_step(self) -> int:
         """Property that returns the simulation's current step.
@@ -229,7 +268,7 @@ class SumoEnvironment(MultiAgentEnv):
             int: current step.
         """
         return self.__current_step
-    
+
     @property
     def objectives(self) -> Objectives:
         """Property that returns the objectives structure use to store all agent's objectives.
@@ -238,7 +277,7 @@ class SumoEnvironment(MultiAgentEnv):
             Objectives: structure that holds objectives used in the simulation.
         """
         return self.__objectives
-        
+
     @property
     def __populating_network(self):
         """Property that returns a boolean that indicates if the network is beeing populated.
@@ -536,6 +575,8 @@ class SumoEnvironment(MultiAgentEnv):
         rewards = self.__handle_running_vehicles(running_vehicles)
         arrived_rewards, done = self.__handle_arrived_vehicles(arrived_vehicles)
         rewards.update(arrived_rewards)
+        if COLLECT_LINK_INFO:
+            self.__update_link_data()
         return rewards, done
 
     def __retrieve_available_actions(self, vehicle_id: str) -> List[int]:
@@ -573,3 +614,22 @@ class SumoEnvironment(MultiAgentEnv):
     @property
     def __not_collecting(self):
         return self.__data_fit is None
+    
+    def __update_link_data(self):
+        link_data = {**{"Link": list()}, **{key: list() for key in KEY_LIST}}
+        for edge in self.__network.getEdges():
+            edge_id = edge.getID()
+            edge_data = traci.edge.getSubscriptionResults(edge_id)
+            link_data["Link"].append(edge_id)
+            for key, value in edge_data.items():
+                if key == tc.VAR_CURRENT_TRAVELTIME:
+                    speed = edge_data[tc.LAST_STEP_MEAN_SPEED]
+                    if speed > HALTING_SPEED:
+                        link_data[key].append(edge.getLength() / speed)
+                    else:
+                        link_data[key].append(np.NaN)
+                else:
+                    link_data[key].append(value)
+        link_data["Step"] = [self.current_step for _ in link_data["Link"]]
+        self.__link_collector.append({CONVERSION_DICT[key]: value for key, value in link_data.items()})
+
