@@ -35,7 +35,7 @@ class DefaultCollector:
             data_dict (Dict[str, List[int]]): data to append to the collector.
         """
         collector_data = {key: data_dict[key] for key in self._params[1:]}
-        self._collector_df = self._collector_df.append(pd.DataFrame(collector_data), ignore_index=True)
+        self._collector_df = pd.concat([self._collector_df, pd.DataFrame(collector_data)], ignore_index=True)
         curr_value = data_dict[self._params[0]][0]
         if self._should_aggregate(curr_value):
             self._aggregate(curr_value)
@@ -72,7 +72,7 @@ class DefaultCollector:
         Args:
             aggregated_df (pd.DataFrame): aggregated information to append to main df.
         """
-        self._aggr_df = self._aggr_df.append(aggregated_df[self._params], ignore_index=True)
+        self._aggr_df = pd.concat([self._aggr_df, aggregated_df[self._params]], ignore_index=True)
         self._collector_df = self._empty_df[self._params[1:]]
 
     def _should_aggregate(self, curr_value: int) -> bool:
@@ -203,7 +203,7 @@ class ObjectiveCollector:
         reward_list = np.array(reward_list)
         n_obj = len(self.__objectives)
         new_data = pd.DataFrame({obj: reward_list[:, i] for obj, i in zip(self.__objectives, range(n_obj))})
-        self.__collector = self.__collector.append(new_data, ignore_index=True)
+        self.__collector = pd.concat([self.__collector, new_data], ignore_index=True)
 
     def save(self):
         filename = f"{self.__sim_path}/fit_data_{'_'.join(self.__objectives)}.csv"
