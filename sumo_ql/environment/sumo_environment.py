@@ -395,7 +395,6 @@ class SumoEnvironment(MultiAgentEnv):
         if self.__using_od_pairs:
             od_pair = self.__vehicles[vehicle_id].od_pair
             self.__od_pairs[od_pair].decrease_load(vehicle_id)
-            print(f"{od_pair =} --- {self.__od_pairs[od_pair].min_load =} ---> {self.__od_pairs[od_pair].curr_load =}")
             if not self.__od_pairs[od_pair].has_enough_vehicles:
                 self.__reinsert_vehicle(vehicle_id)
         elif self.__current_running_vehicles_n < self.__max_vehicles_running:
