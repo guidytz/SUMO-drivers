@@ -178,9 +178,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                     if agent_type == "QL":
                         actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
                     elif agent_type == "PQL":
-                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, 
-                                                                                 available_actions, 
-                                                                                 env.current_step)
+                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, available_actions)
                         if chosen_obj != -1:
                             chosen_sum[chosen_obj] += 1
             if agent_type == "PQL":
