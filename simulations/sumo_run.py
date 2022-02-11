@@ -13,6 +13,7 @@ from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import MainCollector, DefaultCollector
 
+SAVE_OBJ_CHOSEN = False
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
     """Function used to run the simulations, given a set of arguments passed to the script and the iteration (run
@@ -35,7 +36,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     collect_fit: bool = False
     agent_type = args.agent_type
     opt_travel_time = args.objectives[0] == "TravelTime"
-    
+
     if args.collect:
         if (collect_fit := args.n_runs == 1):
             print("Making a data fit collect run.")
@@ -177,14 +178,15 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                     if agent_type == "QL":
                         actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
                     elif agent_type == "PQL":
-                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, available_actions)
+                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, 
+                                                                                 available_actions, 
+                                                                                 env.current_step)
                         if chosen_obj != -1:
                             chosen_sum[chosen_obj] += 1
-                if agent_type == "PQL":
-                    obj_collection_dict = {key: [val] for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
-                    obj_collection_dict["Step"] = [env.current_step]
-                    chosen_obj_collector.append(obj_collection_dict)
-                    observations, rewards, done, _ = env.step(actions)
+            if agent_type == "PQL":
+                obj_collection_dict = {key: [val] for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
+                obj_collection_dict["Step"] = [env.current_step]
+                chosen_obj_collector.append(obj_collection_dict)
 
             observations, rewards, done, _ = env.step(actions)
 
@@ -259,7 +261,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                     origin = env.get_link_origin(link)
                     destination = env.get_link_destination(link)
                     handle_learning(vehicle_id, origin, destination, expected_reward)
-            else: 
+            else:
                 print("Warning: communication not available for non QL agents.")
 
     # Run the simulation
