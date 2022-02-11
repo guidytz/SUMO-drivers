@@ -45,7 +45,7 @@ class DefaultCollector:
         """
         self._guarantee_folder_path()
         signature = f"{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}"
-        csv_filename = self._path + f"/{self._name_addon}_sim_{signature}.csv"
+        csv_filename = self._path + f"/{self._name_addon}sim_{signature}.csv"
         self._aggr_df.to_csv(csv_filename, index=False)
 
     def reset(self) -> None:
@@ -224,5 +224,5 @@ class LinkInfoCollector(DefaultCollector):
 
     def save(self) -> None:
         network_name = self._path[self._path.rfind("/") + 1:]
-        self._name_addon = f"link_data_{network_name}_{int(self._aggr_df.iloc[-1,0])}"
+        self._name_addon = f"link_data_{network_name}_{int(self._aggr_df.iloc[-1,0])}_"
         super().save()

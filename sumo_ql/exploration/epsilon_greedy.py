@@ -5,8 +5,6 @@ from typing import List
 from gym import spaces
 import numpy as np
 
-
-
 class EpsilonGreedy:
     """Class responsible for the exploration strategy in action choice.
 

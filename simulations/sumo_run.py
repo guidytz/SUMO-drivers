@@ -9,9 +9,9 @@ import logging
 import numpy as np
 
 from sumo_ql.environment.sumo_environment import SumoEnvironment
-from sumo_ql.agent.q_learning import QLAgent
+from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import MainCollector
+from sumo_ql.collector.collector import MainCollector, DefaultCollector
 
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
@@ -33,6 +33,9 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     rewards = None
     env: SumoEnvironment = None
     collect_fit: bool = False
+    agent_type = args.agent_type
+    opt_travel_time = args.objectives[0] == "TravelTime"
+    
     if args.collect:
         if (collect_fit := args.n_runs == 1):
             print("Making a data fit collect run.")
@@ -140,7 +143,9 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       use_gui=args.gui,
                                       data_collector=data_collector,
                                       objectives=args.objectives,
-                                      fit_data_collect=collect_fit)
+                                      fit_data_collect=collect_fit,
+                                      min_toll_speed=args.toll_speed,
+                                      toll_penalty=args.toll_value)
         return environment
 
     def run(iteration) -> None:
@@ -150,18 +155,36 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             logging.info("Iteration %s started.", iteration)
         observations = env.reset()
         done = {'__all__': False}
+
+        if agent_type == "PQL":
+            network_name = str(args.cfgfile).split('/')[-2]
+            chosen_obj_collector = DefaultCollector(1,
+                                                    f"results/ChosenObj/{network_name}/{date.strftime('%y_%m_%d')}",
+                                                    ["Step"] + args.objectives)
+
         while not done['__all__']:
             actions = dict()
-            for vehicle_id in observations:
-                if observations[vehicle_id]['reinserted'] and vehicle_id not in agents:
+            for vehicle_id, vehicle in observations.items():
+                if vehicle['reinserted'] and vehicle_id not in agents:
                     create_agent(vehicle_id)
 
-            for vehicle_id in observations:
-                if observations[vehicle_id]['ready_to_act'] and vehicle_id in agents:
-                    handle_communication(vehicle_id, observations[vehicle_id]['current_state'])
-                    current_state = observations[vehicle_id]['current_state']
-                    available_actions = observations[vehicle_id]['available_actions']
-                    actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
+            chosen_sum = [0 for obj in range(len(args.objectives))]
+            for vehicle_id, vehicle in observations.items():
+                if vehicle['ready_to_act'] and vehicle_id in agents:
+                    handle_communication(vehicle_id, vehicle['current_state'])
+                    current_state = vehicle['current_state']
+                    available_actions = vehicle['available_actions']
+                    if agent_type == "QL":
+                        actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
+                    elif agent_type == "PQL":
+                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, available_actions)
+                        if chosen_obj != -1:
+                            chosen_sum[chosen_obj] += 1
+                if agent_type == "PQL":
+                    obj_collection_dict = {key: [val] for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
+                    obj_collection_dict["Step"] = [env.current_step]
+                    chosen_obj_collector.append(obj_collection_dict)
+                    observations, rewards, done, _ = env.step(actions)
 
             observations, rewards, done, _ = env.step(actions)
 
@@ -185,8 +208,14 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
-        agents[vehicle_id] = QLAgent(action_space=env.action_space,
-                                     exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        if agent_type == "QL":
+            agents[vehicle_id] = QLAgent(action_space=env.action_space,
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        elif agent_type == "PQL":
+            agents[vehicle_id] = PQLAgent(action_space=env.action_space,
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        else:
+            raise RuntimeError(f"Agent {agent_type} not recognized. Agents should be QL or PQL.")
 
     def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: np.array) -> None:
         """Method that takes care of the learning process for the agent given.
@@ -202,7 +231,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         try:
             action = env.get_action(origin_node, destination_node)
-            agents[vehicle_id].learn(action, origin_node, destination_node, reward[0])
+            if agent_type == "QL":
+                obj = 0 if opt_travel_time else 1
+                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
+            elif agent_type == "PQL":
+                agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+
         except Exception as exception:
             print(f"{vehicle_id = }")
             print(f"{observations = }")
@@ -219,17 +253,25 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         comm_dev = env.get_comm_dev(state)
         if comm_dev.communication_success:
-            expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
-            for link, expected_reward in expected_rewards.items():
-                origin = env.get_link_origin(link)
-                destination = env.get_link_destination(link)
-                handle_learning(vehicle_id, origin, destination, expected_reward)
+            if agent_type == "QL":
+                expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
+                for link, expected_reward in expected_rewards.items():
+                    origin = env.get_link_origin(link)
+                    destination = env.get_link_destination(link)
+                    handle_learning(vehicle_id, origin, destination, expected_reward)
+            else: 
+                print("Warning: communication not available for non QL agents.")
 
     # Run the simulation
     env = create_environment(args)
     run(iteration)
 
 def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
+    """Method that implements the argument parser for the script.
+
+    Returns:
+        Union[argparse.Namespace, argparse.ArgumentParser]: union between parsed arguments and argument parser
+    """
     parser = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
 
     parser.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
@@ -260,10 +302,18 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                        help="List with objective params to use separated by a single space (default = [TravelTime])")
     parser.add_argument("--collect", action="store_true", dest="collect", default=False,
                        help="Set the run to collect info about the reward values to use as normalizer latter.")
+    parser.add_argument("-a", "--agent-type", action="store", dest="agent_type", default="QL",
+                        help="Set the agent type to use in simulation. (Must be QL or PQL. Default = QL)")
+    parser.add_argument("-t", "--toll-speed", action="store", dest="toll_speed", default=-1, type=float,
+                        help="Set the min speed in link to impose a toll for emission. (default = -1, toll not used)")
+    parser.add_argument("-v", "--toll-value", action="store", dest="toll_value", default=-1, type=float,
+                        help="Set the toll value to be added as penalty to emission. (default = -1, toll not used)")
 
     return parser.parse_args(), parser
 
 def main():
+    """Main script funcion that starts the running process.
+    """
     options, parser = parse_args()
     if not options.cfgfile:
         print('Wrong usage of script!')

@@ -35,14 +35,16 @@ class Vehicle:
                  wrong_destination_penalty: int,
                  original_route: List[str],
                  environment: SumoEnvironment,
-                 objectives: Objectives) -> None:
+                 objectives: Objectives,
+                 min_toll_speed: float,
+                 toll_penalty: int) -> None:
         self.__id = vehicle_id
         self.__origin = origin
         self.__destination = destination
         self.__arrival_bonus = arrival_bonus
         self.__wrong_destination_penalty = -wrong_destination_penalty
         self.__original_route = original_route
-        self.__environment = environment
+        self.__env = environment
         self.__current_link = None
         self.__last_link = None
         self.__load_time = -1.0
@@ -58,6 +60,8 @@ class Vehicle:
         self.__objectives = objectives
         self.__link_inclusion = [tc.VAR_ROAD_ID] if tc.VAR_ROAD_ID not in self.__objectives.known_objectives else []
         self.__color = None
+        self.__toll_speed = min_toll_speed
+        self.__toll_penalty = toll_penalty
 
     def reset(self) -> None:
         """Method that resets important attributes to the vehicle
@@ -197,6 +201,7 @@ class Vehicle:
         """
         reward = list()
         bonus_or_penalty = 0
+        toll_value = 0
         if not self.departed:
             raise RuntimeError(f"Vehicle {self.__id}  hasn't departed yet!")
         if self.__objectives.is_valid(tc.VAR_ROAD_ID):
@@ -206,14 +211,18 @@ class Vehicle:
             if self.__objectives.is_valid(key):
                 em_sum = self.__lst_em_rewards[key]
                 reward.append(- em_sum)
-        if self.reached_destination and use_bonus_or_penalty:
-            if self.__route[-1] != self.__destination:
-                bonus_or_penalty = self.__wrong_destination_penalty
-            else:
-                bonus_or_penalty = self.__arrival_bonus
+        if use_bonus_or_penalty:
+            if self.reached_destination:
+                if self.__route[-1] != self.__destination:
+                    bonus_or_penalty = self.__wrong_destination_penalty
+                else:
+                    bonus_or_penalty = self.__arrival_bonus
+            if self.__objectives.has_emissions and self.__above_toll_speed(self.__env.get_link_speed(self.__last_link)):
+                toll_value = self.__toll_penalty
 
         norm_reward = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
         reward = (lambda val: val + bonus_or_penalty)(norm_reward)
+        reward[1:] = (lambda val: val - toll_value)(reward[1:])
         return reward
 
     @property
@@ -227,7 +236,7 @@ class Vehicle:
             scaler: the normalizer that can be used to normalize reward data.
         """
         if type(self)._normalizer is None:
-            path = self.__environment.sim_path
+            path = self.__env.sim_path
             fit_file = f"{path}/fit_data_{'_'.join(self.__objectives.objectives_str_list)}.csv"
             try:
                 fit_data = pd.read_csv(fit_file).to_numpy()
@@ -249,8 +258,8 @@ class Vehicle:
         if self.__current_link is None:
             return False
 
-        destination_node = self.__environment.get_link_destination(self.__current_link)
-        return destination_node != self.__destination and not self.__environment.is_border_node(destination_node)
+        destination_node = self.__env.get_link_destination(self.__current_link)
+        return destination_node != self.__destination and not self.__env.is_border_node(destination_node)
 
     @property
     def is_correct_arrival(self) -> bool:
@@ -287,18 +296,18 @@ class Vehicle:
             action (int): action that determines the link chosen to go through
         """
         try:
-            node_id = self.__environment.get_link_destination(self.current_link)
-            next_link_id = self.__environment.get_action_link(node_id, action)
+            node_id = self.__env.get_link_destination(self.current_link)
+            next_link_id = self.__env.get_action_link(node_id, action)
             current_route = [self.current_link, next_link_id]
         except RuntimeError:
             node_id = self.origin
-            next_link_id = self.__environment.get_action_link(node_id, action)
+            next_link_id = self.__env.get_action_link(node_id, action)
             current_route = [next_link_id]
 
         try:
             traci.vehicle.setRoute(self.vehicle_id, current_route)
         except TraCIException:
-            destination = self.__environment.get_link_destination(next_link_id)
+            destination = self.__env.get_link_destination(next_link_id)
             print(f"Warning: could not set next link for vehicle ID {self.vehicle_id}.")
             print(f"Current route: {self.route}.")
             print(f"Tried to choose link {next_link_id} to reach node {destination}.")
@@ -313,7 +322,7 @@ class Vehicle:
         traci_vehicle_info = traci.vehicle.getSubscriptionResults(self.vehicle_id)
         self.__last_link = self.current_link
         if (current_link := traci_vehicle_info.pop(tc.VAR_ROAD_ID, self.current_link)) != self.current_link:
-            if self.__environment.is_link(current_link):
+            if self.__env.is_link(current_link):
                 self.__last_link = self.__update_current_link(current_link, current_time)
                 self.__just_changed = True
         self.__update_emission(traci_vehicle_info)
@@ -396,6 +405,12 @@ class Vehicle:
 
     @property
     def cumulative_data(self) -> List[int]:
+        """Property that returns all the cumulative data from the last link traveled.
+        The data regards travel time information as well as observed emissions in the current simulation.
+
+        Returns:
+            List[int]: list that contains all data collected in the last link, with travel time being the first info.
+        """
         return [self.travel_time] + list(self.__cumulative_em.values())
 
     def is_in_link(self, link: str) -> bool:
@@ -460,22 +475,29 @@ class Vehicle:
         """Method that appends the destination node of the vehicle's current link to its route.
         """
         if self.__current_link is not None:
-            destination_node = self.__environment.get_link_destination(self.__current_link)
+            destination_node = self.__env.get_link_destination(self.__current_link)
             self.__route.append(destination_node)
+
+    def __above_toll_speed(self, speed: float) -> bool:
+        return self.__toll_speed > 0 and speed > self.__toll_speed
+
 
 
 class Objectives:
     """Class that holds objective params for Multi-objective learning
     """
+    __emissions: Dict[str, int] = {
+        "CO": tc.VAR_COEMISSION,
+        "CO2": tc.VAR_CO2EMISSION,
+        "HC": tc.VAR_HCEMISSION,
+        "PMx": tc.VAR_PMXEMISSION,
+        "NOx": tc.VAR_NOXEMISSION,
+    }
     __conversions: Dict[str, int] = {
-                "TravelTime": tc.VAR_ROAD_ID,
-                "CO": tc.VAR_COEMISSION,
-                "CO2": tc.VAR_CO2EMISSION,
-                "HC": tc.VAR_HCEMISSION,
-                "PMx": tc.VAR_PMXEMISSION,
-                "NOx": tc.VAR_NOXEMISSION,
-                "Fuel": tc.VAR_FUELCONSUMPTION
-            }
+        "TravelTime": tc.VAR_ROAD_ID,
+        **__emissions,
+        "Fuel": tc.VAR_FUELCONSUMPTION
+    }
 
     def __init__(self, params) -> None:
         self.__known_objectives: List[int] = Objectives.__retrieve_objectives(params)
@@ -508,6 +530,16 @@ class Objectives:
             bool: boolean indicating if the param given is a valid objective
         """
         return objective in self.__known_objectives
+
+    @property
+    def has_emissions(self):
+        """Property that returns True if there is any emission gas in the current objectives. If no emission is in the
+        current objectives, it returns False.
+
+        Returns:
+            bool: boolean indicating True if any emission gas in in the current objectives and False otherwise.
+        """
+        return any(obj for obj in self.known_objectives if obj in type(self).__emissions.values())
 
     @classmethod
     def __retrieve_objectives(cls, params: List[str]) -> List[int]:
