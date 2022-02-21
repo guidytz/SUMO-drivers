@@ -15,41 +15,24 @@ import sumolib
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle, Objectives
 from sumo_ql.environment.od_pair import ODPair
-from sumo_ql.collector.collector import LinkInfoCollector, MainCollector, ObjectiveCollector
+from sumo_ql.collector.collector import LinkCollector, ObjectiveCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
 
-COLLECT_LINK_INFO = False
-INTERVAL = 250
-
-KEY_LIST = [
-    tc.LAST_STEP_MEAN_SPEED,
-    tc.VAR_CURRENT_TRAVELTIME,
-    tc.LAST_STEP_OCCUPANCY,
-    tc.LAST_STEP_VEHICLE_NUMBER,
-    tc.LAST_STEP_VEHICLE_HALTING_NUMBER,
-    tc.VAR_COEMISSION,
-    tc.VAR_CO2EMISSION,
-    tc.VAR_HCEMISSION,
-    tc.VAR_PMXEMISSION,
-    tc.VAR_NOXEMISSION,
-    tc.VAR_FUELCONSUMPTION
-]
 CONVERSION_DICT = {
     "Step": "Step",
     "Link": "Link",
-    tc.LAST_STEP_MEAN_SPEED: "Average Link Speed",
-    tc.VAR_CURRENT_TRAVELTIME: "Average Link Travel Time",
-    tc.LAST_STEP_OCCUPANCY: "Average Link Occupancy",
-    tc.LAST_STEP_VEHICLE_NUMBER: "Average Running Vehicles",
-    tc.LAST_STEP_VEHICLE_HALTING_NUMBER: "Average Halting Vehicles",
-    tc.VAR_COEMISSION: "Average CO Emission",
-    tc.VAR_CO2EMISSION: "Average CO2 Emission",
-    tc.VAR_HCEMISSION: "Average HC Emission",
-    tc.VAR_PMXEMISSION: "Average PMx Emission",
-    tc.VAR_NOXEMISSION: "Average NOx Emission",
-    tc.VAR_FUELCONSUMPTION: "Average Fuel Consumption"
+    "Speed": tc.LAST_STEP_MEAN_SPEED,
+    "Occupancy": tc.LAST_STEP_OCCUPANCY,
+    "Running Vehicles": tc.LAST_STEP_VEHICLE_NUMBER,
+    "Halting Vehicles": tc.LAST_STEP_VEHICLE_HALTING_NUMBER,
+    "CO": tc.VAR_COEMISSION,
+    "CO2": tc.VAR_CO2EMISSION,
+    "HC": tc.VAR_HCEMISSION,
+    "PMx": tc.VAR_PMXEMISSION,
+    "NOx": tc.VAR_NOXEMISSION,
+    "Fuel": tc.VAR_FUELCONSUMPTION
 }
 HALTING_SPEED = 0.1
 
@@ -87,7 +70,7 @@ class SumoEnvironment(MultiAgentEnv):
                  max_comm_dev_queue_size: int = 30,
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
-                 data_collector: MainCollector = None,
+                 data_collector: LinkCollector = None,
                  objectives: List[str] = None,
                  fit_data_collect: bool = False,
                  min_toll_speed: float = 27.79,
@@ -100,7 +83,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
         self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
-        self.__collector = data_collector or MainCollector() # in case of being None
+        self.__link_collector = data_collector or LinkCollector() # in case of being None
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
@@ -111,8 +94,6 @@ class SumoEnvironment(MultiAgentEnv):
         self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
         network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
-        if COLLECT_LINK_INFO:
-            self.__link_collector = LinkInfoCollector(INTERVAL, network_filepath, list(CONVERSION_DICT.values()))
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
@@ -133,7 +114,7 @@ class SumoEnvironment(MultiAgentEnv):
 
 
     def reset(self):
-        self.__collector.reset()
+        self.__link_collector.reset()
         self.__current_step = 0
         sumo_cmd = [
             self.__sumo_bin,
@@ -157,8 +138,9 @@ class SumoEnvironment(MultiAgentEnv):
             traci.route.add(route_id, vehicle.original_route)
             self.__od_pairs[vehicle.od_pair].increase_load(vehicle_id)
 
+        subs_params = [CONVERSION_DICT[param] for param in self.__link_collector.watched_params[2:]]
         for edge in self.__network.getEdges():
-            traci.edge.subscribe(edge.getID(), KEY_LIST)
+            traci.edge.subscribe(edge.getID(), subs_params)
 
         self.__populate_network()
         return self.__observations
@@ -179,11 +161,9 @@ class SumoEnvironment(MultiAgentEnv):
     def close(self) -> None:
         """Method that closes the traci run and saves collected data to csv files.
         """
-        self.__collector.save()
+        self.__link_collector.save()
         if self.__data_fit is not None:
             self.__data_fit.save()
-        if COLLECT_LINK_INFO:
-            self.__link_collector.save()
         traci.close()
 
     def get_comm_dev(self, node_id: str) -> CommunicationDevice:
@@ -538,7 +518,6 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         done = dict()
-        data_collected = list()
         for vehicle_id in arrived_vehicles:
             self.__vehicles[vehicle_id].update_data(self.__current_step)
             try:
@@ -557,13 +536,8 @@ class SumoEnvironment(MultiAgentEnv):
             rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
-            if self.__vehicles[vehicle_id].is_correct_arrival:
-                data_collected.append(self.__vehicles[vehicle_id].cumulative_data)
 
             self.__verify_reinsertion_necessity(vehicle_id)
-
-        if len(data_collected) > 1 or self.__collector.time_to_measure(self.__current_step):
-            self.__collector.append_list(data_collected, self.__current_step)
 
         return rewards, done
 
@@ -605,8 +579,7 @@ class SumoEnvironment(MultiAgentEnv):
         rewards = self.__handle_running_vehicles(running_vehicles)
         arrived_rewards, done = self.__handle_arrived_vehicles(arrived_vehicles)
         rewards.update(arrived_rewards)
-        if COLLECT_LINK_INFO:
-            self.__update_link_data()
+        self.__update_link_data()
         return rewards, done
 
     def __retrieve_available_actions(self, vehicle_id: str) -> List[int]:
@@ -646,23 +619,26 @@ class SumoEnvironment(MultiAgentEnv):
         return self.__data_fit is None
 
     def __update_link_data(self):
-        link_data = {**{"Link": list()}, **{key: list() for key in KEY_LIST}}
+        step_data = {key: [] for key in self.__link_collector.watched_params}
+        key_list = list(CONVERSION_DICT.keys())
+        value_list = list(CONVERSION_DICT.values())
         for edge in self.__network.getEdges():
-            edge_id = edge.getID()
-            edge_data = traci.edge.getSubscriptionResults(edge_id)
-            link_data["Link"].append(edge_id)
-            for key, value in edge_data.items():
+            link_id = edge.getID()
+            link_data = traci.edge.getSubscriptionResults(link_id)
+            step_data["Link"].append(link_id)
+            for key, value in link_data.items():
+                conv_key = key_list[value_list.index(key)]
                 if key == tc.VAR_CURRENT_TRAVELTIME:
-                    speed = edge_data[tc.LAST_STEP_MEAN_SPEED]
+                    speed = link_data[tc.LAST_STEP_MEAN_SPEED]
                     if speed > HALTING_SPEED:
-                        link_data[key].append(edge.getLength() / speed)
+                        step_data[conv_key].append(edge.getLength() / speed)
                     else:
-                        link_data[key].append(np.NaN)
+                        step_data[conv_key].append(np.NaN)
                 else:
-                    link_data[key].append(value)
-        link_data["Step"] = [self.current_step for _ in link_data["Link"]]
-        self.__link_collector.append({CONVERSION_DICT[key]: value for key, value in link_data.items()})
+                    step_data[conv_key].append(value)
+        step_data["Step"] = [self.current_step for _ in step_data["Link"]]
+        self.__link_collector.append(step_data)
 
     @property
-    def __using_od_pairs(self) -> bool: 
+    def __using_od_pairs(self) -> bool:
         return len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS

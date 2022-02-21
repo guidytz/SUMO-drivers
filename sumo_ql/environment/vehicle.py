@@ -242,7 +242,8 @@ class Vehicle:
                 fit_data = pd.read_csv(fit_file).to_numpy()
                 type(self)._normalizer = scaler().fit(fit_data)
             except FileNotFoundError:
-                err_str = "Fit data must be in scenario directory."
+                err_str = f"File {fit_file} not found."
+                err_str += "Fit data must be in scenario directory."
                 err_str += " Please run simulation with flag '--collect' before"
                 raise RuntimeError(err_str) from FileNotFoundError
         return type(self)._normalizer
@@ -262,7 +263,7 @@ class Vehicle:
         return destination_node != self.__destination and not self.__env.is_border_node(destination_node)
 
     @property
-    def is_correct_arrival(self) -> bool:
+    def correct_destiny(self) -> bool:
         """Property that returns a boolean stating if the vehicle arrived at the right destination.
 
         Returns:
