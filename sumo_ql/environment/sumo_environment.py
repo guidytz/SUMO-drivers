@@ -23,6 +23,7 @@ MAX_VEHICLE_MARGIN = 100
 CONVERSION_DICT = {
     "Step": "Step",
     "Link": "Link",
+    "Travel Time": tc.VAR_CURRENT_TRAVELTIME,
     "Speed": tc.LAST_STEP_MEAN_SPEED,
     "Occupancy": tc.LAST_STEP_OCCUPANCY,
     "Running Vehicles": tc.LAST_STEP_VEHICLE_NUMBER,
