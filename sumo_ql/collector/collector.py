@@ -46,7 +46,7 @@ class DefaultCollector:
         self._guarantee_folder_path()
         signature = f"{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}"
         csv_filename = self._path + f"/{self._name_addon}sim_{signature}.csv"
-        self._aggr_df.to_csv(csv_filename, index=False)
+        self._aggr_df.to_csv(csv_filename, index=False, compression="gzip")
 
     def reset(self) -> None:
         """Method that resets the collector data to make a new run.
@@ -245,7 +245,7 @@ class LinkCollector(DefaultCollector):
             own_params.remove("TravelTime")
             own_params.append("Speed")
 
-        own_params = ["Step", "Link", "Occupancy"] + own_params
+        own_params = ["Step", "Link", "Occupancy", "Travel Time"] + own_params
         super().__init__(aggregation_interval, path, own_params)
 
 
