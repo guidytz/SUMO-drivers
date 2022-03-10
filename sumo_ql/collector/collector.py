@@ -245,7 +245,7 @@ class LinkCollector(DefaultCollector):
             own_params.remove("TravelTime")
             own_params.append("Speed")
 
-        own_params = ["Step", "Link", "Occupancy", "Travel Time"] + own_params
+        own_params = ["Step", "Link", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
         super().__init__(aggregation_interval, path, own_params)
 
 
