@@ -109,7 +109,7 @@ class EpsilonGreedy:
             int: value (index) of the action chosen.
         """
         # chosen_obj = np.argmin([obj.std() for obj in q_set.T])
-        chosen_obj = rd.randint(0, len(q_set.T))
+        chosen_obj = rd.randint(0, len(q_set.T) - 1)
         max_value = max(q_set.T[chosen_obj][action] for action in available_actions)
         equal_list = [action for action in available_actions if max_value == q_set.T[chosen_obj][action]]
 
