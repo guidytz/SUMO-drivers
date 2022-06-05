@@ -39,7 +39,7 @@ python3 -m pip install -e .
 ## Usage
 
 ```bash
-python3 simulations/sumo_ql_run.py -c <scenario>
+python3 simulations/sumo_run.py -c <scenario>
 ```
 
 Where the scenario is a basic .sumocfg file containing info about network and route files necessary for the simulation. Some
@@ -52,7 +52,7 @@ Different parameters can be set in order to the simulation to behave differently
 the command below:
 
 ```bash
-python3 simulations/sumo_ql_run.py -h
+python3 simulations/sumo_run.py -h
 ```
 
 After running the experiments, results can be found in results folder generated.
