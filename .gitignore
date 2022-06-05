@@ -9,3 +9,4 @@ csv
 results
 log
 *.egg-info
+*.sh

@@ -11,37 +11,57 @@ from gym import spaces
 import traci
 import traci.constants as tc
 import sumolib
-from traci.exceptions import TraCIException
 
 from sumo_ql.environment.communication_device import CommunicationDevice
-from sumo_ql.environment.vehicle import Vehicle
+from sumo_ql.environment.vehicle import Vehicle, Objectives
 from sumo_ql.environment.od_pair import ODPair
-from sumo_ql.collector.collector import DataCollector
+from sumo_ql.collector.collector import LinkCollector, ObjectiveCollector
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
 
+CONVERSION_DICT = {
+    "Step": "Step",
+    "Link": "Link",
+    "Travel Time": tc.VAR_CURRENT_TRAVELTIME,
+    "Speed": tc.LAST_STEP_MEAN_SPEED,
+    "Occupancy": tc.LAST_STEP_OCCUPANCY,
+    "Running Vehicles": tc.LAST_STEP_VEHICLE_NUMBER,
+    "Halting Vehicles": tc.LAST_STEP_VEHICLE_HALTING_NUMBER,
+    "CO": tc.VAR_COEMISSION,
+    "CO2": tc.VAR_CO2EMISSION,
+    "HC": tc.VAR_HCEMISSION,
+    "PMx": tc.VAR_PMXEMISSION,
+    "NOx": tc.VAR_NOXEMISSION,
+    "Fuel": tc.VAR_FUELCONSUMPTION
+}
+HALTING_SPEED = 0.1
 
 class SumoEnvironment(MultiAgentEnv):
     """Class responsible for handling the environment in which the simulation takes place.
 
-    Args:
-        sumocfg_file (str): string with the path to the .sumocfg file that holds network and route information
-        simulation_time (int, optional): Time to run the simulation. Defaults to 50000.
-        max_vehicles (int, optional): Number of vehicles to keep running in the simulation. Defaults to 750.
-        right_arrival_bonus (int, optional): Bonus vehicles receive when arriving at the right destination.
-        Defaults to 1000.
-        wrong_arrival_penalty (int, optional): Penalty vehicles receive when arriving at the wrong destination.
-        Defaults to 1000.
-        communication_success_rate (int, optional): The rate (between 0 and 1) in which the communication with the
-        CommDevs succeeds. Defaults to 1.
-        max_comm_dev_queue_size (int, optional): Maximum queue size to hold information on the CommDevs.
-        Defaults to 30.
-        steps_to_populate (int, optional): Steps to populate the network without using the learning steps.
-        Defaults to 3000.
-        use_gui (bool, optional): Flag that determines if the simulation should use sumo-gui. Defaults to False.
-    """
-
+        Args:
+            sumocfg_file (str): string with the path to the .sumocfg file that holds network and route information
+            simulation_time (int, optional): Time to run the simulation. Defaults to 50000.
+            max_vehicles (int, optional): Number of vehicles to keep running in the simulation. Defaults to 750.
+            right_arrival_bonus (int, optional): Bonus vehicles receive when arriving at the right destination.
+            Defaults to 1000.
+            wrong_arrival_penalty (int, optional): Penalty vehicles receive when arriving at the wrong destination.
+            Defaults to 1000.
+            communication_success_rate (int, optional): The rate (between 0 and 1) in which the communication with the
+            CommDevs succeeds. Defaults to 1.
+            max_comm_dev_queue_size (int, optional): Maximum queue size to hold information on the CommDevs.
+            Defaults to 30.
+            steps_to_populate (int, optional): Steps to populate the network without using the learning steps.
+            Defaults to 3000.
+            use_gui (bool, optional): Flag that determines if the simulation should use sumo-gui. Defaults to False.
+            data_collector (DataCollector, optional): Object from class responsible for collecting the experiments data.
+            Defaults to empty DataCollector.
+            objectives (List[str], optional): Objectives the vehicles should compute so the agent can retrieve for the
+            learning process. Defaults to Objective instance using only travel time.
+            fit_data_collect (bool, optional): Flag that determines if the run is only for collecting reward data to use
+            in future experiments (usually to normalize rewards). Defaults to False.
+        """
     def __init__(self, sumocfg_file: str,
                  simulation_time: int = 50000,
                  max_vehicles: int = 750,
@@ -51,7 +71,11 @@ class SumoEnvironment(MultiAgentEnv):
                  max_comm_dev_queue_size: int = 30,
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
-                 data_collector: DataCollector = None) -> None:
+                 data_collector: LinkCollector = None,
+                 objectives: List[str] = None,
+                 fit_data_collect: bool = False,
+                 min_toll_speed: float = 27.79,
+                 toll_penalty: int = 50) -> None:
         self.__sumocfg_file = sumocfg_file
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
@@ -60,7 +84,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
         self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
-        self.__collector = data_collector or DataCollector() # in case of being None
+        self.__link_collector = data_collector or LinkCollector() # in case of being None
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
@@ -68,6 +92,11 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: Dict[str, dict] = dict()
         self.__loaded_vehicles: List[str] = list()
+        self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
+        self.__data_fit = None
+        network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
+        if fit_data_collect:
+            self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
@@ -80,10 +109,13 @@ class SumoEnvironment(MultiAgentEnv):
             self.__action_space[node.getID()] = spaces.Discrete(len(node.getOutgoing()))
 
         self.__vehicles, self.__od_pairs = self.__instantiate_vehicles_and_od_pairs(right_arrival_bonus,
-                                                                                    wrong_arrival_penalty)
+                                                                                    wrong_arrival_penalty,
+                                                                                    min_toll_speed,
+                                                                                    toll_penalty)
+
 
     def reset(self):
-        self.__collector.reset()
+        self.__link_collector.reset()
         self.__current_step = 0
         sumo_cmd = [
             self.__sumo_bin,
@@ -96,14 +128,20 @@ class SumoEnvironment(MultiAgentEnv):
         traci.simulation.subscribe((tc.VAR_ARRIVED_VEHICLES_IDS,
                                     tc.VAR_DEPARTED_VEHICLES_IDS))
         traci.vehicle.subscribe('', [tc.TRACI_ID_LIST, tc.ID_COUNT])
-        for vehicle_id in self.__vehicles:
-            self.__vehicles[vehicle_id].reset()
-            route_id = f"r_{vehicle_id}"
-            traci.route.add(route_id, self.__vehicles[vehicle_id].original_route)
 
-        if len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS:
-            for od_pair in self.__od_pairs:
-                self.__od_pairs[od_pair].reset()
+        if self.__using_od_pairs:
+            for od_pair in self.__od_pairs.values():
+                od_pair.reset()
+
+        for vehicle_id, vehicle in self.__vehicles.items():
+            vehicle.reset()
+            route_id = f"r_{vehicle_id}"
+            traci.route.add(route_id, vehicle.original_route)
+            self.__od_pairs[vehicle.od_pair].increase_load(vehicle_id)
+
+        subs_params = [CONVERSION_DICT[param] for param in self.__link_collector.watched_params[2:]]
+        for edge in self.__network.getEdges():
+            traci.edge.subscribe(edge.getID(), subs_params)
 
         self.__populate_network()
         return self.__observations
@@ -119,13 +157,14 @@ class SumoEnvironment(MultiAgentEnv):
         self.__sumo_step()
         rewards, done = self.__handle_step_vehicle_updates()
         done.update({'__all__': self.__current_step >= self.__simulation_time})
-
         return self.__observations, rewards, done, {}
 
     def close(self) -> None:
-        """Method that closes the traci run.
+        """Method that closes the traci run and saves collected data to csv files.
         """
-        self.__collector.save()
+        self.__link_collector.save()
+        if self.__data_fit is not None:
+            self.__data_fit.save()
         traci.close()
 
     def get_comm_dev(self, node_id: str) -> CommunicationDevice:
@@ -184,6 +223,15 @@ class SumoEnvironment(MultiAgentEnv):
         """
         return self.__action_space
 
+    @property
+    def sim_path(self) -> str:
+        """Method that retuns the simulation file path of the current run.
+
+        Returns:
+            str: string containing the path to the file of the current run simulation.
+        """
+        return self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
+
     def get_action(self, previous_state: str, next_state: str) -> int:
         """Method that returns the action (link index) given an origin and destination node.
         The method returns -1 if the action was not found.
@@ -200,11 +248,38 @@ class SumoEnvironment(MultiAgentEnv):
                 return action
         return -1
 
+    @property
+    def current_step(self) -> int:
+        """Property that returns the simulation's current step.
+
+        Returns:
+            int: current step.
+        """
+        return self.__current_step
+
+    @property
+    def objectives(self) -> Objectives:
+        """Property that returns the objectives structure use to store all agent's objectives.
+
+        Returns:
+            Objectives: structure that holds objectives used in the simulation.
+        """
+        return self.__objectives
+
+    @property
+    def __populating_network(self):
+        """Property that returns a boolean that indicates if the network is beeing populated.
+
+        Returns:
+            bool: boolean that returns True if the network is beeing populated or False otherwise.
+        """
+        return self.__current_step < self.__steps_to_populate
+
     def __populate_network(self) -> None:
         """Method that performs the steps defined to populate the network with vehicles (following their original route
         defined in the route file) before considering the learning process.
         """
-        while self.__current_step < self.__steps_to_populate:
+        while self.__populating_network:
             self.__handle_loaded_vehicles()
             self.__sumo_step()
             self.__handle_step_vehicle_updates()
@@ -228,7 +303,7 @@ class SumoEnvironment(MultiAgentEnv):
         name += minidom.parse(self.__sumocfg_file).getElementsByTagName(attribute)[0].attributes['value'].value
         return name
 
-    def __is_link(self, edge_id: str) -> bool:
+    def is_link(self, edge_id: str) -> bool:
         """Method that tests if the given link id is from a proper network edge;
 
         Args:
@@ -244,7 +319,9 @@ class SumoEnvironment(MultiAgentEnv):
             return False
 
     def __instantiate_vehicles_and_od_pairs(self, right_arrival_bonus: int,
-                                            wrong_arrival_penalty: int) -> Union[dict, dict]:
+                                            wrong_arrival_penalty: int,
+                                            min_toll_speed: float,
+                                            toll_penalty: int) -> Union[dict, dict]:
         """Method that creates the vehicles classes using information from the route file. This method also creates the
         OD-pair structures that hold information about each OD-pair of the route files.
 
@@ -256,7 +333,7 @@ class SumoEnvironment(MultiAgentEnv):
             Union[dict, dict]: dictionaries containing, respectively, the vehicles and OD-pairs.
         """
         vehicles_dict = dict()
-        od_pairs_dict = dict()
+        od_pairs_dict: Union[str, ODPair] = dict()
         total_distance = 0
 
         vehicles_parse = minidom.parse(self.__route_file).getElementsByTagName('vehicle')
@@ -274,17 +351,18 @@ class SumoEnvironment(MultiAgentEnv):
                 od_pairs_dict[od_pair] = ODPair(np.linalg.norm(origin_pos - destination_pos))
                 total_distance += od_pairs_dict[od_pair].straight_distance
 
+            od_pairs_dict[od_pair].append_vehicle(vehicle_id)
             vehicles_dict[vehicle_id] = Vehicle(vehicle_id, origin_id, destination_id, right_arrival_bonus,
-                                                wrong_arrival_penalty, route, self)
+                                                wrong_arrival_penalty, route, self, self.__objectives,
+                                                min_toll_speed, toll_penalty)
 
             self.__observations[vehicle_id] = {'reinserted': False,
                                                'ready_to_act': False,
                                                'origin': origin_id}
 
-        if len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS:
-            for od_pair in od_pairs_dict:
-                od_pairs_dict[od_pair].min_load = math.ceil((od_pairs_dict[od_pair].straight_distance / total_distance)
-                                                            * self.__max_vehicles_running)
+        if self.__using_od_pairs:
+            for od_pair in od_pairs_dict.values():
+                od_pair.min_load = math.ceil((od_pair.straight_distance / total_distance) * self.__max_vehicles_running)
 
         return vehicles_dict, od_pairs_dict
 
@@ -295,9 +373,9 @@ class SumoEnvironment(MultiAgentEnv):
         Args:
             vehicle_id (str): ID of the vehicle to be reinserted in case its necessary.
         """
-        if len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS:
+        if self.__using_od_pairs:
             od_pair = self.__vehicles[vehicle_id].od_pair
-            self.__od_pairs[od_pair].decrease_load()
+            self.__od_pairs[od_pair].decrease_load(vehicle_id)
             if not self.__od_pairs[od_pair].has_enough_vehicles:
                 self.__reinsert_vehicle(vehicle_id)
         elif self.__current_running_vehicles_n < self.__max_vehicles_running:
@@ -309,19 +387,17 @@ class SumoEnvironment(MultiAgentEnv):
         Args:
             vehicle_id (str): ID of the vehicle to be reinserted.
         """
-        route_id = f"r_{vehicle_id}"
-        try:
-            traci.vehicle.add(vehicle_id, route_id)
-        except TraCIException:
-            print(f"Warning: tried to reinsert vehicle {vehicle_id} to a non existent route. Please verify.")
-            traci.route.add(route_id, self.__vehicles[vehicle_id].original_route)
-            traci.vehicle.add(vehicle_id, route_id)
-        self.__loaded_vehicles.append(vehicle_id)
+        if self.__populating_network and self.__using_od_pairs:
+            od_pair = self.__vehicles[vehicle_id].od_pair
+            vehicle_id = self.__od_pairs[od_pair].random_vehicle()
 
-        if len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS:
-            self.__od_pairs[self.__vehicles[vehicle_id].od_pair].increase_load()
+        if self.__vehicles[vehicle_id].insert():
+            self.__loaded_vehicles.append(vehicle_id)
 
-    def __get_action_link(self, node_id: str, action: int) -> str:
+        if self.__using_od_pairs:
+            self.__od_pairs[self.__vehicles[vehicle_id].od_pair].increase_load(vehicle_id)
+
+    def get_action_link(self, node_id: str, action: int) -> str:
         """Method that returns the link that corresponds to the action performed, given a node/state where it was
         performed.
 
@@ -346,6 +422,22 @@ class SumoEnvironment(MultiAgentEnv):
             sys.exit()
         return link_ids[action]
 
+    def get_link_speed(self, link_id: str) -> float:
+        """Method that receives a link ID and returns it's speed limit.
+
+        Args:
+            link_id (str): link ID
+
+        Returns:
+            float: speed limit of the given link ID.
+        """
+        try:
+            link = self.__network.getEdge(link_id)
+            return link.getSpeed()
+        except IndexError:
+            print(f"Warning: The link iwth id {link_id} does not exist.")
+        return -1
+
     def __compute_actions(self, actions: Dict[str, int]) -> None:
         """Method that computes all of the actions performed in the current step.
 
@@ -355,23 +447,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         for vehicle_id, action in actions.items():
             self.__observations[vehicle_id]['ready_to_act'] = False
-            try:
-                current_link_id = self.__vehicles[vehicle_id].current_link
-                node_id = self.get_link_destination(current_link_id)
-                next_link_id = self.__get_action_link(node_id, action)
-                current_route = [current_link_id, next_link_id]
-            except RuntimeError:
-                node_id = self.__vehicles[vehicle_id].origin
-                next_link_id = self.__get_action_link(node_id, action)
-                current_route = [next_link_id]
-
-            try:
-                traci.vehicle.setRoute(vehicle_id, current_route)
-            except TraCIException:
-                print(f"Warning: could not set next link for vehicle ID {vehicle_id}.")
-                print(f"Current route: {self.__vehicles[vehicle_id].route}.")
-                print(f"Tried to choose link {next_link_id} to reach node {self.get_link_destination(next_link_id)}.")
-                print(f"{traci.vehicle.getRoadID(vehicle_id) = }")
+            self.__vehicles[vehicle_id].update_route(action)
 
     def __update_comm_dev_info(self, link_id: str, reward: int) -> None:
         """Method that receives a reward and a link id to update the information to the destination node CommDev about
@@ -411,12 +487,12 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         for vehicle_id in running_vehicles:
-            traci_vehicle_info = traci.vehicle.getSubscriptionResults(vehicle_id)
-            current_link_id = traci_vehicle_info[tc.VAR_ROAD_ID]
-            if not self.__vehicles[vehicle_id].is_in_link(current_link_id) and self.__is_link(current_link_id):
-                vehicle_last_link = self.__vehicles[vehicle_id].current_link
-                self.__vehicles[vehicle_id].update_current_link(current_link_id, self.__current_step)
-                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
+            self.__vehicles[vehicle_id].update_data(self.__current_step)
+            if self.__vehicles[vehicle_id].changed_link:
+                vehicle_last_link = self.__vehicles[vehicle_id].last_link
+                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
+                self.__update_data_fit(rewards[vehicle_id])
+
                 self.__update_comm_dev_info(vehicle_last_link, rewards[vehicle_id])
 
                 self.__retrieve_observation_states(vehicle_id)
@@ -443,28 +519,26 @@ class SumoEnvironment(MultiAgentEnv):
         """
         rewards = dict()
         done = dict()
-        travel_times = list()
         for vehicle_id in arrived_vehicles:
+            self.__vehicles[vehicle_id].update_data(self.__current_step)
             try:
                 self.__vehicles[vehicle_id].set_arrival(self.__current_step)
             except RuntimeError as error:
                 print(error)
                 print(self.__vehicles[vehicle_id])
-                print(traci.vehicle.getSubscriptionResults(vehicle_id))
             done[vehicle_id] = True
 
-            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
+            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False,
+                                                                normalize=self.__not_collecting)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
+            reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
+            self.__update_data_fit(reward)
 
-            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward()
+            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
-            if self.__vehicles[vehicle_id].is_correct_arrival:
-                travel_times.append(self.__vehicles[vehicle_id].travel_time)
 
             self.__verify_reinsertion_necessity(vehicle_id)
-
-        self.__collector.append_travel_times(travel_times, self.__current_step)
 
         return rewards, done
 
@@ -476,8 +550,7 @@ class SumoEnvironment(MultiAgentEnv):
             network in the current step.
         """
         for vehicle_id in departed_vehicles:
-            self.__vehicles[vehicle_id].update_current_link(traci.vehicle.getRoadID(vehicle_id), self.__current_step)
-            traci.vehicle.subscribe(vehicle_id, [tc.VAR_ROAD_ID])
+            self.__vehicles[vehicle_id].departure(self.__current_step)
             if self.__vehicles[vehicle_id].ready_to_act:
                 self.__observations[vehicle_id]['reinserted'] = False
                 self.__observations[vehicle_id]['ready_to_act'] = True
@@ -507,7 +580,7 @@ class SumoEnvironment(MultiAgentEnv):
         rewards = self.__handle_running_vehicles(running_vehicles)
         arrived_rewards, done = self.__handle_arrived_vehicles(arrived_vehicles)
         rewards.update(arrived_rewards)
-
+        self.__update_link_data()
         return rewards, done
 
     def __retrieve_available_actions(self, vehicle_id: str) -> List[int]:
@@ -537,3 +610,36 @@ class SumoEnvironment(MultiAgentEnv):
         current_link = self.__vehicles[vehicle_id].current_link
         self.__observations[vehicle_id]['current_state'] = self.get_link_destination(current_link)
         self.__observations[vehicle_id]['previous_state'] = self.get_link_origin(current_link)
+
+    def __update_data_fit(self, reward):
+        if self.__data_fit is not None:
+            self.__data_fit.append_rewards([reward])
+
+    @property
+    def __not_collecting(self):
+        return self.__data_fit is None
+
+    def __update_link_data(self):
+        step_data = {key: [] for key in self.__link_collector.watched_params}
+        key_list = list(CONVERSION_DICT.keys())
+        value_list = list(CONVERSION_DICT.values())
+        for edge in self.__network.getEdges():
+            link_id = edge.getID()
+            link_data = traci.edge.getSubscriptionResults(link_id)
+            step_data["Link"].append(link_id)
+            for key, value in link_data.items():
+                conv_key = key_list[value_list.index(key)]
+                if key == tc.VAR_CURRENT_TRAVELTIME:
+                    speed = link_data[tc.LAST_STEP_MEAN_SPEED]
+                    if speed > HALTING_SPEED:
+                        step_data[conv_key].append(edge.getLength() / speed)
+                    else:
+                        step_data[conv_key].append(np.NaN)
+                else:
+                    step_data[conv_key].append(value)
+        step_data["Step"] = [self.current_step for _ in step_data["Link"]]
+        self.__link_collector.append(step_data)
+
+    @property
+    def __using_od_pairs(self) -> bool:
+        return len(self.__od_pairs) < MAX_COMPUTABLE_OD_PAIRS

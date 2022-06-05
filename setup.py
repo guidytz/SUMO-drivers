@@ -11,7 +11,8 @@ setup(
         'ray[rllib]',
         'traci',
         'sumolib',
-        'libsumo'
+        'libsumo',
+        'sklearn'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',

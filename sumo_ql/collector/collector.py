@@ -1,80 +1,107 @@
 import os
-from typing import List
+from typing import Dict, List
 import errno
 from datetime import datetime
 from random import SystemRandom
 import numpy as np
 import pandas as pd
 
-
-class DataCollector:
-    """Class responsible for collecting data from the simulation and saving it to csv files.
+class DefaultCollector:
+    """Default collector class that aggregates and saves data from the simulation.
 
     Args:
-        sim_filename (str): Name of the simulation for saving purposes
-        steps_to_measure (int, optional): Steps to calculate moving average. Defaults to 100.
-        custom_path (str, optional): Custom path to save the files. Defaults to ''.
-        additional_folders (List[str], optional): additional folders to add in path to distingish simulations.
-        Defaults to None.
-        debug (bool, optional): Debug flag to save debuging data. Defaults to False.
+        aggregation_interval (int): interval that determines when the multiple data should be aggregated into the 
+        main dataframe.
+        path (str): main folder path were the data file should be saved.
+        params (List[str]): params that should be saved throughout the simulation. Note that the first param is the
+        one considered the x axis within the dataframe, therefore this value will not be aggregated, but used as 
+        reference to the other params aggregated.
     """
+    def __init__(self, aggregation_interval: int, path: str, params: List[str]) -> None:
+        self._start_time = datetime.now()
+        self._aggregation_interval = aggregation_interval
+        self._path = path
+        self._params = params
+        self._collector_df = self._empty_df[self._params[1:]]
+        self._aggr_df = self._empty_df
+        self._random = SystemRandom()
+        self._name_addon = ""
 
-    def __init__(self, sim_filename: str = "default",
-                 steps_to_measure: int = 100,
-                 custom_path: str = '',
-                 additional_folders: List[str] = None,
-                 debug: bool = False) -> None:
-        if sim_filename == "default":
-            print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
-            print("Results will be saved in a default folder and might not be distinguishable from other simulations")
-        self.__sim_filename = sim_filename
-        self.__steps_to_measure = steps_to_measure
-        self.__path = custom_path if custom_path != '' else f"{os.getcwd()}/results"
-        self.__additional_folders = additional_folders
-        self.__debug = debug
-        self.__travel_times = np.array([])
-        self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
-        self.__start_time = datetime.now()
-        self.__random = SystemRandom()
-
-    def append_travel_times(self, travel_times: List[int], step: int) -> None:
-        """Method that receives a list of travel times and the step they were retrieved and saves them to calculate the
-        moving average.
+    def append(self, data_dict: Dict[str, List[int]]) -> None:
+        """Method the appends data present in the dictionary to the collector dataframe.
+        Note that the dictionary has to have the same keys passed as params when class was created.
 
         Args:
-            travel_times (List[int]): list containing all travel times retrieved in the step given.
-            step (int): step in which the travel times were retrieved.
+            data_dict (Dict[str, List[int]]): data to append to the collector.
         """
-        self.__travel_times = np.append(self.__travel_times, travel_times)
-        self.__update_df(step)
+        collector_data = {key: data_dict[key] for key in self._params[1:]}
+        self._collector_df = pd.concat([self._collector_df, pd.DataFrame(collector_data)], ignore_index=True)
+        curr_value = data_dict[self._params[0]][0]
+        if self._should_aggregate(curr_value):
+            self._aggregate(curr_value)
 
-    def save(self):
+    def save(self) -> None:
         """Method that saves the data stored to csv file.
         """
-        if self.__debug:  # TODO implement debuging structures as necessary
-            print("No debug structure is defined yet!")
-
-        self.__save_to_csv("MovingAverage", self.__travel_avg_df)
+        self._guarantee_folder_path()
+        signature = f"{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}"
+        csv_filename = self._path + f"/{self._name_addon}sim_{signature}.csv"
+        self._aggr_df.to_csv(csv_filename, index=False, compression="xz")
 
     def reset(self) -> None:
         """Method that resets the collector data to make a new run.
         """
-        self.__start_time = datetime.now()
-        self.__travel_times = np.array([])
-        self.__travel_avg_df = pd.DataFrame({"Step": [], "Average travel time": []})
+        self._collector_df = self._empty_df[self._params[1:]]
+        self._aggr_df = self._empty_df
+        self._start_time = datetime.now()
+        
+    @property
+    def watched_params(self) -> List[str]:
+        """Property that returns the params beeing watched in this run.
 
-    def __update_df(self, step: int) -> None:
-        """Method that updates the internal dataframe with the new moving average if the current step is the one to make
-        the measurement.
+        Returns:
+            List[str]: list of watched params.
+        """
+        return self._params
+        
+    def _aggregate(self, curr_value: int) -> None:
+        """Method that aggregates the values of the collector dataframe into the main dataframe.
+        Currently using the mean to aggregate.
 
         Args:
-            step (int): current step
+            curr_value (int): current value of the first parameter that is used as the x axis in the dataframe.
         """
-        if step % self.__steps_to_measure == 0 and self.__travel_times.size != 0:
-            avg_travel_time = self.__travel_times.mean()
-            df_update = pd.DataFrame({"Step": [step], "Average travel time": [avg_travel_time]})
-            self.__travel_avg_df = self.__travel_avg_df.append(df_update, ignore_index=True)
-            self.__travel_times = np.array([])
+        aggregated_df = self._collector_df.mean().to_frame().transpose()
+        aggregated_df[self._params[0]] = [curr_value]
+        self._update_main_dfs(aggregated_df)
+
+    def _update_main_dfs(self, aggregated_df):
+        """Method that updates main dfs when aggregation is done.
+
+        Args:
+            aggregated_df (pd.DataFrame): aggregated information to append to main df.
+        """
+        self._aggr_df = pd.concat([self._aggr_df, aggregated_df[self._params]], ignore_index=True)
+        self._collector_df = self._empty_df[self._params[1:]]
+
+    def _should_aggregate(self, curr_value: int) -> bool:
+        """Method that determines if the data collected should be aggregated in the main dataframe.
+
+        Args:
+            curr_value (int): current value of the first parameter that is used as the x axis in the dataframe.
+
+        Returns:
+            bool: flag indicating if it's time to aggregate the other params based on the interval informed.
+        """
+        return curr_value % self._aggregation_interval == 0
+
+    def _guarantee_folder_path(self):
+        """Method that guarantees that the whole folder path hierarchy is created to save the csv file.
+        """
+        folder_path = f"{os.getcwd()}"
+        for folder in self._path.split("/"):
+            folder_path += f"/{folder}"
+            self.__create_folder(folder_path)
 
     def __create_folder(self, folder_name: str) -> None:
         """Method that creates a folder to save the files if it wasn't created yet.
@@ -92,41 +119,137 @@ class DataCollector:
                 print(f"Couldn't create folder {folder_name}, error message: {error.strerror}")
                 raise OSError(error).with_traceback(error.__traceback__)
 
-    def __verify_and_create_folder_path(self, folder_name: str) -> str:
-        """Method that creates the folder hierarchy where the simulation files will be stored. 
-
-        Args:
-            folder_name (str): Main simulation folder name
+    @property
+    def _empty_df(self) -> pd.DataFrame:
+        """Property that returns an empty dataframe using the params as columns.
 
         Returns:
-            str: Complete path to the final folder.
+            pd.DataFrame: empty dataframe using the main params as columns.
         """
-        date_folder = self.__start_time.strftime("%m_%d_%y")
-        folder_str = self.__path
-        self.__create_folder(folder_str)
-        folder_str += f"/{folder_name}"
-        self.__create_folder(folder_str)
-        folder_str += f"/{self.__sim_filename}"
-        self.__create_folder(folder_str)
-        folder_str += f"/{date_folder}"
-        self.__create_folder(folder_str)
+        return pd.DataFrame({param: [] for param in self._params})
 
-        if self.__additional_folders is not None:
-            for additional_folder in self.__additional_folders:
-                folder_str += f"/{additional_folder}"
-                self.__create_folder(folder_str)
-
-        return folder_str
+    def __str__(self) -> str:
+        return f"{self._aggr_df}"
 
 
-    def __save_to_csv(self, folder_name: str, data_frame: pd.DataFrame) -> None:
-        """Method that saves the data collected to a csv file.
+class TripCollector(DefaultCollector):
+    """Class responsible for collecting data from the simulation and saving it to csv files.
+
+    Args:
+        network_name (str): Name of the simulation for saving purposes
+        aggregation_interval (int, optional): Steps to calculate moving average. Defaults to 100.
+        custom_path (str, optional): Custom path to save the files. Defaults to ''.
+        additional_folders (List[str], optional): additional folders to add in path to distingish simulations.
+        Defaults to None.
+        param_list (List[str], optional): list containing all measured params
+        date (datetime, optional): datetime object that stores the simulation begin time. Defaults to datetime.now(). 
+    """
+
+    def __init__(self, network_name: str = "default",
+                 aggregation_interval: int = 100,
+                 custom_path: str = None,
+                 additional_folders: List[str] = None,
+                 param_list: List[str] = None, 
+                 date: datetime = datetime.now()) -> None:
+        if network_name == "default":
+            print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
+            print("Results will be saved in a default folder and might not be distinguishable from other simulations")
+
+        date = f"/{date.strftime('%m_%d_%y')}"
+        path = f"{(custom_path or 'results')}/TripMovingAverage/{network_name}/{date}/{'/'.join(additional_folders)}"
+        params = param_list if "TravelTime" in param_list else ["TravelTime"] + param_list
+        params = [item.replace("TravelTime", "Travel Time") for item in params]
+        params = ["Step"] + params
+        super().__init__(aggregation_interval, path, params)
+
+    def append_list(self, data: List[List[int]], step: int) -> None:
+        """Method that receives a list of travel times and the step they were retrieved and saves them to calculate the
+        moving average.
 
         Args:
-            folder_name (str): Main simulation folder name to save the file in.
-            data_frame (pd.DataFrame): dataframe that stores the data to be saved.
+            data (List[List[int]]): list containing all travel times retrieved in the step given.
+            step (int): step in which the travel times were retrieved.
         """
-        folder_str = self.__verify_and_create_folder_path(folder_name)
-        file_signature = f"{self.__start_time.strftime('%H-%M-%S')}_{self.__random.randint(0, 1000):03}"
-        csv_filename = folder_str + f"/sim_{file_signature}.csv"
-        data_frame.to_csv(csv_filename, index=False)
+        obj_dict = {obj: [] for obj in self._params[1:]}
+        for item in data:
+            for obj, val in zip(self._params[1:], item):
+                obj_dict[obj].append(val)
+        data_dict = dict({"Step": [step]}, **obj_dict)
+        super().append(data_dict)
+
+    def time_to_measure(self, step) -> bool:
+        """Method that indicates if it's time to measure the moving average of the data collected based on the step 
+        given when collector was created.
+
+        Args:
+            step (int): current step
+
+        Returns:
+            bool: returns a boolean that indicates if a measurement should be made.
+        """
+        return self._should_aggregate(step)
+
+
+class ObjectiveCollector:
+
+    def __init__(self, objecitve_list: List[str], sim_path: str) -> None:
+        self.__objectives = objecitve_list
+        self.__collector = pd.DataFrame({obj: [] for obj in self.__objectives})
+        self.__sim_path = sim_path
+
+    @property
+    def __sim_path(self):
+        return self.__existing_path
+
+    @__sim_path.setter
+    def __sim_path(self, path):
+        if os.path.exists(path):
+            self.__existing_path = path
+        else:
+            raise FileNotFoundError(f"The path `{path}` informed does not exist.")
+
+    def append_rewards(self, reward_list: List[np.array]) -> None:
+        reward_list = np.array(reward_list)
+        n_obj = len(self.__objectives)
+        new_data = pd.DataFrame({obj: reward_list[:, i] for obj, i in zip(self.__objectives, range(n_obj))})
+        self.__collector = pd.concat([self.__collector, new_data], ignore_index=True)
+
+    def save(self):
+        filename = f"{self.__sim_path}/fit_data_{'_'.join(self.__objectives)}.csv"
+        self.__collector.to_csv(filename, index=False, mode='a')
+
+    def __str__(self) -> str:
+        return f"{self.__collector}"
+
+
+class LinkCollector(DefaultCollector):
+    """Class that collects information from links and saves to csv.
+    This class basically modifies DefaultCollector to be able to group data by link.
+    """
+
+    def __init__(self, network_name: str = "default",
+                 aggregation_interval: int = 100,
+                 custom_path: str = None,
+                 additional_folders: List[str] = None,
+                 params: List[str] = None,
+                 date: datetime = datetime.now()) -> None:
+        if network_name == "default":
+            print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
+            print("Results will be saved in a default folder and might not be distinguishable from other simulations")
+
+        date = f"/{date.strftime('%m_%d_%y')}"
+        path = f"{(custom_path or 'results')}/LinkStepData/{network_name}/{date}/{'/'.join(additional_folders)}"
+
+        own_params = list(params or ["Speed"])
+        if "TravelTime" in own_params:
+            own_params.remove("TravelTime")
+            own_params.append("Speed")
+
+        own_params = ["Step", "Link", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
+        super().__init__(aggregation_interval, path, own_params)
+
+
+    def _aggregate(self, curr_value: int) -> None:
+        aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean').reset_index()
+        aggregated_df[self._params[0]] = curr_value
+        self._update_main_dfs(aggregated_df)

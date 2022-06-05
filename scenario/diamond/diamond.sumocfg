@@ -3,7 +3,7 @@
 <configuration>
     <input>
         <net-file value="Diamond_allstop.net.xml"/>
-	<route-files value="DiamondRdFringe.rou.xml"/>
+	<route-files value="DiamondFlowsAcrossNet_099.rou.xml"/>
     </input>
     <time>
         <begin value="0"/>

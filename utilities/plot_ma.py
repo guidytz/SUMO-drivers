@@ -1,15 +1,22 @@
 import sys
 import argparse
+import itertools
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 if __name__ == "__main__":
+    sns.set_theme(style="darkgrid")
+    palette = itertools.cycle(sns.color_palette("colorblind"))
+
     parser = argparse.ArgumentParser(
         description='Script to plot a scatter graph using a csv file with two columns')
 
     parser.add_argument("-f", "--file", action="store", dest="csv_file",
                         help="CSV file containing data (mandatory)")
+
+    parser.add_argument("-t", "--type", action="store", dest="plot_type", default="mean",
+                        help="Indicates what type of plot should be used (old, mean, or link [id])")
 
     options = parser.parse_args()
     if not options.csv_file:
@@ -19,7 +26,23 @@ if __name__ == "__main__":
         sys.exit()
 
     df = pd.read_csv(options.csv_file)
-    columns = list(df.columns)
-    df.plot(kind="scatter", x=columns[0], y=columns[1], s=5)
-    plt.ylabel("Average travel time")
+
+    if options.plot_type == "mean":
+        df = df.groupby("Step").agg("mean").reset_index()
+    elif options.plot_type == "old":
+        pass
+    else:
+        df = df.loc[df.Link == options.plot_type]
+        df.pop("Link")
+
+    columns = list(df.columns[1:])
+    _, axes = plt.subplots(len(columns), 1, figsize=(10, len(columns) * 3.5), sharex=True, constrained_layout=True)
+    if len(columns) > 1:
+        for i, col in enumerate(columns):
+            # axes[i].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+            sns.scatterplot(x="Step", y=col, data=df, ax=axes[i], color=next(palette))
+    else:
+        # axes.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        sns.scatterplot(x="Step", y=columns[0], data=df, ax=axes, color=next(palette))
+
     plt.show()

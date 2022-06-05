@@ -2,16 +2,18 @@ import sys
 import os
 import errno
 import argparse
-from typing import Dict
+from typing import Dict, List, Union
 from datetime import datetime
 from multiprocessing import Pool
 import logging
+import numpy as np
 
 from sumo_ql.environment.sumo_environment import SumoEnvironment
-from sumo_ql.agent.q_learning import QLAgent
+from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import DataCollector
+from sumo_ql.collector.collector import LinkCollector, DefaultCollector
 
+SAVE_OBJ_CHOSEN = False
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
     """Function used to run the simulations, given a set of arguments passed to the script and the iteration (run
@@ -31,6 +33,24 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     observations = None
     rewards = None
     env: SumoEnvironment = None
+    collect_fit: bool = False
+    agent_type = args.agent_type
+    opt_travel_time = args.objectives[0] == "TravelTime"
+
+    if args.collect:
+        if (collect_fit := args.n_runs == 1):
+            print("Making a data fit collect run.")
+        else:
+            print("Warning: data fit collect only happens in single run simulations.")
+
+
+    def create_dir(dirname: str) -> None:
+        try:
+            os.mkdir(f"{dirname}")
+        except OSError as error:
+            if error.errno != errno.EEXIST:
+                print(f"Couldn't create folder {dirname}, error message: {error.strerror}")
+                raise OSError(error).with_traceback(error.__traceback__)
 
     def create_log(dirname: str, date: datetime) -> None:
         """Method that creates a log file that has information of beginning and end of simulations when making multiple
@@ -44,12 +64,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             OSError: the method raises an OSError if the directory couldn't be created (it doesn't raise the error if
             the directory already exists).
         """
-        try:
-            os.mkdir(f"log/{dirname}")
-        except OSError as error:
-            if error.errno != errno.EEXIST:
-                print(f"Couldn't create folder log/{dirname}, error message: {error.strerror}")
-                raise OSError(error).with_traceback(error.__traceback__)
+        create_dir("log")
+        create_dir(f"log/{dirname}")
         logging.basicConfig(format='%(asctime)s: %(message)s',
                             datefmt='%d-%m-%Y %H:%M:%S',
                             filename=f'log/{dirname}/mult_sims_{date.strftime("%d-%m-%y_%H-%M-%S")}.log',
@@ -61,7 +77,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 comm_succ_rate: float,
                                 moving_avg_gap: int,
                                 date: datetime,
-                                n_runs: int = 1) -> DataCollector:
+                                n_runs: int = 1,
+                                objectives: List[str] = None) -> LinkCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -86,14 +103,17 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
 
         steps_folder = f"steps_{sim_steps // 1000}K"
         additional_folders.append(steps_folder)
+        additional_folders.append(f"opt_{'_'.join(objectives)}")
 
         if n_runs > 1:
             additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
             create_log(main_simulation_name, date)
 
-        return DataCollector(sim_filename=main_simulation_name,
-                             steps_to_measure=moving_avg_gap,
-                             additional_folders=additional_folders)
+        return LinkCollector(network_name=main_simulation_name,
+                             aggregation_interval=moving_avg_gap,
+                             additional_folders=additional_folders,
+                             params=objectives,
+                             date=date)
 
     def create_environment(args: argparse.Namespace) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.
@@ -110,7 +130,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  comm_succ_rate=args.comm_succ_rate,
                                                  moving_avg_gap=args.mav,
                                                  date=date,
-                                                 n_runs=args.n_runs)
+                                                 n_runs=args.n_runs,
+                                                 objectives=args.objectives)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
                                       simulation_time=args.steps,
@@ -121,7 +142,11 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       max_comm_dev_queue_size=args.queue_size,
                                       steps_to_populate=args.wait_learn,
                                       use_gui=args.gui,
-                                      data_collector=data_collector)
+                                      data_collector=data_collector,
+                                      objectives=args.objectives,
+                                      fit_data_collect=collect_fit,
+                                      min_toll_speed=args.toll_speed,
+                                      toll_penalty=args.toll_value)
         return environment
 
     def run(iteration) -> None:
@@ -131,18 +156,36 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             logging.info("Iteration %s started.", iteration)
         observations = env.reset()
         done = {'__all__': False}
+
+        if agent_type == "PQL":
+            network_name = str(args.cfgfile).split('/')[-2]
+            chosen_obj_collector = DefaultCollector(1,
+                                                    f"results/ChosenObj/{network_name}/{date.strftime('%y_%m_%d')}",
+                                                    ["Step"] + args.objectives)
+
         while not done['__all__']:
             actions = dict()
-            for vehicle_id in observations:
-                if observations[vehicle_id]['reinserted'] and vehicle_id not in agents:
+            for vehicle_id, vehicle in observations.items():
+                if vehicle['reinserted'] and vehicle_id not in agents:
                     create_agent(vehicle_id)
 
-            for vehicle_id in observations:
-                if observations[vehicle_id]['ready_to_act'] and vehicle_id in agents:
-                    handle_communication(vehicle_id, observations[vehicle_id]['current_state'])
-                    current_state = observations[vehicle_id]['current_state']
-                    available_actions = observations[vehicle_id]['available_actions']
-                    actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
+            chosen_sum = [0 for obj in range(len(args.objectives))]
+            for vehicle_id, vehicle in observations.items():
+                if vehicle['ready_to_act'] and vehicle_id in agents:
+                    handle_communication(vehicle_id, vehicle['current_state'])
+                    current_state = vehicle['current_state']
+                    available_actions = vehicle['available_actions']
+                    if agent_type == "QL":
+                        actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
+                    elif agent_type == "PQL":
+                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state,
+                                                                                 available_actions)
+                        if chosen_obj != -1:
+                            chosen_sum[chosen_obj] += 1
+            if agent_type == "PQL":
+                obj_collection_dict = {key: [val] for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
+                obj_collection_dict["Step"] = [env.current_step]
+                chosen_obj_collector.append(obj_collection_dict)
 
             observations, rewards, done, _ = env.step(actions)
 
@@ -166,10 +209,16 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
-        agents[vehicle_id] = QLAgent(action_space=env.action_space,
-                                     exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        if agent_type == "QL":
+            agents[vehicle_id] = QLAgent(action_space=env.action_space,
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        elif agent_type == "PQL":
+            agents[vehicle_id] = PQLAgent(action_space=env.action_space,
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+        else:
+            raise RuntimeError(f"Agent {agent_type} not recognized. Agents should be QL or PQL.")
 
-    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: int) -> None:
+    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: np.array) -> None:
         """Method that takes care of the learning process for the agent given.
 
         Args:
@@ -183,7 +232,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         try:
             action = env.get_action(origin_node, destination_node)
-            agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+            if agent_type == "QL":
+                obj = 0 if opt_travel_time else 1
+                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
+            elif agent_type == "PQL":
+                agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+
         except Exception as exception:
             print(f"{vehicle_id = }")
             print(f"{observations = }")
@@ -200,62 +254,88 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         comm_dev = env.get_comm_dev(state)
         if comm_dev.communication_success:
-            expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
-            for link, expected_reward in expected_rewards.items():
-                origin = env.get_link_origin(link)
-                destination = env.get_link_destination(link)
-                handle_learning(vehicle_id, origin, destination, expected_reward)
+            if agent_type == "QL":
+                expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
+                for link, expected_reward in expected_rewards.items():
+                    origin = env.get_link_origin(link)
+                    destination = env.get_link_destination(link)
+                    handle_learning(vehicle_id, origin, destination, expected_reward)
+            else:
+                print("Warning: communication not available for non QL agents.")
 
     # Run the simulation
     env = create_environment(args)
     run(iteration)
 
+def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
+    """Method that implements the argument parser for the script.
 
-if __name__ == '__main__':
-    parse = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
+    Returns:
+        Union[argparse.Namespace, argparse.ArgumentParser]: union between parsed arguments and argument parser
+    """
+    parser = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
 
-    parse.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
+    parser.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
                        help="define the config SUMO file (mandatory)")
-    parse.add_argument("-d", "--demand", action="store", type=int, dest="demand",
+    parser.add_argument("-d", "--demand", action="store", type=int, dest="demand",
                        default=750, help="desired network demand (default = 750)")
-    parse.add_argument("-s", "--steps", action="store", type=int, default=60000,
+    parser.add_argument("-s", "--steps", action="store", type=int, default=60000,
                        help="number of max steps (default = 60000)", dest="steps")
-    parse.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
+    parser.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
                        help="Time steps before agents start the learning (default = 3000)")
-    parse.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
+    parser.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
                        help="uses SUMO GUI instead of CLI")
-    parse.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=100,
-                       help="Moving gap size (default = 100 steps)")
-    parse.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=1,
-                       help="Communication success rate (default = 1)")
-    parse.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
+    parser.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=1,
+                       help="Moving gap size (default = 1 step)")
+    parser.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
+                       help="Communication success rate (default = 0.0)")
+    parser.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
                        help="CommDev queue size (default = 30)")
-    parse.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
+    parser.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
                        help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
-    parse.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
+    parser.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
                        help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
-    parse.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
+    parser.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
                        help="Number of multiple simulation runs (default = 1)")
-    parse.add_argument("--parallel", action="store_true", dest="parallel", default=False,
+    parser.add_argument("--parallel", action="store_true", dest="parallel", default=False,
                        help="Set the script to run simulations in parallel using number of available CPU")
+    parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=["TravelTime"],
+                       help="List with objective params to use separated by a single space (default = [TravelTime])")
+    parser.add_argument("--collect", action="store_true", dest="collect", default=False,
+                       help="Set the run to collect info about the reward values to use as normalizer latter.")
+    parser.add_argument("-a", "--agent-type", action="store", dest="agent_type", default="QL",
+                        help="Set the agent type to use in simulation. (Must be QL or PQL. Default = QL)")
+    parser.add_argument("-t", "--toll-speed", action="store", dest="toll_speed", default=-1, type=float,
+                        help="Set the min speed in link to impose a toll for emission. (default = -1, toll not used)")
+    parser.add_argument("-v", "--toll-value", action="store", dest="toll_value", default=-1, type=float,
+                        help="Set the toll value to be added as penalty to emission. (default = -1, toll not used)")
 
-    options = parse.parse_args()
+    return parser.parse_args(), parser
+
+def main():
+    """Main script funcion that starts the running process.
+    """
+    options, parser = parse_args()
     if not options.cfgfile:
         print('Wrong usage of script!')
         print()
-        parse.print_help()
+        parser.print_help()
         sys.exit()
 
-if options.n_runs > 1:
-    curr_date = datetime.now()
-    if options.parallel:
-        sys.setrecursionlimit(3000)
-        with Pool(processes=os.cpu_count()) as pool:
-            _ = [pool.apply_async(run_sim, args=(options, curr_date, it)) for it in range(options.n_runs)]
-            pool.close()
-            pool.join()
+    if options.n_runs > 1:
+        curr_date = datetime.now()
+        if options.parallel:
+            sys.setrecursionlimit(3000)
+            with Pool(processes=os.cpu_count()) as pool:
+                _ = [pool.apply_async(run_sim, args=(options, curr_date, it)) for it in range(options.n_runs)]
+                pool.close()
+                pool.join()
+        else:
+            for i in range(options.n_runs):
+                run_sim(options, curr_date, i)
     else:
-        for i in range(options.n_runs):
-            run_sim(options, curr_date, i)
-else:
-    run_sim(options)
+        run_sim(options)
+
+
+if __name__ == '__main__':
+    main()
