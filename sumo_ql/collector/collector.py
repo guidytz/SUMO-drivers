@@ -46,7 +46,7 @@ class DefaultCollector:
         self._guarantee_folder_path()
         signature = f"{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}"
         csv_filename = self._path + f"/{self._name_addon}sim_{signature}.csv"
-        self._aggr_df.to_csv(csv_filename, index=False)
+        self._aggr_df.to_csv(csv_filename, index=False, compression="xz")
 
     def reset(self) -> None:
         """Method that resets the collector data to make a new run.
@@ -54,7 +54,16 @@ class DefaultCollector:
         self._collector_df = self._empty_df[self._params[1:]]
         self._aggr_df = self._empty_df
         self._start_time = datetime.now()
+        
+    @property
+    def watched_params(self) -> List[str]:
+        """Property that returns the params beeing watched in this run.
 
+        Returns:
+            List[str]: list of watched params.
+        """
+        return self._params
+        
     def _aggregate(self, curr_value: int) -> None:
         """Method that aggregates the values of the collector dataframe into the main dataframe.
         Currently using the mean to aggregate.
@@ -123,7 +132,7 @@ class DefaultCollector:
         return f"{self._aggr_df}"
 
 
-class MainCollector(DefaultCollector):
+class TripCollector(DefaultCollector):
     """Class responsible for collecting data from the simulation and saving it to csv files.
 
     Args:
@@ -147,7 +156,7 @@ class MainCollector(DefaultCollector):
             print("Results will be saved in a default folder and might not be distinguishable from other simulations")
 
         date = f"/{date.strftime('%m_%d_%y')}"
-        path = f"{(custom_path or 'results')}/MovingAverage/{network_name}/{date}/{'/'.join(additional_folders)}"
+        path = f"{(custom_path or 'results')}/TripMovingAverage/{network_name}/{date}/{'/'.join(additional_folders)}"
         params = param_list if "TravelTime" in param_list else ["TravelTime"] + param_list
         params = [item.replace("TravelTime", "Travel Time") for item in params]
         params = ["Step"] + params
@@ -213,16 +222,34 @@ class ObjectiveCollector:
         return f"{self.__collector}"
 
 
-class LinkInfoCollector(DefaultCollector):
+class LinkCollector(DefaultCollector):
     """Class that collects information from links and saves to csv.
     This class basically modifies DefaultCollector to be able to group data by link.
     """
+
+    def __init__(self, network_name: str = "default",
+                 aggregation_interval: int = 100,
+                 custom_path: str = None,
+                 additional_folders: List[str] = None,
+                 params: List[str] = None,
+                 date: datetime = datetime.now()) -> None:
+        if network_name == "default":
+            print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
+            print("Results will be saved in a default folder and might not be distinguishable from other simulations")
+
+        date = f"/{date.strftime('%m_%d_%y')}"
+        path = f"{(custom_path or 'results')}/LinkStepData/{network_name}/{date}/{'/'.join(additional_folders)}"
+
+        own_params = list(params or ["Speed"])
+        if "TravelTime" in own_params:
+            own_params.remove("TravelTime")
+            own_params.append("Speed")
+
+        own_params = ["Step", "Link", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
+        super().__init__(aggregation_interval, path, own_params)
+
+
     def _aggregate(self, curr_value: int) -> None:
         aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean').reset_index()
         aggregated_df[self._params[0]] = curr_value
         self._update_main_dfs(aggregated_df)
-
-    def save(self) -> None:
-        network_name = self._path[self._path.rfind("/") + 1:]
-        self._name_addon = f"link_data_{network_name}_{int(self._aggr_df.iloc[-1,0])}_"
-        super().save()

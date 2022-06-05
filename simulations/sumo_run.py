@@ -11,7 +11,7 @@ import numpy as np
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import MainCollector, DefaultCollector
+from sumo_ql.collector.collector import LinkCollector, DefaultCollector
 
 SAVE_OBJ_CHOSEN = False
 
@@ -78,7 +78,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 moving_avg_gap: int,
                                 date: datetime,
                                 n_runs: int = 1,
-                                objectives: List[str] = None) -> MainCollector:
+                                objectives: List[str] = None) -> LinkCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -109,10 +109,10 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
             create_log(main_simulation_name, date)
 
-        return MainCollector(network_name=main_simulation_name,
+        return LinkCollector(network_name=main_simulation_name,
                              aggregation_interval=moving_avg_gap,
                              additional_folders=additional_folders,
-                             param_list=objectives,
+                             params=objectives,
                              date=date)
 
     def create_environment(args: argparse.Namespace) -> SumoEnvironment:
@@ -178,7 +178,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                     if agent_type == "QL":
                         actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
                     elif agent_type == "PQL":
-                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state, available_actions)
+                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state,
+                                                                                 available_actions)
                         if chosen_obj != -1:
                             chosen_sum[chosen_obj] += 1
             if agent_type == "PQL":
@@ -284,8 +285,8 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                        help="Time steps before agents start the learning (default = 3000)")
     parser.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
                        help="uses SUMO GUI instead of CLI")
-    parser.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=100,
-                       help="Moving gap size (default = 100 steps)")
+    parser.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=1,
+                       help="Moving gap size (default = 1 step)")
     parser.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
                        help="Communication success rate (default = 0.0)")
     parser.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
