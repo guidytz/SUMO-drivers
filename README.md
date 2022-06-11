@@ -36,7 +36,7 @@ cd SUMO-QL
 python3 -m pip install -e .
 ```
 
-## Usage
+## Basic Usage
 
 ```bash
 python3 simulations/sumo_run.py -c <scenario>
@@ -45,10 +45,73 @@ python3 simulations/sumo_run.py -c <scenario>
 Where the scenario is a basic .sumocfg file containing info about network and route files necessary for the simulation. Some
 examples can be found in [scenario](https://github.com/guidytz/SUMO-QL/tree/master/scenario).
 
-This will run the application with the chosen scenario, applying Q-Learning algorithm to each car agent coupled with car
-to infrastructure (C2I) communication.
+This will run the application with the chosen scenario, applying Q-Learning algorithm to each car agent.
 
-Different parameters can be set in order to the simulation to behave differently. See which ones are available by running 
+## Other Configurations
+
+### Number of Steps
+
+To define the number of steps to run the simulations, use the argument _-s_ followed by the value desired. For example, to run 
+the 5x5 network present in the scenario folder for 30.000 steps, run the following:
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000
+```
+
+### Steps Before Learning Starts
+
+In order to populate the network before staring the learning process, it is important to define a number of steps in which there 
+is no learning algorithm involved and the agents just follow the routes present in the SUMO configuration file. This setting is
+specified with the _-w_ argument. So, for exemple, if we want to run the 5x5 network for 30.000 steps and populate the network
+for 4.000 steps, run the following:
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -w 4000
+```
+
+This also allows us to run the simulation without using a learning algorithm by simply using the same value for the steps and
+populating steps. For example, running the 5x5 network for 30.000 steps without the agents learning:
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -w 30000
+```
+
+### Communication Success Rate
+
+This approach allows the learning process to be improved with the use of [Car-to-Infrastructure Communication](https://peerj.com/articles/cs-428/), this can
+be set by adjusting the success rate of the communication using the _-r_ argument. So, if we want to run a simulation that has 
+a communication with a 75% success rate, we follow the example below:
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -r 0.75
+```
+
+At the current version, the only algorithm that supports communication is the base Q-Learning algorithm, so the communication
+will not work with multiobjective scenarios.
+
+### Multiobjective Learning
+
+To be able to test multiobjective learning, we need to prepare some settings. First, it is important to run normal Q-Learning
+with each objective separately in order to collect important data to normalize the multiobjective run. For example, if we want
+to optimize travel time and carbon monoxide emission in a multiobjective run, we first run the collect runs for each of them like
+the following:
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -a QL --objectives TravelTime CO
+```
+
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -a QL --objectives CO TravelTime
+```
+
+The _-a_ argument sets the Q-Learning algorithm as the main learning algorithm the agents will use, the _--objectives_ argument
+sets the objectives to collect information of. Notice that the Q-Learning algorithm will only optimize the first objective stated
+in the informed list.
+
+After collecting has been done, it is possible to use the multiobjective algorithm that aims at optimizing all objetives informed.
+Following the example aforementioned, to optimize travel time and carbon monoxide using Pareto Q-Learning, run the following:
+```bash
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -a PQL --objectives TravelTime CO
+```
+
+### Additional Arguments
+
+Different arguments can be set in order to the simulation to behave differently. See which ones are available by running 
 the command below:
 
 ```bash
