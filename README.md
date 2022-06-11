@@ -60,9 +60,10 @@ python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000
 ### Steps Before Learning Starts
 
 In order to populate the network before staring the learning process, it is important to define a number of steps in which there 
-is no learning algorithm involved and the agents just follow the routes present in the SUMO configuration file. This setting is
-specified with the _-w_ argument. So, for exemple, if we want to run the 5x5 network for 30.000 steps and populate the network
-for 4.000 steps, run the following:
+is no learning algorithm involved and the agents just follow the routes present in the SUMO configuration file. 
+
+This setting is specified with the _-w_ argument. So, for exemple, if we want to run the 5x5 network for 30.000 steps and populate 
+the network for 4.000 steps, run the following:
 ```bash
 python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -w 4000
 ```
