@@ -85,4 +85,6 @@ class CommunicationDevice:
             neighboring_comm_dev = self.__environment.get_comm_dev(link.getToNode().getID())
             links_data[link_id] = neighboring_comm_dev.get_expected_reward(link_id)
 
+        print(self.__environment.get_graph_neighbours)
+
         return links_data

@@ -11,6 +11,7 @@ from gym import spaces
 import traci
 import traci.constants as tc
 import sumolib
+from simulations.graph import generate_graph_neighbours_dict
 
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle, Objectives
@@ -63,6 +64,7 @@ class SumoEnvironment(MultiAgentEnv):
             in future experiments (usually to normalize rewards). Defaults to False.
         """
     def __init__(self, sumocfg_file: str,
+                 graph_neighbours: dict,
                  simulation_time: int = 50000,
                  max_vehicles: int = 750,
                  right_arrival_bonus: int = 1000,
@@ -94,6 +96,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__loaded_vehicles: List[str] = list()
         self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
+        self.__graph_neighbours = graph_neighbours
         network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
@@ -199,6 +202,11 @@ class SumoEnvironment(MultiAgentEnv):
             str: Node ID that is the destination   of the link.
         """
         return self.__network.getEdge(link_id).getToNode().getID()
+
+    def get_graph_neighbours(self):
+        """Method that returns dictionary of graph neighbours"""
+
+        return self.__graph_neighbours
 
     def is_border_node(self, node_id: str) -> bool:
         """Method that tests whether a given node is in the border of the network.

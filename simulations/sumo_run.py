@@ -14,7 +14,7 @@ from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import LinkCollector, DefaultCollector
 
 from graph import generate_graph_neighbours_dict
-#from graphs.graph import generate_graph_neighbours_dict
+#from sumo_graphs.graph import generate_graph_neighbours_dict
 
 SAVE_OBJ_CHOSEN = False
 
@@ -45,8 +45,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                                 args.limiar, args.usar_or, args.medidas, args.no_graph_image,
                                                                 args.raw_graph, args.giant_component, args.raw_data, args.min_degree,
                                                                 args.min_step, arestas_para_custoso=2000, precisao=10)
-
-    print(graph_neighbours_dict)
 
     if args.collect:
         if (collect_fit := args.n_runs == 1):
@@ -126,7 +124,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                              params=objectives,
                              date=date)
 
-    def create_environment(args: argparse.Namespace) -> SumoEnvironment:
+    def create_environment(args: argparse.Namespace, graph_neighbours_dict: dict) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.
 
         Args:
@@ -145,6 +143,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  objectives=args.objectives)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
+                                      graph_neighbours = graph_neighbours_dict,
                                       simulation_time=args.steps,
                                       max_vehicles=args.demand,
                                       right_arrival_bonus=args.bonus,
@@ -157,7 +156,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       objectives=args.objectives,
                                       fit_data_collect=collect_fit,
                                       min_toll_speed=args.toll_speed,
-                                      toll_penalty=args.toll_value)
+                                      toll_penalty=args.toll_value) # pass neighbours of graph
         return environment
 
     def run(iteration) -> None:
@@ -275,7 +274,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                 print("Warning: communication not available for non QL agents.")
 
     # Run the simulation
-    env = create_environment(args)
+    env = create_environment(args, graph_neighbours_dict)
     run(iteration)
 
 def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
