@@ -79,6 +79,7 @@ class SumoEnvironment(MultiAgentEnv):
                  min_toll_speed: float = 27.79,
                  toll_penalty: int = 50) -> None:
         self.__sumocfg_file = sumocfg_file
+        self.__graph_neighbours = graph_neighbours
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
         self.__network = sumolib.net.readNet(self.__network_file)
@@ -96,7 +97,6 @@ class SumoEnvironment(MultiAgentEnv):
         self.__loaded_vehicles: List[str] = list()
         self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
-        self.__graph_neighbours = graph_neighbours
         network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
@@ -115,6 +115,7 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     wrong_arrival_penalty,
                                                                                     min_toll_speed,
                                                                                     toll_penalty)
+        print(self.__graph_neighbours)
 
 
     def reset(self):

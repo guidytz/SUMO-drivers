@@ -8,11 +8,12 @@ from multiprocessing import Pool
 import logging
 import numpy as np
 
-from sumo_ql.environment.sumo_environment import SumoEnvironment
+#from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import LinkCollector, DefaultCollector
 
+from sumo_environment import SumoEnvironment
 from graph import generate_graph_neighbours_dict
 #from sumo_graphs.graph import generate_graph_neighbours_dict
 
@@ -143,7 +144,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  objectives=args.objectives)
 
         environment = SumoEnvironment(sumocfg_file=args.cfgfile,
-                                      graph_neighbours = graph_neighbours_dict,
+                                      graph_neighbours=graph_neighbours_dict,
                                       simulation_time=args.steps,
                                       max_vehicles=args.demand,
                                       right_arrival_bonus=args.bonus,
@@ -157,6 +158,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       fit_data_collect=collect_fit,
                                       min_toll_speed=args.toll_speed,
                                       toll_penalty=args.toll_value) # pass neighbours of graph
+
         return environment
 
     def run(iteration) -> None:

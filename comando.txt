@@ -1,0 +1,1 @@
+python3 simulations/sumo_run.py -f simulations/teste.csv -atb 3 -rdata -lim 0.01 -id 2 1 -c scenario/diamond/diamond.sumocfg -s 10000 -w 250 --collect

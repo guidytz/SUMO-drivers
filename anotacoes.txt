@@ -1,1 +1,3 @@
 - implementar consistencia de entrada
+
+-> run -> handle_communication -> get_outgoing_links_expected_rewards
