@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from typing import List, Dict
 from typing import TYPE_CHECKING
 from collections import defaultdict
@@ -223,6 +224,7 @@ class Vehicle:
         norm_reward = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
         reward = (lambda val: val + bonus_or_penalty)(norm_reward)
         reward[1:] = (lambda val: val - toll_value)(reward[1:])
+        print(f"Computed REWARD: {reward}")
         return reward
 
     @property

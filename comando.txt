@@ -1,1 +1,1 @@
-python3 simulations/sumo_run.py -f simulations/teste.csv -atb 3 -rdata -lim 0.01 -id 2 1 -c scenario/diamond/diamond.sumocfg -s 10000 -w 250 --collect
+python3 simulations/sumo_run.py -f sumo_graphs/data/teste.csv -atb 3 -rdata -lim 0.01 -id 2 1 -c scenario/5x5_allway_stop/5x5.sumocfg -s 50000 -w 50000 --collect --objectives TravelTime CO CO2 HC PMx NOx Fuel

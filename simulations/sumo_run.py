@@ -8,14 +8,11 @@ from multiprocessing import Pool
 import logging
 import numpy as np
 
-#from sumo_ql.environment.sumo_environment import SumoEnvironment
+from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import LinkCollector, DefaultCollector
-
-from sumo_environment import SumoEnvironment
-from graph import generate_graph_neighbours_dict
-#from sumo_graphs.graph import generate_graph_neighbours_dict
+from sumo_graphs.graph import generate_graph_neighbours_dict
 
 SAVE_OBJ_CHOSEN = False
 
@@ -45,7 +42,9 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     graph_neighbours_dict = generate_graph_neighbours_dict(args.arquivo, args.atributos, args.identificadores, args.restricao,
                                                                 args.limiar, args.usar_or, args.medidas, args.no_graph_image,
                                                                 args.raw_graph, args.giant_component, args.raw_data, args.min_degree,
-                                                                args.min_step, arestas_para_custoso=2000, precisao=10)
+                                                                args.min_step, arestas_para_custoso=2000, precisao=10, intervalo_vizinhos=1)
+
+    print("====== SUMO-QL-GRAPH -> novo ======")
 
     if args.collect:
         if (collect_fit := args.n_runs == 1):
@@ -202,6 +201,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             observations, rewards, done, _ = env.step(actions)
 
             for vehicle_id, reward in rewards.items():
+                print(f"REWARD: {reward} {type(reward)}")
                 if vehicle_id in agents:
                     if vehicle_id in done:
                         previous_state = observations[vehicle_id]['previous_state']
@@ -246,7 +246,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             action = env.get_action(origin_node, destination_node)
             if agent_type == "QL":
                 obj = 0 if opt_travel_time else 1
-                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
+                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj]) # reward[obj]
             elif agent_type == "PQL":
                 agents[vehicle_id].learn(action, origin_node, destination_node, reward)
 
@@ -265,15 +265,24 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             state (str): the state the CommDev is present.
         """
         comm_dev = env.get_comm_dev(state)
+        print(f"Viz communication")
         if comm_dev.communication_success:
+            print("commdev comms success")
             if agent_type == "QL":
+                print("agent ql")
                 expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
                 for link, expected_reward in expected_rewards.items():
                     origin = env.get_link_origin(link)
                     destination = env.get_link_destination(link)
                     handle_learning(vehicle_id, origin, destination, expected_reward)
             else:
-                print("Warning: communication not available for non QL agents.")
+                print("agent pql")
+                expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
+                for link, expected_reward in expected_rewards.items():
+                    origin = env.get_link_origin(link)
+                    destination = env.get_link_destination(link)
+                    handle_learning(vehicle_id, origin, destination, expected_reward)
+                #print("Warning: communication not available for non QL agents.")
 
     # Run the simulation
     env = create_environment(args, graph_neighbours_dict)

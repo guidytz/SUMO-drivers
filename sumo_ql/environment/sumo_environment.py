@@ -11,7 +11,6 @@ from gym import spaces
 import traci
 import traci.constants as tc
 import sumolib
-from simulations.graph import generate_graph_neighbours_dict
 
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.vehicle import Vehicle, Objectives
@@ -115,7 +114,9 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     wrong_arrival_penalty,
                                                                                     min_toll_speed,
                                                                                     toll_penalty)
-        print(self.__graph_neighbours)
+
+        print(f"Viz environment init: {self.__graph_neighbours}")
+        print(f"Objectives: {len(self.__objectives.known_objectives)}")
 
 
     def reset(self):
@@ -458,16 +459,17 @@ class SumoEnvironment(MultiAgentEnv):
             self.__observations[vehicle_id]['ready_to_act'] = False
             self.__vehicles[vehicle_id].update_route(action)
 
-    def __update_comm_dev_info(self, link_id: str, reward: int) -> None:
+    def __update_comm_dev_info(self, link_id: str, reward: np.ndarray) -> None:
         """Method that receives a reward and a link id to update the information to the destination node CommDev about
         it.
 
         Args:
             link_id (str): Link ID were the reward was received
-            reward (int): reward received for taking this link.
+            reward (np.ndarray): reward received for taking this link.
         """
         node_id = self.get_link_destination(link_id)
         if self.__comm_dev[node_id].communication_success:
+            print(f"Reward {reward} added to {node_id}")
             self.__comm_dev[node_id].update_stored_rewards(link_id, reward)
 
     def __handle_loaded_vehicles(self) -> None:
@@ -539,6 +541,7 @@ class SumoEnvironment(MultiAgentEnv):
 
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False,
                                                                 normalize=self.__not_collecting)
+            print(reward)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_data_fit(reward)

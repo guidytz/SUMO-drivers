@@ -25,6 +25,8 @@ class CommunicationDevice:
         self.__environment = environment
         self.__data = {link.getID(): list() for link in node.getIncoming()}
 
+        print(self.__data)
+
         rd.seed(datetime.now())
 
     @property
@@ -37,14 +39,14 @@ class CommunicationDevice:
         """
         return rd.random() <= self.__comm_success_rate
 
-    def update_stored_rewards(self, link: str, reward: int) -> None:
+    def update_stored_rewards(self, link: str, reward: np.ndarray) -> None:
         """This method receives a link and a reward, so it stores the reward communicated for the given link. If the
         queue is already full the oldest reward information is discarded to make room for the newest one to be inserted.
            If the link is not part of the commDev's neighboring links, the method raises a RunTimeError.
 
         Args:
             link (str): String with link ID to update data
-            reward (int): Reward value to insert in link queue
+            reward (list): Reward values to insert in link queue
         """
         if link not in self.__data.keys():
             raise RuntimeError("Link is not connected to commDev's node")
@@ -53,26 +55,33 @@ class CommunicationDevice:
             self.__data[link].pop(0)
         self.__data[link].append(reward)
 
-    def get_expected_reward(self, link: str) -> float:
+    def get_expected_reward(self, link: str) -> np.ndarray:
         """This method returns the expected reward for the given link. If there's no reward stored for the given link,
-        the method returns 0. It returns an average of the stored rewards otherwise.
+        the method returns 0. It returns a list with the averages of the stored rewards otherwise.
            If the link is not part of the commDev's neighboring links, the method raises a RunTimeError.
 
         Args:
             link (str): String with the link ID to get the expected reward
 
         Returns:
-            float: Average of the stored rewards for the given link if there is data stored or 0.0 otherwise
+            list: List of averages of the stored rewards for the given link if there is data stored or 0.0 otherwise
         """
+        n = len(self.__data[link])
+        nobj = len(self.__environment.objectives.known_objectives)
+        
         if link not in self.__data.keys():
             raise RuntimeError("Link is not connected to commDev's node")
 
-        if len(self.__data[link]) > 0:
-            return np.array(self.__data[link]).mean()
+        if n == nobj: # if the amount of data is correct
+            return np.mean(self.__data[link], axis=0)
 
-        return 0.0
+        print(f"tamanho errado de dados {link}")
+        return np.zeros(shape=nobj)
 
-    def get_outgoing_links_expected_rewards(self) -> Dict[str, float]:
+    # modificar para que, para cada link de saída, programa busca vizinhos no grafo no tempo atual da simulação e envia os dados
+    # sobre esses links junto com os de saída
+    def get_outgoing_links_expected_rewards(self) -> Dict[str, np.ndarray]:
+        print("get outgoing")
         """Returns a dictionary containing the expected rewards from all the outgoing links from the commDev's node.
 
         Returns:
@@ -85,6 +94,7 @@ class CommunicationDevice:
             neighboring_comm_dev = self.__environment.get_comm_dev(link.getToNode().getID())
             links_data[link_id] = neighboring_comm_dev.get_expected_reward(link_id)
 
-        #print(self.__environment.get_graph_neighbours)
+        print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
+        #print(f"Link data {self.__node} {links_data}")
 
         return links_data

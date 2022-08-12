@@ -540,7 +540,7 @@ def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, 
 
 def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numerico: list, lista_ids_label_numerico: list, lista_restricoes_numerico: list, 
                                    limiar: float, usar_or: bool, lista_medidas: list, nao_gerar_imagem_grafo: bool, usar_grafo_puro: bool, giant_component: bool,
-                                   use_raw_data: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int) -> dict:
+                                   use_raw_data: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int) -> dict:
 
     # == Processa listas numéricas ==
 
@@ -776,6 +776,6 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
         else:
             print("Lista de medidas está vazia.")
 
-    dict_vizinhos = cria_dicionario_vizinhos_links(g, keys, intervalo=250, max_step=calcula_max_step(lista_dict, keys))
+    dict_vizinhos = cria_dicionario_vizinhos_links(g, keys, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
 
     return dict_vizinhos
