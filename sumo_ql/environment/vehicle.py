@@ -224,7 +224,6 @@ class Vehicle:
         norm_reward = self.normalizer.transform([np.array(reward)])[0] if normalize else np.array(reward)
         reward = (lambda val: val + bonus_or_penalty)(norm_reward)
         reward[1:] = (lambda val: val - toll_value)(reward[1:])
-        print(f"Computed REWARD: {reward}")
         return reward
 
     @property

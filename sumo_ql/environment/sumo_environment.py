@@ -115,7 +115,7 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     min_toll_speed,
                                                                                     toll_penalty)
 
-        print(f"Viz environment init: {self.__graph_neighbours}")
+        print(f"Graph neighbours: {self.__graph_neighbours}")
         print(f"Objectives: {len(self.__objectives.known_objectives)}")
 
 
@@ -541,7 +541,6 @@ class SumoEnvironment(MultiAgentEnv):
 
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False,
                                                                 normalize=self.__not_collecting)
-            print(reward)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_data_fit(reward)

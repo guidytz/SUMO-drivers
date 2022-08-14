@@ -201,7 +201,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             observations, rewards, done, _ = env.step(actions)
 
             for vehicle_id, reward in rewards.items():
-                print(f"REWARD: {reward} {type(reward)}")
                 if vehicle_id in agents:
                     if vehicle_id in done:
                         previous_state = observations[vehicle_id]['previous_state']
@@ -265,7 +264,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             state (str): the state the CommDev is present.
         """
         comm_dev = env.get_comm_dev(state)
-        print(f"Viz communication")
         if comm_dev.communication_success:
             print("commdev comms success")
             if agent_type == "QL":

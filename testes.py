@@ -1,12 +1,16 @@
 import numpy as np
 
-arr = np.array([0.0, 0.0])
+arr = np.array([[0.0, 6, 5]])
 
-N = 2
+re = 1
 
-arz = np.zeros(shape=N)
+med = np.mean(arr, axis=0)
+print(f"{type(med)}")
+print(f"{med}")
 
-print(arz)
-print(arr)
+if type(med) == np.float64:
+    print("no")
+else:
+    print("ye")
 
 # [20.6, 3.4]

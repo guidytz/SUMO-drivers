@@ -25,7 +25,7 @@ class CommunicationDevice:
         self.__environment = environment
         self.__data = {link.getID(): list() for link in node.getIncoming()}
 
-        print(self.__data)
+        print(f"Dados comdevs init: {self.__data}")
 
         rd.seed(datetime.now())
 
@@ -66,14 +66,16 @@ class CommunicationDevice:
         Returns:
             list: List of averages of the stored rewards for the given link if there is data stored or 0.0 otherwise
         """
-        n = len(self.__data[link])
         nobj = len(self.__environment.objectives.known_objectives)
         
         if link not in self.__data.keys():
             raise RuntimeError("Link is not connected to commDev's node")
 
-        if n == nobj: # if the amount of data is correct
-            return np.mean(self.__data[link], axis=0)
+        if len(self.__data[link]) > 0:
+            data_mean = np.mean(self.__data[link], axis=0)
+            if len(data_mean) == nobj: # if the amount of data is correct
+                print(f"expected reward: {data_mean}")
+                return data_mean        
 
         print(f"tamanho errado de dados {link}")
         return np.zeros(shape=nobj)
@@ -94,7 +96,7 @@ class CommunicationDevice:
             neighboring_comm_dev = self.__environment.get_comm_dev(link.getToNode().getID())
             links_data[link_id] = neighboring_comm_dev.get_expected_reward(link_id)
 
-        print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
-        #print(f"Link data {self.__node} {links_data}")
+        #print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
+        print(f"Link data = {links_data}")
 
         return links_data
