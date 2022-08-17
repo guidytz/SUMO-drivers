@@ -1,16 +1,11 @@
-import numpy as np
+a = {"a": 3, "t": 5, "u": 7}
 
-arr = np.array([[0.0, 6, 5]])
+print(len(a))
 
-re = 1
+m = list(a.keys())
 
-med = np.mean(arr, axis=0)
-print(f"{type(med)}")
-print(f"{med}")
+a = [1, 4, 6, 8]
+b = [7, 5, 2, 9]
 
-if type(med) == np.float64:
-    print("no")
-else:
-    print("ye")
-
-# [20.6, 3.4]
+a = a + b
+print(a)

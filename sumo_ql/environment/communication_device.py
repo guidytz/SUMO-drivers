@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+from os import link
 import random as rd
 from typing import Dict, TYPE_CHECKING
 import numpy as np
@@ -79,6 +80,23 @@ class CommunicationDevice:
 
         print(f"tamanho errado de dados {link}")
         return np.zeros(shape=nobj)
+    
+    def get_graph_neighbours_interval(self, graph_neighbours_link: dict, current_step: int) -> list:
+        number_of_intervals = len(graph_neighbours_link)
+        i = 0
+        for interval in graph_neighbours_link:
+            if i == number_of_intervals-1:
+                if interval[0] <= current_step <= interval[1]:
+                    print(f"{current_step} {interval}")
+                    return graph_neighbours_link[interval]
+            else:
+                if interval[0] < current_step <= interval[1]:
+                    print(f"{current_step} {interval}")
+                    return graph_neighbours_link[interval]
+            i += 1
+        print("Interval not found, returning empty list")
+        return []
+
 
     # modificar para que, para cada link de saída, programa busca vizinhos no grafo no tempo atual da simulação e envia os dados
     # sobre esses links junto com os de saída
@@ -93,10 +111,24 @@ class CommunicationDevice:
         links_data = dict()
         for link in self.__node.getOutgoing():
             link_id = link.getID()
+
+            # gets data of neighbouring commdev
             neighboring_comm_dev = self.__environment.get_comm_dev(link.getToNode().getID())
             links_data[link_id] = neighboring_comm_dev.get_expected_reward(link_id)
 
+            # gets data of commdev of graph neighbour link
+            graph_neighbours = self.__environment.get_graph_neighbours()
+            current_step = self.__environment.current_step
+            graph_neighbours_interval = self.get_graph_neighbours_interval(graph_neighbours[link_id], current_step)
+
+            for link_graph_neighbour in graph_neighbours_interval:
+                # encontrar commdev responsável
+                node_id = "A" # achar node id ;-;
+                graph_comm_dev = self.__environment.get_comm_dev(node_id)
+                links_data[link_graph_neighbour] += graph_comm_dev.get_expected_reward(link_graph_neighbour)
+
+            print(graph_neighbours_interval)
+                
         #print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
-        print(f"Link data = {links_data}")
 
         return links_data
