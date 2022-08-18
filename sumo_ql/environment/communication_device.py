@@ -118,17 +118,23 @@ class CommunicationDevice:
 
             # gets data of commdev of graph neighbour link
             graph_neighbours = self.__environment.get_graph_neighbours()
-            current_step = self.__environment.current_step
-            graph_neighbours_interval = self.get_graph_neighbours_interval(graph_neighbours[link_id], current_step)
 
-            for link_graph_neighbour in graph_neighbours_interval:
-                # encontrar commdev responsável
-                node_id = "A" # achar node id ;-;
-                graph_comm_dev = self.__environment.get_comm_dev(node_id)
-                links_data[link_graph_neighbour] += graph_comm_dev.get_expected_reward(link_graph_neighbour)
+            if link_id in list(graph_neighbours.keys()):
+                current_step = self.__environment.current_step
+                graph_neighbours_link_interval = self.get_graph_neighbours_interval(graph_neighbours[link_id], current_step)
 
-            print(graph_neighbours_interval)
+                print(graph_neighbours_link_interval)
+
+                for link_graph_neighbour in graph_neighbours_link_interval:
+                    node_id = self.__environment.get_link_destination(link_graph_neighbour)
+                    graph_comm_dev = self.__environment.get_comm_dev(node_id)
+
+                    if link_graph_neighbour in list(links_data.keys()):
+                        links_data[link_graph_neighbour] += graph_comm_dev.get_expected_reward(link_graph_neighbour)
+                    else:
+                        links_data[link_graph_neighbour] = graph_comm_dev.get_expected_reward(link_graph_neighbour)
                 
-        #print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
+        print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
+        print(f"Link data: {links_data}")
 
         return links_data

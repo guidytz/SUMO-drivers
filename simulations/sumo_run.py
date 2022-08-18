@@ -42,7 +42,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     graph_neighbours_dict = generate_graph_neighbours_dict(args.arquivo, args.atributos, args.identificadores, args.restricao,
                                                                 args.limiar, args.usar_or, args.medidas, args.no_graph_image,
                                                                 args.raw_graph, args.giant_component, args.raw_data, args.min_degree,
-                                                                args.min_step, arestas_para_custoso=2000, precisao=10, intervalo_vizinhos=1)
+                                                                args.min_step, arestas_para_custoso=2000, precisao=10, intervalo_vizinhos=250)
 
     print("====== SUMO-QL-GRAPH -> novo ======")
 

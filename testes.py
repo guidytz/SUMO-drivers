@@ -4,8 +4,5 @@ print(len(a))
 
 m = list(a.keys())
 
-a = [1, 4, 6, 8]
-b = [7, 5, 2, 9]
-
-a = a + b
+a["h"] += [3, 6]
 print(a)

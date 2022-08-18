@@ -201,7 +201,7 @@ class SumoEnvironment(MultiAgentEnv):
             link_id (str): Link ID to retrieve the destination node
 
         Returns:
-            str: Node ID that is the destination   of the link.
+            str: Node ID that is the destination of the link.
         """
         return self.__network.getEdge(link_id).getToNode().getID()
 
@@ -469,7 +469,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         node_id = self.get_link_destination(link_id)
         if self.__comm_dev[node_id].communication_success:
-            print(f"Reward {reward} added to {node_id}")
+            #print(f"Reward {reward} added to {node_id}")
             self.__comm_dev[node_id].update_stored_rewards(link_id, reward)
 
     def __handle_loaded_vehicles(self) -> None:
