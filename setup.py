@@ -12,7 +12,8 @@ setup(
         'traci',
         'sumolib',
         'libsumo',
-        'sklearn'
+        'sklearn',
+        'pymoo'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',
