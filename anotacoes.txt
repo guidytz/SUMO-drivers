@@ -1,4 +1,5 @@
 - implementar consistencia de entrada
+- sobrescrever valores do grafo?
 
 caminho
 -> run -> handle_communication -> get_outgoing_links_expected_rewards

@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from os import link
 import random as rd
+from traceback import print_tb
 from typing import Dict, TYPE_CHECKING
 import numpy as np
 
@@ -25,8 +26,6 @@ class CommunicationDevice:
         self.__comm_success_rate = comm_success_rate
         self.__environment = environment
         self.__data = {link.getID(): list() for link in node.getIncoming()}
-
-        print(f"Dados comdevs init: {self.__data}")
 
         rd.seed(datetime.now())
 
@@ -75,7 +74,6 @@ class CommunicationDevice:
         if len(self.__data[link]) > 0:
             data_mean = np.mean(self.__data[link], axis=0)
             if len(data_mean) == nobj: # if the amount of data is correct
-                print(f"expected reward: {data_mean}")
                 return data_mean        
 
         print(f"tamanho errado de dados {link}")
@@ -87,21 +85,18 @@ class CommunicationDevice:
         for interval in graph_neighbours_link:
             if i == number_of_intervals-1:
                 if interval[0] <= current_step <= interval[1]:
-                    print(f"{current_step} {interval}")
                     return graph_neighbours_link[interval]
             else:
                 if interval[0] < current_step <= interval[1]:
-                    print(f"{current_step} {interval}")
                     return graph_neighbours_link[interval]
             i += 1
-        print("Interval not found, returning empty list")
+        #print("Interval not found, returning empty list")
         return []
 
 
     # modificar para que, para cada link de saída, programa busca vizinhos no grafo no tempo atual da simulação e envia os dados
     # sobre esses links junto com os de saída
     def get_outgoing_links_expected_rewards(self) -> Dict[str, np.ndarray]:
-        print("get outgoing")
         """Returns a dictionary containing the expected rewards from all the outgoing links from the commDev's node.
 
         Returns:
@@ -118,23 +113,22 @@ class CommunicationDevice:
 
             # gets data of commdev of graph neighbour link
             graph_neighbours = self.__environment.get_graph_neighbours()
-
             if link_id in list(graph_neighbours.keys()):
                 current_step = self.__environment.current_step
                 graph_neighbours_link_interval = self.get_graph_neighbours_interval(graph_neighbours[link_id], current_step)
-
-                print(graph_neighbours_link_interval)
 
                 for link_graph_neighbour in graph_neighbours_link_interval:
                     node_id = self.__environment.get_link_destination(link_graph_neighbour)
                     graph_comm_dev = self.__environment.get_comm_dev(node_id)
 
-                    if link_graph_neighbour in list(links_data.keys()):
-                        links_data[link_graph_neighbour] += graph_comm_dev.get_expected_reward(link_graph_neighbour)
-                    else:
-                        links_data[link_graph_neighbour] = graph_comm_dev.get_expected_reward(link_graph_neighbour)
-                
-        print(f"Viz commdev list link: {self.__environment.get_graph_neighbours()}")
-        print(f"Link data: {links_data}")
+                    links_data[link_graph_neighbour] = graph_comm_dev.get_expected_reward(link_graph_neighbour)
+
+            if 6000 <= self.__environment.current_step <= 8000:
+                if "gneE49" == link_id:
+                    print(f"{self.__environment.current_step=} {links_data}")
+
+                    #if len(links_data[link_graph_neighbour]) > 0:
+                    #    print(f"{link_graph_neighbour=} {links_data[link_graph_neighbour]}")
+                    #    print(f"{link_id} {current_step=} {links_data}")
 
         return links_data
