@@ -12,7 +12,9 @@ setup(
         'traci',
         'sumolib',
         'libsumo',
-        'sklearn'
+        'sklearn',
+        'igraph',
+        'matplotlib'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',
