@@ -1,8 +1,7 @@
-a = {"a": 3, "t": 5, "u": 7}
+import os
 
-print(len(a))
+a = "ola.txt"
 
-m = list(a.keys())
+b = os.path.splitext(a)[0]
 
-a["h"] += [3, 6]
-print(a)
+print(b)

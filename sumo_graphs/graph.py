@@ -147,7 +147,7 @@ def cria_string_com_atributos(lista_atributos):
     return string_atributos
 
 # recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
-def monta_nome(grafo, limiar, lista_atributos):
+def monta_nome(grafo, limiar, lista_atributos, network_name):
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
 
@@ -156,7 +156,7 @@ def monta_nome(grafo, limiar, lista_atributos):
     limiar_str = str(limiar)
     # remove o ponto do limiar para nao causar problemas com o nome e a extensão do arquivo
     limiar_str_processada = limiar_str.replace('.', "'")
-    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}"
+    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{network_name}"
 
     return nome_final
 
@@ -540,7 +540,8 @@ def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, 
 
 def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numerico: list, lista_ids_label_numerico: list, lista_restricoes_numerico: list, 
                                    limiar: float, usar_or: bool, lista_medidas: list, nao_gerar_imagem_grafo: bool, usar_grafo_puro: bool, giant_component: bool,
-                                   use_raw_data: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int) -> dict:
+                                   use_raw_data: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int,
+                                   network_name: str) -> dict:
 
     # == Processa listas numéricas ==
 
@@ -717,7 +718,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                         nova_lista_medidas.append(medida) # filtra medidas custosas da lista de medidas
 
         # salva informações que irão compor os nomes dos arquivos de saída
-        nome_dados = monta_nome(g, limiar, lista_atributos_numerico)
+        nome_dados = monta_nome(g, limiar, lista_atributos_numerico, network_name)
 
     # == Gera imagem do grafo ==
 

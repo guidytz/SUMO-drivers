@@ -154,7 +154,7 @@ def cria_string_com_atributos(lista_atributos):
     return string_atributos
 
 # recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
-def monta_nome(grafo, limiar, lista_atributos):
+def monta_nome(grafo, limiar, lista_atributos, file_name):
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
 
@@ -163,7 +163,8 @@ def monta_nome(grafo, limiar, lista_atributos):
     limiar_str = str(limiar)
     # remove o ponto do limiar para nao causar problemas com o nome e a extensão do arquivo
     limiar_str_processada = limiar_str.replace('.', "'")
-    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}"
+    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{file_name}"
+    print(nome_final)
 
     return nome_final
 
@@ -767,7 +768,8 @@ if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
                     nova_lista_medidas.append(medida) # filtra medidas custosas da lista de medidas
 
     # salva informações que irão compor os nomes dos arquivos de saída
-    nome_dados = monta_nome(g, limiar, lista_atributos_numerico)
+    file_name = os.path.splitext(nome_arquivo_csv)[0] # pega nome do arquivo como nome da rede
+    nome_dados = monta_nome(g, limiar, lista_atributos_numerico, file_name)
 
 # == Gera imagem do grafo ==
 
@@ -827,9 +829,6 @@ if nova_lista_medidas != ["none"]:
         print("Lista de medidas está vazia.")
 
 dict_vizinhos = cria_dicionario_vizinhos_links(g, keys, intervalo=1, max_step=calcula_max_step(lista_dict, keys))
-
-print(dict_vizinhos["L3"])
-print(dict_vizinhos["L4"])
 
 t_total = time.time() - t_inicio # Temporizador de saída
 print(f"Finalizou em {t_total:.4f} segundos")
