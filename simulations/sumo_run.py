@@ -146,7 +146,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       objectives=args.objectives,
                                       fit_data_collect=collect_fit,
                                       min_toll_speed=args.toll_speed,
-                                      toll_penalty=args.toll_value)
+                                      toll_penalty=args.toll_value,
+                                      normalize_rewards=args.normalize_rewards)
         return environment
 
     def run(iteration) -> None:
@@ -209,7 +210,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
-        print(f"Setting agent with {args.alpha} and {args.gamma}")
         if agent_type == "QL":
             agents[vehicle_id] = QLAgent(action_space=env.action_space,
                                          exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
@@ -319,6 +319,9 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                         help="Set the alpha value for learning agents. (default = 0.5)")
     parser.add_argument("--gamma", action="store", dest="gamma", default=0.9, type=float,
                         help="Set the gamma value for learning agents. (default = 0.9)")
+    parser.add_argument("--normalize-rewards", action="store_true", dest="normalize_rewards",
+                        help="Flag to indicate if the rewards should be normalized (default = False, requires fit_data "
+                        "file generated with --collect)")
 
     return parser.parse_args(), parser
 
