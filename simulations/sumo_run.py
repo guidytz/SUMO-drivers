@@ -1,19 +1,20 @@
-import sys
-import os
-import errno
 import argparse
-from typing import Dict, List, Union
+import errno
+import logging
+import os
+import sys
 from datetime import datetime
 from multiprocessing import Pool
-import logging
-import numpy as np
+from typing import Dict, List, Union
 
+import numpy as np
+from sumo_ql.agent.q_learning import PQLAgent, QLAgent
+from sumo_ql.collector.collector import DefaultCollector, LinkCollector
 from sumo_ql.environment.sumo_environment import SumoEnvironment
-from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import LinkCollector, DefaultCollector
 
 SAVE_OBJ_CHOSEN = False
+
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
     """Function used to run the simulations, given a set of arguments passed to the script and the iteration (run
@@ -42,7 +43,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             print("Making a data fit collect run.")
         else:
             print("Warning: data fit collect only happens in single run simulations.")
-
 
     def create_dir(dirname: str) -> None:
         try:
@@ -209,12 +209,17 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
+        print(f"Setting agent with {args.alpha} and {args.gamma}")
         if agent_type == "QL":
             agents[vehicle_id] = QLAgent(action_space=env.action_space,
-                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
+                                         alpha=args.alpha,
+                                         gamma=args.gamma)
         elif agent_type == "PQL":
             agents[vehicle_id] = PQLAgent(action_space=env.action_space,
-                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+                                          exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
+                                          alpha=args.alpha,
+                                          gamma=args.gamma)
         else:
             raise RuntimeError(f"Agent {agent_type} not recognized. Agents should be QL or PQL.")
 
@@ -267,6 +272,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     env = create_environment(args)
     run(iteration)
 
+
 def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
     """Method that implements the argument parser for the script.
 
@@ -276,41 +282,46 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
     parser = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
 
     parser.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
-                       help="define the config SUMO file (mandatory)")
+                        help="define the config SUMO file (mandatory)")
     parser.add_argument("-d", "--demand", action="store", type=int, dest="demand",
-                       default=750, help="desired network demand (default = 750)")
+                        default=750, help="desired network demand (default = 750)")
     parser.add_argument("-s", "--steps", action="store", type=int, default=60000,
-                       help="number of max steps (default = 60000)", dest="steps")
+                        help="number of max steps (default = 60000)", dest="steps")
     parser.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
-                       help="Time steps before agents start the learning (default = 3000)")
+                        help="Time steps before agents start the learning (default = 3000)")
     parser.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
-                       help="uses SUMO GUI instead of CLI")
+                        help="uses SUMO GUI instead of CLI")
     parser.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=1,
-                       help="Moving gap size (default = 1 step)")
+                        help="Moving gap size (default = 1 step)")
     parser.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
-                       help="Communication success rate (default = 0.0)")
+                        help="Communication success rate (default = 0.0)")
     parser.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
-                       help="CommDev queue size (default = 30)")
+                        help="CommDev queue size (default = 30)")
     parser.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
-                       help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
+                        help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
     parser.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
-                       help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
+                        help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
     parser.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
-                       help="Number of multiple simulation runs (default = 1)")
+                        help="Number of multiple simulation runs (default = 1)")
     parser.add_argument("--parallel", action="store_true", dest="parallel", default=False,
-                       help="Set the script to run simulations in parallel using number of available CPU")
+                        help="Set the script to run simulations in parallel using number of available CPU")
     parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=["TravelTime"],
-                       help="List with objective params to use separated by a single space (default = [TravelTime])")
+                        help="List with objective params to use separated by a single space (default = [TravelTime])")
     parser.add_argument("--collect", action="store_true", dest="collect", default=False,
-                       help="Set the run to collect info about the reward values to use as normalizer latter.")
+                        help="Set the run to collect info about the reward values to use as normalizer latter.")
     parser.add_argument("-a", "--agent-type", action="store", dest="agent_type", default="QL",
                         help="Set the agent type to use in simulation. (Must be QL or PQL. Default = QL)")
     parser.add_argument("-t", "--toll-speed", action="store", dest="toll_speed", default=-1, type=float,
                         help="Set the min speed in link to impose a toll for emission. (default = -1, toll not used)")
     parser.add_argument("-v", "--toll-value", action="store", dest="toll_value", default=-1, type=float,
                         help="Set the toll value to be added as penalty to emission. (default = -1, toll not used)")
+    parser.add_argument("--alpha", action="store", dest="alpha", default=0.5, type=float,
+                        help="Set the alpha value for learning agents. (default = 0.5)")
+    parser.add_argument("--gamma", action="store", dest="gamma", default=0.9, type=float,
+                        help="Set the gamma value for learning agents. (default = 0.9)")
 
     return parser.parse_args(), parser
+
 
 def main():
     """Main script funcion that starts the running process.
