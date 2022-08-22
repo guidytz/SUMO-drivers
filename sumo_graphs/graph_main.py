@@ -154,7 +154,7 @@ def cria_string_com_atributos(lista_atributos):
     return string_atributos
 
 # recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
-def monta_nome(grafo, limiar, lista_atributos, file_name):
+def monta_nome(limiar, lista_atributos, directory_file):
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
 
@@ -163,7 +163,14 @@ def monta_nome(grafo, limiar, lista_atributos, file_name):
     limiar_str = str(limiar)
     # remove o ponto do limiar para nao causar problemas com o nome e a extensão do arquivo
     limiar_str_processada = limiar_str.replace('.', "'")
-    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{file_name}"
+
+    nome_arquivo = ""
+    names_dir = directory_file.split("/")
+    for dir in names_dir:
+        if ".csv" in dir:
+            nome_arquivo = os.path.splitext(dir)[0]
+
+    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{nome_arquivo}"
     print(nome_final)
 
     return nome_final
@@ -768,8 +775,8 @@ if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
                     nova_lista_medidas.append(medida) # filtra medidas custosas da lista de medidas
 
     # salva informações que irão compor os nomes dos arquivos de saída
-    file_name = os.path.splitext(nome_arquivo_csv)[0] # pega nome do arquivo como nome da rede
-    nome_dados = monta_nome(g, limiar, lista_atributos_numerico, file_name)
+    nome_arquivo = os.path.splitext(nome_arquivo_csv)[0] # pega nome do arquivo como nome da rede
+    nome_dados = monta_nome(limiar, lista_atributos_numerico, nome_arquivo)
 
 # == Gera imagem do grafo ==
 
