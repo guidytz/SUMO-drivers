@@ -115,7 +115,6 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     min_toll_speed,
                                                                                     toll_penalty)
 
-        print(f"Graph neighbours: {self.__graph_neighbours}")
         print(f"Objectives: {len(self.__objectives.known_objectives)}")
 
 

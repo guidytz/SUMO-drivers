@@ -38,13 +38,17 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     agent_type = args.agent_type
     opt_travel_time = args.objectives[0] == "TravelTime"
 
-    # generates graph neighbours dict
-    network_name = str(args.cfgfile).split('/')[-2]
-    graph_neighbours_dict = generate_graph_neighbours_dict(args.arquivo, args.atributos, args.identificadores, args.restricao,
-                                                                args.limiar, args.usar_or, args.medidas, args.no_graph_image,
-                                                                args.raw_graph, args.giant_component, args.raw_data, args.min_degree,
-                                                                args.min_step, arestas_para_custoso=2000, precisao=10, intervalo_vizinhos=250,
-                                                                network_name=network_name)
+    if args.arquivo == None:
+        print("Empty graph neighbours dict")
+        graph_neighbours_dict = {}
+    else:
+        # generates graph neighbours dict
+        network_name = str(args.cfgfile).split('/')[-2]
+        graph_neighbours_dict = generate_graph_neighbours_dict(args.arquivo, args.atributos, args.identificadores, args.restricao,
+                                                                    args.limiar, args.usar_or, args.medidas, args.no_graph_image,
+                                                                    args.raw_graph, args.giant_component, args.raw_data, args.min_degree,
+                                                                    args.min_step, arestas_para_custoso=2000, precisao=10, intervalo_vizinhos=250,
+                                                                    network_name=network_name)
 
     print("====== SUMO-QL-GRAPH -> novo ======")
 

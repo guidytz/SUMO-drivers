@@ -123,8 +123,4 @@ class CommunicationDevice:
 
                     links_data[link_graph_neighbour] = graph_comm_dev.get_expected_reward(link_graph_neighbour)
 
-                    #if len(links_data[link_graph_neighbour]) > 0:
-                    #    print(f"{link_graph_neighbour=} {links_data[link_graph_neighbour]}")
-                    #    print(f"{link_id} {current_step=} {links_data}")
-
         return links_data

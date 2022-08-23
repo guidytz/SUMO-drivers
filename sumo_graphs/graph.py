@@ -65,7 +65,7 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
                 linha["id"] = id
                 id += 1
             else:
-                print(f"Linha {num_linha} contém atributo vazio e não será considerada")
+                print(f"Linha {num_linha} contém atributo vazio, é link de borda ou possui ocupação zero e não será considerada")
             num_linha += 1
 
         # converte atributos do dicionário para seus tipos respectivos (inicialmente são strings)
@@ -73,8 +73,6 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
             for key in keys:
                 if eh_numero(linha[key]):
                     linha[key] = float(linha[key]) # converte os atributos numéricos para float
-    
-    print(linhas)
     
     return linhas, keys  # retorna lista contendo dicionários e outra lista com as keys desses dicionários (são todas as mesmas)
 
@@ -619,7 +617,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print(f"Limiar: {limiar}")
     print(f"Usar lógica or: {usar_or}")
     print(f"Arquivo: {nome_arquivo_csv}")
-    print(f"Gerar imagem do grafo: {nao_gerar_imagem_grafo}")
+    print(f"Não gerar imagem do grafo: {nao_gerar_imagem_grafo}")
     print(f"Usar grafo puro: {usar_grafo_puro}")
     print(f"Mostrar apenas giant component: {giant_component}")
     print(f"Não normalizar entrada: {use_raw_data}")
