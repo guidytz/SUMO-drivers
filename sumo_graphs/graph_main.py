@@ -42,6 +42,20 @@ def tem_atributo_vazio(linha: dict, keys: list) -> bool:
             return True
     return False
 
+# checks if link has occupancy of zero
+def zero_occupancy_link(linha: dict):
+    if float(linha["Occupancy"]) == 0:
+        return True
+    else:
+        return False
+
+# checks if link is border link (only has meaning for grid netword)
+def is_border_link(link: str):
+    if "top" in link or "bottom" in link or "right" in link or "left" in link:
+        return True
+    else:
+        return False
+
 # lê os dados do csv e retorna cada linha como um dicionário cujas keys são a primeira coluna do csv e uma lista com as keys do dicionário
 def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
     with open(caminho_csv) as arquivo:
@@ -53,12 +67,12 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
         id = 0  # identificador usado para criar arestas
         num_linha = 2
         for linha in leitura:
-            if not tem_atributo_vazio(linha, keys): # não inclui na lista de dicionários algum dicionário que tiver atributo vazio
+            if not tem_atributo_vazio(linha, keys) and not is_border_link(linha["Link"]) and not zero_occupancy_link(linha): # não inclui na lista de dicionários algum dicionário que tiver atributo vazio, ocupação zero ou é um link de borda
                 linhas.append(linha) # grava cada linha (um dicionário próprio) em uma lista de linhas
                 linha["id"] = id
                 id += 1
             else:
-                print(f"Linha {num_linha} contém atributo vazio e não será considerada")
+                print(f"Linha {num_linha} contém atributo vazio, é link de borda ou possui ocupação zero e não será considerada")
             num_linha += 1
 
         # converte atributos do dicionário para seus tipos respectivos (inicialmente são strings)
@@ -775,8 +789,7 @@ if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
                     nova_lista_medidas.append(medida) # filtra medidas custosas da lista de medidas
 
     # salva informações que irão compor os nomes dos arquivos de saída
-    nome_arquivo = os.path.splitext(nome_arquivo_csv)[0] # pega nome do arquivo como nome da rede
-    nome_dados = monta_nome(limiar, lista_atributos_numerico, nome_arquivo)
+    nome_dados = monta_nome(limiar, lista_atributos_numerico, nome_arquivo_csv)
 
 # == Gera imagem do grafo ==
 

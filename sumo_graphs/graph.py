@@ -35,6 +35,20 @@ def tem_atributo_vazio(linha: dict, keys: list) -> bool:
             return True
     return False
 
+# checks if link has occupancy of zero
+def zero_occupancy_link(linha: dict):
+    if float(linha["Occupancy"]) == 0:
+        return True
+    else:
+        return False
+
+# checks if link is border link (only has meaning for grid netword)
+def is_border_link(link: str):
+    if "top" in link or "bottom" in link or "right" in link or "left" in link:
+        return True
+    else:
+        return False
+
 # lê os dados do csv e retorna cada linha como um dicionário cujas keys são a primeira coluna do csv e uma lista com as keys do dicionário
 def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
     with open(caminho_csv) as arquivo:
@@ -46,7 +60,7 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
         id = 0  # identificador usado para criar arestas
         num_linha = 2
         for linha in leitura:
-            if not tem_atributo_vazio(linha, keys): # não inclui na lista de dicionários algum dicionário que tiver atributo vazio
+            if not tem_atributo_vazio(linha, keys) and not is_border_link(linha["Link"]) and not zero_occupancy_link(linha): # não inclui na lista de dicionários algum dicionário que tiver atributo vazio, ocupação zero ou é um link de borda
                 linhas.append(linha) # grava cada linha (um dicionário próprio) em uma lista de linhas
                 linha["id"] = id
                 id += 1
@@ -59,6 +73,8 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
             for key in keys:
                 if eh_numero(linha[key]):
                     linha[key] = float(linha[key]) # converte os atributos numéricos para float
+    
+    print(linhas)
     
     return linhas, keys  # retorna lista contendo dicionários e outra lista com as keys desses dicionários (são todas as mesmas)
 
