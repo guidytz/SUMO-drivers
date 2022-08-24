@@ -74,6 +74,7 @@ class SumoEnvironment(MultiAgentEnv):
                  data_collector: LinkCollector = None,
                  objectives: Union[None, List[str]] = None,
                  fit_data_collect: bool = False,
+                 normalize_rewards: bool = False,
                  min_toll_speed: float = 27.79,
                  toll_penalty: int = 50) -> None:
         self.__sumocfg_file = sumocfg_file
@@ -94,6 +95,8 @@ class SumoEnvironment(MultiAgentEnv):
         self.__loaded_vehicles: List[str] = list()
         self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
+        self.__normalize_rewards = normalize_rewards
+
         network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
@@ -489,7 +492,8 @@ class SumoEnvironment(MultiAgentEnv):
             self.__vehicles[vehicle_id].update_data(self.__current_step)
             if self.__vehicles[vehicle_id].changed_link:
                 vehicle_last_link = self.__vehicles[vehicle_id].last_link
-                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
+                should_normalize = self.__not_collecting and self.__normalize_rewards
+                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=should_normalize)
                 self.__update_data_fit(rewards[vehicle_id])
 
                 self.__update_comm_dev_info(vehicle_last_link, rewards[vehicle_id])
@@ -527,13 +531,15 @@ class SumoEnvironment(MultiAgentEnv):
                 print(self.__vehicles[vehicle_id])
             done[vehicle_id] = True
 
+            should_normalize = self.__not_collecting and self.__normalize_rewards
+
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False,
-                                                                normalize=self.__not_collecting)
+                                                                normalize=should_normalize)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_data_fit(reward)
 
-            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
+            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=should_normalize)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
 
