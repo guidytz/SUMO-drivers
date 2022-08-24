@@ -12,7 +12,9 @@ setup(
         'traci',
         'sumolib',
         'libsumo',
-        'sklearn'
+        'sklearn',
+        'pymoo',
+        'seaborn'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',

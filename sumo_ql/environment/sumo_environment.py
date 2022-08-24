@@ -1,21 +1,19 @@
-import sys
-import os
 import math
-from typing import Union
-from typing import Dict
-from typing import List
+import os
+import sys
+from typing import Dict, List, Union
 from xml.dom import minidom
+
 import numpy as np
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
-from gym import spaces
+import sumolib
 import traci
 import traci.constants as tc
-import sumolib
-
-from sumo_ql.environment.communication_device import CommunicationDevice
-from sumo_ql.environment.vehicle import Vehicle, Objectives
-from sumo_ql.environment.od_pair import ODPair
+from gym import spaces
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from sumo_ql.collector.collector import LinkCollector, ObjectiveCollector
+from sumo_ql.environment.communication_device import CommunicationDevice
+from sumo_ql.environment.od_pair import ODPair
+from sumo_ql.environment.vehicle import Objectives, Vehicle
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
@@ -36,6 +34,7 @@ CONVERSION_DICT = {
     "Fuel": tc.VAR_FUELCONSUMPTION
 }
 HALTING_SPEED = 0.1
+
 
 class SumoEnvironment(MultiAgentEnv):
     """Class responsible for handling the environment in which the simulation takes place.
@@ -62,6 +61,7 @@ class SumoEnvironment(MultiAgentEnv):
             fit_data_collect (bool, optional): Flag that determines if the run is only for collecting reward data to use
             in future experiments (usually to normalize rewards). Defaults to False.
         """
+
     def __init__(self, sumocfg_file: str,
                  simulation_time: int = 50000,
                  max_vehicles: int = 750,
@@ -72,7 +72,7 @@ class SumoEnvironment(MultiAgentEnv):
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
                  data_collector: LinkCollector = None,
-                 objectives: List[str] = None,
+                 objectives: Union[None, List[str]] = None,
                  fit_data_collect: bool = False,
                  min_toll_speed: float = 27.79,
                  toll_penalty: int = 50) -> None:
@@ -84,7 +84,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
         self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
-        self.__link_collector = data_collector or LinkCollector() # in case of being None
+        self.__link_collector = data_collector or LinkCollector()  # in case of being None
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
@@ -112,7 +112,6 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     wrong_arrival_penalty,
                                                                                     min_toll_speed,
                                                                                     toll_penalty)
-
 
     def reset(self):
         self.__link_collector.reset()
