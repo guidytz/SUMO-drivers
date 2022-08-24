@@ -13,7 +13,8 @@ setup(
         'sumolib',
         'libsumo',
         'sklearn',
-        'pymoo'
+        'pymoo',
+        'seaborn'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',

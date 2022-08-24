@@ -72,7 +72,7 @@ class SumoEnvironment(MultiAgentEnv):
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
                  data_collector: LinkCollector = None,
-                 objectives: List[str] = None,
+                 objectives: Union[None, List[str]] = None,
                  fit_data_collect: bool = False,
                  normalize_rewards: bool = False,
                  min_toll_speed: float = 27.79,
