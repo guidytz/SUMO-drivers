@@ -1,13 +1,14 @@
-import sys
 import argparse
 import itertools
-import pandas as pd
+import sys
+
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 
 if __name__ == "__main__":
     sns.set_theme(style="darkgrid")
-    palette = itertools.cycle(sns.color_palette("colorblind"))
+    palette = itertools.cycle(sns.color_palette("colorblind"))  # type: ignore
 
     parser = argparse.ArgumentParser(
         description='Script to plot a scatter graph using a csv file with two columns')
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--style", action="store", dest="plot_style", default="scatter",
                         help="Define plot style. Default = scatter")
 
-    parser.add_argument("-c", "--cut-step", action="store", dest="cut_step", default=5000, type=int,
+    parser.add_argument("-c", "--cut-step", action="store", dest="cut_step", default=0, type=int,
                         help="Step to cut the dataframe and start the plot")
 
     parser.add_argument("--compressed", action="store_true", dest="compressed", default=False,
@@ -32,8 +33,8 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
     if not options.csv_file:
-        print ('Wrong usage of script!')
-        print ()
+        print('Wrong usage of script!')
+        print()
         parser.print_help()
         sys.exit()
 
@@ -57,14 +58,13 @@ if __name__ == "__main__":
         for column in df.columns:
             df[column] = df[column].rolling(options.avg_gap).mean()
 
-
     columns = list(df.columns[1:])
     _, axes = plt.subplots(len(columns), 1, figsize=(10, len(columns) * 3.5), sharex=True, constrained_layout=True)
     plot = sns.scatterplot if options.plot_style == "scatter" else sns.lineplot
     if len(columns) > 1:
         for i, col in enumerate(columns):
             # axes[i].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-            plot(x="Step", y=col, data=df, ax=axes[i], color=next(palette))
+            plot(x="Step", y=col, data=df, ax=axes[i], color=next(palette))  # type: ignore
     else:
         # axes.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         plot(x="Step", y=columns[0], data=df, ax=axes, color=next(palette))
