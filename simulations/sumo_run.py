@@ -226,12 +226,17 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
+        print(f"Setting agent with {args.alpha} and {args.gamma}")
         if agent_type == "QL":
             agents[vehicle_id] = QLAgent(action_space=env.action_space,
-                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
+                                         alpha=args.alpha,
+                                         gamma=args.gamma)
         elif agent_type == "PQL":
             agents[vehicle_id] = PQLAgent(action_space=env.action_space,
-                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05))
+                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
+                                         alpha=args.alpha,
+                                         gamma=args.gamma)
         else:
             raise RuntimeError(f"Agent {agent_type} not recognized. Agents should be QL or PQL.")
 
@@ -331,6 +336,10 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                         help="Set the min speed in link to impose a toll for emission. (default = -1, toll not used)")
     parser.add_argument("-v", "--toll-value", action="store", dest="toll_value", default=-1, type=float,
                         help="Set the toll value to be added as penalty to emission. (default = -1, toll not used)")
+    parser.add_argument("--alpha", action="store", dest="alpha", default=0.5, type=float,
+                        help="Set the alpha value for learning agents. (default = 0.5)")
+    parser.add_argument("--gamma", action="store", dest="gamma", default=0.9, type=float,
+                        help="Set the gamma value for learning agents. (default = 0.9)")
 
     # graph arguments
 
