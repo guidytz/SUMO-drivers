@@ -1,10 +1,7 @@
 import os
 
-a = "sumo_graph/data/ola.csv"
+a = "aa/yee.txt"
 
-b = a.split("/")
-for i in b:
-    if ".csv" in i:
-        c = os.path.splitext(i)[0]
+b = os.path.splitext(a.split("/")[-1])[0]
 
-print(c)
+print(b)
