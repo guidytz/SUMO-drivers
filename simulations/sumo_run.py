@@ -39,10 +39,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     opt_travel_time = args.objectives[0] == "TravelTime"
 
     if args.arquivo == None:
+        uses_virtual_graph = False
         print("Empty graph neighbours dict")
         graph_neighbours_dict = {}
     else:
         # generates graph neighbours dict
+        uses_virtual_graph = True
         network_name = str(args.cfgfile).split('/')[-2]
         graph_neighbours_dict = generate_graph_neighbours_dict(args.arquivo, args.atributos, args.identificadores, args.restricao,
                                                                     args.limiar, args.usar_or, args.medidas, args.no_graph_image,
@@ -92,6 +94,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 comm_succ_rate: float,
                                 moving_avg_gap: int,
                                 date: datetime,
+                                uses_virtual_graph: bool,
                                 n_runs: int = 1,
                                 objectives: List[str] = None) -> LinkCollector:
         """Method that generates a data collector based on the information used in the simulation.
@@ -120,6 +123,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         additional_folders.append(steps_folder)
         additional_folders.append(f"opt_{'_'.join(objectives)}")
 
+        if uses_virtual_graph:
+            vg_folder = "virtual_graph"
+        else:
+            vg_folder = "no_virtual_graph"
+        additional_folders.append(vg_folder)
+
         if n_runs > 1:
             additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
             create_log(main_simulation_name, date)
@@ -145,6 +154,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  comm_succ_rate=args.comm_succ_rate,
                                                  moving_avg_gap=args.mav,
                                                  date=date,
+                                                 uses_virtual_graph=uses_virtual_graph,
                                                  n_runs=args.n_runs,
                                                  objectives=args.objectives)
 
