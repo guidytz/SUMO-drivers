@@ -286,19 +286,11 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         comm_dev = env.get_comm_dev(state)
         if comm_dev.communication_success:
-            if agent_type == "QL":
-                expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
-                for link, expected_reward in expected_rewards.items():
-                    origin = env.get_link_origin(link)
-                    destination = env.get_link_destination(link)
-                    handle_learning(vehicle_id, origin, destination, expected_reward)
-            else:
-                expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
-                for link, expected_reward in expected_rewards.items():
-                    origin = env.get_link_origin(link)
-                    destination = env.get_link_destination(link)
-                    handle_learning(vehicle_id, origin, destination, expected_reward)
-                #print("Warning: communication not available for non QL agents.")
+            expected_rewards = comm_dev.get_outgoing_links_expected_rewards()
+            for link, expected_reward in expected_rewards.items():
+                origin = env.get_link_origin(link)
+                destination = env.get_link_destination(link)
+                handle_learning(vehicle_id, origin, destination, expected_reward)    
 
     # Run the simulation
     env = create_environment(args, graph_neighbours_dict)
