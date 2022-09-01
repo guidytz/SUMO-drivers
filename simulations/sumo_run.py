@@ -236,7 +236,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
-        print(f"Setting agent with {args.alpha} and {args.gamma}")
+        #print(f"Setting agent with {args.alpha} and {args.gamma}")
         if agent_type == "QL":
             agents[vehicle_id] = QLAgent(action_space=env.action_space,
                                          exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
