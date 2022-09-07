@@ -74,9 +74,12 @@ class CommunicationDevice:
         if len(self.__data[link]) > 0:
             data_mean = np.mean(self.__data[link], axis=0)
             if len(data_mean) == nobj: # if the amount of data is correct
-                return data_mean        
+                return data_mean
+            else:   
+                print(f"Size data mean doesn't match number of objectives for {link}")
+        else:
+            print(f"Empty link data list for {link}")
 
-        print(f"tamanho errado de dados {link}")
         return np.zeros(shape=nobj)
     
     def get_graph_neighbours_interval(self, graph_neighbours_link: dict, current_step: int) -> list:

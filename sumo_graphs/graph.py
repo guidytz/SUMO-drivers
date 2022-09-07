@@ -161,7 +161,7 @@ def cria_string_com_atributos(lista_atributos):
     return string_atributos
 
 # recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
-def monta_nome(grafo, limiar, lista_atributos, network_name):
+def monta_nome(limiar, lista_atributos, network_name):
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
 
@@ -505,7 +505,6 @@ def retorna_vizinhos_no_intervalo(lista_vizinhos_link: list, intervalo: tuple, u
     lista_vizinhos_no_intervalo = []
     for vizinho in lista_vizinhos_link:
         if verifica_se_esta_no_intervalo(limite_inferior, limite_superior, vizinho[nome_step], ultimo_intervalo):
-            #vizinho_tupla = (vizinho[nome_link], vizinho[nome_step])
             if vizinho[nome_link] not in lista_vizinhos_no_intervalo:
                 lista_vizinhos_no_intervalo.append(vizinho[nome_link]) # quantas informações dos vizinhos guardar
 
@@ -732,7 +731,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                         nova_lista_medidas.append(medida) # filtra medidas custosas da lista de medidas
 
         # salva informações que irão compor os nomes dos arquivos de saída
-        nome_dados = monta_nome(g, limiar, lista_atributos_numerico, network_name)
+        nome_dados = monta_nome(limiar, lista_atributos_numerico, network_name)
 
     # == Gera imagem do grafo ==
 
