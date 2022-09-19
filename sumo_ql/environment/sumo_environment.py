@@ -1,21 +1,19 @@
-import sys
-import os
 import math
-from typing import Union
-from typing import Dict
-from typing import List
+import os
+import sys
+from typing import Dict, List, Union
 from xml.dom import minidom
+
 import numpy as np
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
-from gym import spaces
+import sumolib
 import traci
 import traci.constants as tc
-import sumolib
-
-from sumo_ql.environment.communication_device import CommunicationDevice
-from sumo_ql.environment.vehicle import Vehicle, Objectives
-from sumo_ql.environment.od_pair import ODPair
+from gym import spaces
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from sumo_ql.collector.collector import LinkCollector, ObjectiveCollector
+from sumo_ql.environment.communication_device import CommunicationDevice
+from sumo_ql.environment.od_pair import ODPair
+from sumo_ql.environment.vehicle import Objectives, Vehicle
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
@@ -36,6 +34,7 @@ CONVERSION_DICT = {
     "Fuel": tc.VAR_FUELCONSUMPTION
 }
 HALTING_SPEED = 0.1
+
 
 class SumoEnvironment(MultiAgentEnv):
     """Class responsible for handling the environment in which the simulation takes place.
@@ -62,6 +61,7 @@ class SumoEnvironment(MultiAgentEnv):
             fit_data_collect (bool, optional): Flag that determines if the run is only for collecting reward data to use
             in future experiments (usually to normalize rewards). Defaults to False.
         """
+
     def __init__(self, sumocfg_file: str,
                  graph_neighbours: dict,
                  simulation_time: int = 50000,
@@ -73,8 +73,9 @@ class SumoEnvironment(MultiAgentEnv):
                  steps_to_populate: int = 3000,
                  use_gui: bool = False,
                  data_collector: LinkCollector = None,
-                 objectives: List[str] = None,
+                 objectives: Union[None, List[str]] = None,
                  fit_data_collect: bool = False,
+                 normalize_rewards: bool = False,
                  min_toll_speed: float = 27.79,
                  toll_penalty: int = 50) -> None:
         self.__sumocfg_file = sumocfg_file
@@ -86,7 +87,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_step = None
         self.__max_vehicles_running = max_vehicles
         self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
-        self.__link_collector = data_collector or LinkCollector() # in case of being None
+        self.__link_collector = data_collector or LinkCollector()  # in case of being None
         self.__action_space: Dict[spaces.Discrete] = dict()
         self.__comm_dev: Dict[str, CommunicationDevice] = dict()
         self.__vehicles: Dict[str, Vehicle] = dict()
@@ -96,6 +97,8 @@ class SumoEnvironment(MultiAgentEnv):
         self.__loaded_vehicles: List[str] = list()
         self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
         self.__data_fit = None
+        self.__normalize_rewards = normalize_rewards
+
         network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
@@ -500,7 +503,8 @@ class SumoEnvironment(MultiAgentEnv):
             self.__vehicles[vehicle_id].update_data(self.__current_step)
             if self.__vehicles[vehicle_id].changed_link:
                 vehicle_last_link = self.__vehicles[vehicle_id].last_link
-                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
+                should_normalize = self.__not_collecting and self.__normalize_rewards
+                rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=should_normalize)
                 self.__update_data_fit(rewards[vehicle_id])
 
                 self.__update_comm_dev_info(vehicle_last_link, rewards[vehicle_id])
@@ -538,13 +542,15 @@ class SumoEnvironment(MultiAgentEnv):
                 print(self.__vehicles[vehicle_id])
             done[vehicle_id] = True
 
+            should_normalize = self.__not_collecting and self.__normalize_rewards
+
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False,
-                                                                normalize=self.__not_collecting)
+                                                                normalize=should_normalize)
             self.__update_comm_dev_info(self.__vehicles[vehicle_id].current_link, reward)
             reward = self.__vehicles[vehicle_id].compute_reward(use_bonus_or_penalty=False)
             self.__update_data_fit(reward)
 
-            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=self.__not_collecting)
+            rewards[vehicle_id] = self.__vehicles[vehicle_id].compute_reward(normalize=should_normalize)
             self.__retrieve_observation_states(vehicle_id)
             self.__observations[vehicle_id]['ready_to_act'] = False
 

@@ -1,14 +1,14 @@
 from __future__ import annotations
-import re
-from typing import List, Dict
-from typing import TYPE_CHECKING
+
 from collections import defaultdict
+from typing import TYPE_CHECKING, Dict, List
+
 import numpy as np
 import pandas as pd
 import traci
 import traci.constants as tc
-from traci.exceptions import TraCIException
 from sklearn.preprocessing import MaxAbsScaler as scaler
+from traci.exceptions import TraCIException
 
 if TYPE_CHECKING:
     from sumo_ql.environment.sumo_environment import SumoEnvironment
@@ -136,11 +136,11 @@ class Vehicle:
         return self.__original_route
 
     @property
-    def load_time(self) -> int:
+    def load_time(self) -> float:
         """property that returns its load time
 
         Returns:
-            int: vehicle's load time
+            float: vehicle's load time
         """
         return self.__load_time
 
@@ -482,7 +482,6 @@ class Vehicle:
 
     def __above_toll_speed(self, speed: float) -> bool:
         return self.__toll_speed > 0 and speed > self.__toll_speed
-
 
 
 class Objectives:

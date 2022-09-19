@@ -14,7 +14,9 @@ setup(
         'libsumo',
         'sklearn',
         'igraph',
-        'matplotlib'
+        'matplotlib',
+        'pymoo',
+        'seaborn'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',

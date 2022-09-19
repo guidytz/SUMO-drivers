@@ -1,21 +1,25 @@
-import sys
-import os
-import errno
 import argparse
-from typing import Dict, List, Union
+import errno
+import logging
+import os
+import sys
 from datetime import datetime
 from multiprocessing import Pool
 import logging
 import numpy as np
 import pickle
+from typing import Dict, List, Union
 
+import numpy as np
+from sumo_ql.agent.q_learning import PQLAgent, QLAgent
+from sumo_ql.collector.collector import DefaultCollector, LinkCollector
 from sumo_ql.environment.sumo_environment import SumoEnvironment
-from sumo_ql.agent.q_learning import QLAgent, PQLAgent
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_ql.collector.collector import LinkCollector, DefaultCollector
 from sumo_graphs.graph import generate_graph_neighbours_dict
 
 SAVE_OBJ_CHOSEN = False
+
 
 def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration: int = -1) -> None:
     """Function used to run the simulations, given a set of arguments passed to the script and the iteration (run
@@ -68,7 +72,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             print("Making a data fit collect run.")
         else:
             print("Warning: data fit collect only happens in single run simulations.")
-
 
     def create_dir(dirname: str) -> None:
         try:
@@ -181,8 +184,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                       objectives=args.objectives,
                                       fit_data_collect=collect_fit,
                                       min_toll_speed=args.toll_speed,
-                                      toll_penalty=args.toll_value) # pass neighbours of graph
-
+                                      toll_penalty=args.toll_value,
+                                      normalize_rewards=args.normalize_rewards)
         return environment
 
     def run(iteration) -> None:
@@ -305,6 +308,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     env = create_environment(args, graph_neighbours_dict)
     run(iteration)
 
+
 def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
     """Method that implements the argument parser for the script.
 
@@ -314,33 +318,33 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
     parser = argparse.ArgumentParser(prog='Script to run SUMO environment with multiagent Q-Learning algorithm')
 
     parser.add_argument("-c", "--cfg-file", action="store", dest="cfgfile",
-                       help="define the config SUMO file (mandatory)")
+                        help="define the config SUMO file (mandatory)")
     parser.add_argument("-d", "--demand", action="store", type=int, dest="demand",
-                       default=750, help="desired network demand (default = 750)")
+                        default=750, help="desired network demand (default = 750)")
     parser.add_argument("-s", "--steps", action="store", type=int, default=60000,
-                       help="number of max steps (default = 60000)", dest="steps")
+                        help="number of max steps (default = 60000)", dest="steps")
     parser.add_argument("-w", "--wait-learning", action="store", type=int, default=3000, dest="wait_learn",
-                       help="Time steps before agents start the learning (default = 3000)")
+                        help="Time steps before agents start the learning (default = 3000)")
     parser.add_argument("-g", "--gui", action="store_true", dest="gui", default=False,
-                       help="uses SUMO GUI instead of CLI")
+                        help="uses SUMO GUI instead of CLI")
     parser.add_argument("-m", "--mav", action="store", type=int, dest="mav", default=1,
-                       help="Moving gap size (default = 1 step)")
+                        help="Moving gap size (default = 1 step)")
     parser.add_argument("-r", "--success-rate", action="store", type=float, dest="comm_succ_rate", default=0.0,
-                       help="Communication success rate (default = 0.0)")
+                        help="Communication success rate (default = 0.0)")
     parser.add_argument("-q", "--queue-size", action="store", type=int, dest="queue_size", default=30,
-                       help="CommDev queue size (default = 30)")
+                        help="CommDev queue size (default = 30)")
     parser.add_argument("-b", "--bonus", action="store", type=int, dest="bonus", default=1000,
-                       help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
+                        help="Bonus agents receive by finishing their trip at the right destination (default = 1000)")
     parser.add_argument("-p", "--penalty", action="store", type=int, dest="penalty", default=1000,
-                       help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
+                        help="Penalty agents receive by finishing their trip at the wrong destination (default = 1000)")
     parser.add_argument("-n", "--number-of-runs", action="store", type=int, dest="n_runs", default=1,
-                       help="Number of multiple simulation runs (default = 1)")
+                        help="Number of multiple simulation runs (default = 1)")
     parser.add_argument("--parallel", action="store_true", dest="parallel", default=False,
-                       help="Set the script to run simulations in parallel using number of available CPU")
+                        help="Set the script to run simulations in parallel using number of available CPU")
     parser.add_argument("--objectives", action="store", nargs="+", dest="objectives", default=["TravelTime"],
-                       help="List with objective params to use separated by a single space (default = [TravelTime])")
+                        help="List with objective params to use separated by a single space (default = [TravelTime])")
     parser.add_argument("--collect", action="store_true", dest="collect", default=False,
-                       help="Set the run to collect info about the reward values to use as normalizer latter.")
+                        help="Set the run to collect info about the reward values to use as normalizer latter.")
     parser.add_argument("-a", "--agent-type", action="store", dest="agent_type", default="QL",
                         help="Set the agent type to use in simulation. (Must be QL or PQL. Default = QL)")
     parser.add_argument("-t", "--toll-speed", action="store", dest="toll_speed", default=-1, type=float,
@@ -351,6 +355,9 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                         help="Set the alpha value for learning agents. (default = 0.5)")
     parser.add_argument("--gamma", action="store", dest="gamma", default=0.9, type=float,
                         help="Set the gamma value for learning agents. (default = 0.9)")
+    parser.add_argument("--normalize-rewards", action="store_true", dest="normalize_rewards",
+                        help="Flag to indicate if the rewards should be normalized (default = False, requires fit_data "
+                        "file generated with --collect)")
 
     # graph arguments
 
@@ -388,6 +395,7 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                     help="Amplitude of the timestep interval of the virtual graph neighbours dictionary.")
 
     return parser.parse_args(), parser
+
 
 def main():
     """Main script funcion that starts the running process.
