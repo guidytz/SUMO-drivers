@@ -9,6 +9,7 @@ import logging
 import numpy as np
 import pickle
 from typing import Dict, List, Union
+from pathlib import Path
 
 import numpy as np
 from sumo_ql.agent.q_learning import PQLAgent, QLAgent
@@ -107,6 +108,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 moving_avg_gap: int,
                                 date: datetime,
                                 uses_virtual_graph: bool,
+                                agent_type = str,
                                 n_runs: int = 1,
                                 objectives: List[str] = None) -> LinkCollector:
         """Method that generates a data collector based on the information used in the simulation.
@@ -124,10 +126,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         main_simulation_name = str(cfgfile).split('/')[-2]
         additional_folders = list()
 
-        learning_folder = "learning" if pop_steps < sim_steps else "not_learning"
+        learning_folder = "not_learning"
+        if pop_steps < sim_steps:
+            learning_folder = agent_type
         additional_folders.append(learning_folder)
 
-        if learning_folder == "learning":
+        if learning_folder != "not_learning":
             c2i_sr_folder = f"C2I_sr{int(comm_succ_rate * 100)}"
             additional_folders.append(c2i_sr_folder)
 
@@ -167,6 +171,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                                  moving_avg_gap=args.mav,
                                                  date=date,
                                                  uses_virtual_graph=uses_virtual_graph,
+                                                 agent_type=args.agent_type,
                                                  n_runs=args.n_runs,
                                                  objectives=args.objectives)
 
