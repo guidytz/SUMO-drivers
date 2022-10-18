@@ -14,6 +14,7 @@ from csv import DictReader
 from pandas import DataFrame
 from collections import Counter
 from decimal import Decimal, getcontext
+from pathlib import Path
 
 # == Funções para as diferentes partes do programa == 
 
@@ -345,11 +346,9 @@ def calculate_frequency_keys(graph, chosen_key):
 # recebe os dados em uma lista, o nome que o arquivo de saída terá e se o dados se referem 
 # às medidas de centralidade ("centrality") ou frequência ("frequency")
 def monta_tabela(dados: list, nome: str, tipo: str) -> None:
-    create_directory("results")
-    create_directory("results/tables")
-    local_nome = f"results/tables/{tipo}/{nome}"
-
-    create_directory("results/tables/centrality") if tipo == "centrality" else create_directory("results/tables/frequency")
+    local_path = Path(f"results/tables/{tipo}")
+    local_path.mkdir(exist_ok=True, parents=True)
+    local_nome = Path(nome)
 
     fig, ax = plt.subplots(figsize=(11.69, 8.27))
     ax.axis("off")
@@ -360,7 +359,7 @@ def monta_tabela(dados: list, nome: str, tipo: str) -> None:
 
     ax.table(cellText=df.values, colLabels=df.columns, cellLoc="center", loc="upper center")
 
-    plt.savefig(f"{local_nome}", format="pdf", bbox_inches="tight")
+    plt.savefig(f"{str(local_path/local_nome)}", format="pdf", bbox_inches="tight")
 
 # - Visual do grafo - 
 
@@ -740,9 +739,9 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
         if opcao_grafo_grande == 1 or opcao_grafo_grande == 3 or custo == 0:
             print("\nPlotando grafo...")
             if g.vcount() != 0:
-                create_directory("results")
-                create_directory("results/graphs")
-                nome_imagem_grafo = f"img_{nome_dados}.pdf"
+                vg_path = Path("results/graphs")
+                vg_path.mkdir(exist_ok=True, parents=True)
+                vg_name = Path(f"img_{nome_dados}.pdf")
                 
                 if giant_component:  # se foi escolhido para apenas mostrar o giant component do grafo
                     g_plot = g.components().giant().copy()
@@ -761,8 +760,8 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
                 if g_plot.vcount() != 0: # se o grafo não estiver vazio, plotar
                     visual_style = determine_visual_style(g_plot)
-                    ig.plot(g_plot, target=f"results/graphs/{nome_imagem_grafo}", **visual_style)
-                    print(f"Imagem {nome_imagem_grafo} gerada")
+                    ig.plot(g_plot, target=str(vg_path/vg_name), **visual_style)
+                    print(f"Imagem '{str(vg_name)}' gerada")
                 else:
                     print("Nenhuma imagem será gerada, pois o grafo está vazio")
             else:

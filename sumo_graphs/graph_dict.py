@@ -1,5 +1,7 @@
 # cria grafo com dados lidos de um csv
 
+from ast import parse
+from genericpath import exists
 from unicodedata import name
 import igraph as ig
 import time
@@ -18,6 +20,7 @@ from csv import DictReader
 from pandas import DataFrame
 from collections import Counter
 from decimal import Decimal, getcontext
+from pathlib import Path
 
 # == Variáveis globais ==
 arestas_para_custoso = 2000 # quantidade de arestas para que o grafo seja considerado custoso
@@ -370,11 +373,9 @@ def calculate_frequency_keys(graph, chosen_key):
 # recebe os dados em uma lista, o nome que o arquivo de saída terá e se o dados se referem 
 # às medidas de centralidade ("centrality") ou frequência ("frequency")
 def monta_tabela(dados: list, nome: str, tipo: str) -> None:
-    create_directory("results")
-    create_directory("results/tables")
-    local_nome = f"results/tables/{tipo}/{nome}"
-
-    create_directory("results/tables/centrality") if tipo == "centrality" else create_directory("results/tables/frequency")
+    local_path = Path(f"results/tables/{tipo}")
+    local_path.mkdir(exist_ok=True, parents=True)
+    local_nome = Path(nome)
 
     fig, ax = plt.subplots(figsize=(11.69, 8.27))
     ax.axis("off")
@@ -385,7 +386,7 @@ def monta_tabela(dados: list, nome: str, tipo: str) -> None:
 
     ax.table(cellText=df.values, colLabels=df.columns, cellLoc="center", loc="upper center")
 
-    plt.savefig(f"{local_nome}", format="pdf", bbox_inches="tight")
+    plt.savefig(f"{str(local_path/local_nome)}", format="pdf", bbox_inches="tight")
 
 # - Visual do grafo - 
 
@@ -593,7 +594,7 @@ def main():
                         help="Limiar usado para gerar as arestas do grafo. O padrão é 0 (zero). Tipo: float. Exemplo: -lim 0.001")
     parser.add_argument("-o", "--usar_or", action="store_true", default=False, 
                         help="Usa a lógica OR para formar as arestas, isto é, para ser criada uma aresta, pelo menos um dos atributos passados na lista de atributos tem que estar dentro do limiar. O padrão é AND, ou seja, todos os atributos passados têm que estar dentro do limiar.")
-    parser.add_argument("-m", "--medidas",  default=["none"], nargs="+", 
+    parser.add_argument("-md", "--medidas",  default=["none"], nargs="+", 
                         help=f'''Lista de medidas de centralidade que serão tomadas sobre o grafo, as quais serão registradas em uma tabela. O padrão é nenhuma, de modo que nenhuma tabela será gerada. Se for muito custoso para tomar a medida (o grafo tem mais de {arestas_para_custoso} arestas), o programa irá perguntar ao usuário se ele realmente quer tomá-la. Podem ser informadas múltiplas medidas. Tipo: string. Exemplo: -m "degree" "betweenness"''')
     parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False, 
                         help=f"Define se será gerada uma imagem para o grafo. O padrão é gerar uma imagem, se este parâmetro for indicado, não será gerada uma imagem do grafo. Se este tiver mais de {arestas_para_custoso} arestas, será perguntado se realmente quer gerar a imagem, dado o custo computacional da tarefa.")
@@ -824,9 +825,9 @@ def main():
         if opcao_grafo_grande == 1 or opcao_grafo_grande == 3 or custo == 0:
             print("\nPlotando grafo...")
             if g.vcount() != 0:
-                create_directory("results")
-                create_directory("results/graphs")
-                nome_imagem_grafo = f"img_{nome_dados}.pdf"
+                vg_path = Path("results/graphs")
+                vg_path.mkdir(exist_ok=True, parents=True)
+                vg_name = Path(f"img_{nome_dados}.pdf")
                 
                 if giant_component:  # se foi escolhido para apenas mostrar o giant component do grafo
                     g_plot = g.components().giant().copy()
@@ -845,8 +846,8 @@ def main():
 
                 if g_plot.vcount() != 0: # se o grafo não estiver vazio, plotar
                     visual_style = determine_visual_style(g_plot)
-                    ig.plot(g_plot, target=f"results/graphs/{nome_imagem_grafo}", **visual_style)
-                    print(f"Imagem '{nome_imagem_grafo}' gerada")
+                    ig.plot(g_plot, target=str(vg_path/vg_name), **visual_style)
+                    print(f"Imagem '{str(vg_name)}' gerada")
                 else:
                     print("Nenhuma imagem será gerada, pois o grafo está vazio")
             else:
@@ -877,11 +878,12 @@ def main():
 
     # Saves dictionary to pickle file
 
-    create_directory("sumo_graphs/dictionaries")
-    dict_pickle_file_name = f"dict_{gets_name_file(nome_arquivo_csv)}.pkl"
-    with open(f"sumo_graphs/dictionaries/{dict_pickle_file_name}", "wb") as dict_pickle_file:
+    dict_path = Path("sumo_graphs/dictionaries")
+    dict_path.mkdir(exist_ok=True, parents=True)
+    dict_pickle_file_name = Path(f"dict_{gets_name_file(nome_arquivo_csv)}.pkl")
+    with open(dict_path/dict_pickle_file_name, "wb") as dict_pickle_file:
         pickle.dump(dict_vizinhos, dict_pickle_file)
-    print(f"Generated dict file '{dict_pickle_file_name}' at sumo_graphs/dictionaries")
+    print(f"Generated dict file '{str(dict_pickle_file_name)}' at {str(dict_path)}")
 
     t_total = time.time() - t_inicio # Temporizador de saída
     print(f"Finalizou em {t_total:.4f} segundos")

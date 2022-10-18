@@ -94,8 +94,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             OSError: the method raises an OSError if the directory couldn't be created (it doesn't raise the error if
             the directory already exists).
         """
-        create_dir("log")
-        create_dir(f"log/{dirname}")
+        #create_dir("log")
+        #create_dir(f"log/{dirname}")
+
+        log_directory = Path(f"log/{dirname}")
+        log_directory.mkdir(exist_ok=True, parents=True)
+
         logging.basicConfig(format='%(asctime)s: %(message)s',
                             datefmt='%d-%m-%Y %H:%M:%S',
                             filename=f'log/{dirname}/mult_sims_{date.strftime("%d-%m-%y_%H-%M-%S")}.log',
@@ -126,27 +130,27 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         main_simulation_name = str(cfgfile).split('/')[-2]
         additional_folders = list()
 
-        learning_folder = "not_learning"
+        learning_folder = Path("not_learning")
         if pop_steps < sim_steps:
-            learning_folder = agent_type
+            learning_folder = Path(agent_type)
         additional_folders.append(learning_folder)
 
-        if learning_folder != "not_learning":
-            c2i_sr_folder = f"C2I_sr{int(comm_succ_rate * 100)}"
+        if learning_folder != Path("not_learning"):
+            c2i_sr_folder = Path(f"C2I_sr{int(comm_succ_rate * 100)}")
             additional_folders.append(c2i_sr_folder)
 
-        steps_folder = f"steps_{sim_steps // 1000}K"
+        steps_folder = Path(f"steps_{sim_steps // 1000}K")
         additional_folders.append(steps_folder)
-        additional_folders.append(f"opt_{'_'.join(objectives)}")
 
-        if uses_virtual_graph:
-            vg_folder = "virtual_graph"
-        else:
-            vg_folder = "no_virtual_graph"
+        objectives_folder = Path(f"opt_{'_'.join(objectives)}")
+        additional_folders.append(objectives_folder)
+
+        vg_folder = Path("virtual_graph") if uses_virtual_graph else Path("no_virtual_graph")
         additional_folders.append(vg_folder)
 
         if n_runs > 1:
-            additional_folders.append(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
+            batch_folder = Path(f"batch_{date.strftime('%H-%M')}_{n_runs}_runs")
+            additional_folders.append(batch_folder)
             create_log(main_simulation_name, date)
 
         return LinkCollector(network_name=main_simulation_name,
@@ -204,7 +208,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         if agent_type == "PQL":
             network_name = str(args.cfgfile).split('/')[-2]
             chosen_obj_collector = DefaultCollector(1,
-                                                    f"results/ChosenObj/{network_name}/{date.strftime('%y_%m_%d')}",
+                                                    Path(f"results/ChosenObj/{network_name}/{date.strftime('%y_%m_%d')}"),
                                                     ["Step"] + args.objectives)
 
         while not done['__all__']:

@@ -3,6 +3,7 @@ import os
 import sys
 from typing import Dict, List, Union
 from xml.dom import minidom
+from pathlib import Path
 
 import numpy as np
 import sumolib
@@ -99,7 +100,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__data_fit = None
         self.__normalize_rewards = normalize_rewards
 
-        network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
+        network_filepath = Path(self.__sumocfg_file[:self.__sumocfg_file.rfind('/')])
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
