@@ -591,25 +591,25 @@ def main():
     parser.add_argument("-rst", "--restriction", default=["none"], nargs="+", 
                         help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file.")
     parser.add_argument("-lim", "--limiar", type=float, default=0, 
-                        help="Limiar used to create an edge in the virtual graph. (Default is 0)")
+                        help="Limiar used to create an edge in the virtual graph. (default = 0)")
     parser.add_argument("-o", "--use_or", action="store_true", default=False, 
-                        help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (Default is false)")
+                        help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
     parser.add_argument("-ms", "--measures",  default=["none"], nargs="+", 
-                        help="List of centrality measures to be taken of the virtual graph. (Default is none)")
+                        help="List of centrality measures to be taken of the virtual graph. (default = none)")
     parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False, 
-                        help=f"Determines if an image of the virtual graph will not be generated. (Default is false)")
+                        help=f"Determines if an image of the virtual graph will not be generated. (default = false)")
     parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False, 
-                        help="Determines if all nodes with degree zero will not be removed. (Default is false)")
+                        help="Determines if all nodes with degree zero will not be removed. (default = false)")
     parser.add_argument("-giant", "--giant_component", action="store_true", default=False, 
-                        help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (Default is false)")
+                        help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (default = false)")
     parser.add_argument("-rdata", "--raw_data", action="store_true", default=False, 
-                        help="Determines if the input data will not be normalized. (Default is false)")
+                        help="Determines if the input data will not be normalized. (default = false)")
     parser.add_argument("-mdeg", "--min_degree", type=int, default=0, 
-                        help="Only vertices with a degree bigger or equal to this value will be ploted. (Default is 0)")
+                        help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
     parser.add_argument("-mstep", "--min_step", type=int, default=0, 
-                        help="Only vertices with a step bigger or equal to this value will be ploted. (Default is 0)")
+                        help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
     parser.add_argument("-int", "--interval", type=int, default=250,
-                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (Default is 250)")
+                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
 
     args = parser.parse_args()
 
