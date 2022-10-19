@@ -46,7 +46,7 @@ class CommunicationDevice:
 
         Args:
             link (str): String with link ID to update data
-            reward (list): Reward values to insert in link queue
+            reward (np.ndarray): Reward values to insert in link queue
         """
         if link not in self.__data.keys():
             raise RuntimeError("Link is not connected to commDev's node")
