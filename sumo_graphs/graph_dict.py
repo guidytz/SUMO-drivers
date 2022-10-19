@@ -76,7 +76,7 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
                 linha["id"] = id
                 id += 1
             else:
-                print(f"Linha {num_linha} contém atributo vazio, é link de borda ou possui ocupação zero e não será considerada")
+                print(f"Line {num_linha} contains empty atribute, is border link or has zero occupancy and will not be considered")
             num_linha += 1
 
         # converte atributos do dicionário para seus tipos respectivos (inicialmente são strings)
@@ -582,44 +582,44 @@ def main():
     # == Argparse e argumentos do usuário ==
 
     parser = ap.ArgumentParser()
-    parser.add_argument("-f", "--arquivo", 
-                        help='''Nome do arquivo csv contendo os dados que será usado para gerar o grafo. Tipo: string. Se o diretório do arquivo não for o mesmo do main.py, indicar o caminho para o arquivo. Exemplo no mesmo diretório do script: -f "meuarquivo.csv". Exemplo em um diretório diferente: -f "/home/user/caminho_para_arquivo/meuarquivo.csv"''')
-    parser.add_argument("-atb", "--atributos", default=["ALL"], nargs="+", 
-                        help="Lista de atributos considerados para montar as arestas. Será passado o número da coluna correspondente ao atributo. Este número pode ser visto com o script mostra_colunas.py. Se nenhum atributo for passado, como padrão, serão usados todas as colunas menos as que compõem o id do grafo. Tipo: int. Exemplo: -atb 3 4. Pode também ser passado um intervalo de números no formato inicial-final. Exemplo: -atb 1-3 irá gerar uma lista com 1, 2 e 3.")
-    parser.add_argument("-id", "--identificadores", nargs="+", 
-                        help="Lista de atributos que irão compor o label dos vértices do grafo. Pode ser passado apeanas um atributo ou múltiplos, que serão concatenados. Será passado o número da coluna correspondente ao atributo. Este número pode ser visto com o script mostra_colunas.py. Tipo: int. Se o label dos vértices não for único, o programa irá informar sobre e irá encerrar. Exemplo: -id 1 2. Pode também ser passado um intervalo de números no formato inicial-final. Exemplo: -atb 1-3 irá gerar uma lista com 1, 2 e 3.")
-    parser.add_argument("-rst", "--restricao", default=["none"], nargs="+", 
-                        help="Lista de atributos usados como restrição para criar uma aresta, isto é, se, entre dois vértices, o valor do atributo restritivo é o mesmo, a aresta não é criada. O padrão é nenhuma restrição. Podem ser informadas múltiplas restrições. Será passado o número da coluna correspondente ao atributo. Este número pode ser visto com o script mostra_colunas.py. Tipo: int. Exemplo: -rst 2. Pode também ser passado um intervalo de números no formato inicial-final. Exemplo: -atb 1-3 irá gerar uma lista com 1, 2 e 3.")
+    parser.add_argument("-f", "--vg_file", 
+                        help="Path and name to the file containing the data that is going to be used to create the virtual graph.")
+    parser.add_argument("-atb", "--atributes", default=["ALL"], nargs="+", 
+                        help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file.")
+    parser.add_argument("-id", "--labels", nargs="+", 
+                        help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
+    parser.add_argument("-rst", "--restriction", default=["none"], nargs="+", 
+                        help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file.")
     parser.add_argument("-lim", "--limiar", type=float, default=0, 
-                        help="Limiar usado para gerar as arestas do grafo. O padrão é 0 (zero). Tipo: float. Exemplo: -lim 0.001")
-    parser.add_argument("-o", "--usar_or", action="store_true", default=False, 
-                        help="Usa a lógica OR para formar as arestas, isto é, para ser criada uma aresta, pelo menos um dos atributos passados na lista de atributos tem que estar dentro do limiar. O padrão é AND, ou seja, todos os atributos passados têm que estar dentro do limiar.")
-    parser.add_argument("-md", "--medidas",  default=["none"], nargs="+", 
-                        help=f'''Lista de medidas de centralidade que serão tomadas sobre o grafo, as quais serão registradas em uma tabela. O padrão é nenhuma, de modo que nenhuma tabela será gerada. Se for muito custoso para tomar a medida (o grafo tem mais de {arestas_para_custoso} arestas), o programa irá perguntar ao usuário se ele realmente quer tomá-la. Podem ser informadas múltiplas medidas. Tipo: string. Exemplo: -m "degree" "betweenness"''')
+                        help="Limiar used to create an edge in the virtual graph. (Default is 0)")
+    parser.add_argument("-o", "--use_or", action="store_true", default=False, 
+                        help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (Default is false)")
+    parser.add_argument("-ms", "--measures",  default=["none"], nargs="+", 
+                        help="List of centrality measures to be taken of the virtual graph. (Default is none)")
     parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False, 
-                        help=f"Define se será gerada uma imagem para o grafo. O padrão é gerar uma imagem, se este parâmetro for indicado, não será gerada uma imagem do grafo. Se este tiver mais de {arestas_para_custoso} arestas, será perguntado se realmente quer gerar a imagem, dado o custo computacional da tarefa.")
+                        help=f"Determines if an image of the virtual graph will not be generated. (Default is false)")
     parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False, 
-                        help="Determina se o grafo usado para tomar as medidas inclui vértices que não formam nenhuma aresta. Por padrão, o programa remove os vértices de grau zero do grafo. Com esta opção, o programa usará o grafo sem remover estes vértices.")
+                        help="Determines if all nodes with degree zero will not be removed. (Default is false)")
     parser.add_argument("-giant", "--giant_component", action="store_true", default=False, 
-                        help="Determina se apenas o giant component é mostrado na imagem ou se todo o grafo é mostrado. O padrão é mostrar todo o grafo.")
+                        help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (Default is false)")
     parser.add_argument("-rdata", "--raw_data", action="store_true", default=False, 
-                        help="Determina se o programa normaliza os dados de entrada ou não. O padrão é normalizar, ou seja, não usar os dados puros.")
+                        help="Determines if the input data will not be normalized. (Default is false)")
     parser.add_argument("-mdeg", "--min_degree", type=int, default=0, 
-                        help="Ao mostrar o grafo, apenas serão plotados os vértices com grau a partir do especificado. O padrão é 0, ou seja, sem restrições para degree. Tipo int. Exemplo: -mdeg 1")
+                        help="Only vertices with a degree bigger or equal to this value will be ploted. (Default is 0)")
     parser.add_argument("-mstep", "--min_step", type=int, default=0, 
-                        help="Step a partir do qual os vértices irão compor o grafo final. Tipo int. O padrão é 0. Ex: -mstep 3000. Isso significa que apenas vértices cujo step é maior ou igual a 3000 irão compor o grafo. Importante: é necessário que, no arquivo de entrada, a coluna referente ao step seja nomeada 'Step' ou 'step' para que o programa possas reconhecê-la.")
+                        help="Only vertices with a step bigger or equal to this value will be ploted. (Default is 0)")
     parser.add_argument("-int", "--interval", type=int, default=250,
-                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary.")
+                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (Default is 250)")
 
     args = parser.parse_args()
 
-    nome_arquivo_csv = args.arquivo # nome do arquivo csv a ser usado para gerar grafo
-    lista_atributos_numerico = args.atributos # lista de atributos, passados como número da coluna
-    lista_ids_label_numerico = args.identificadores # lista de ids usados no label, passados como número da coluna
-    lista_restricoes_numerico = args.restricao # lista de restricoes para criar arestas, passadas como número da coluna
+    nome_arquivo_csv = args.vg_file # nome do arquivo csv a ser usado para gerar grafo
+    lista_atributos_numerico = args.atributes # lista de atributos, passados como número da coluna
+    lista_ids_label_numerico = args.labels # lista de ids usados no label, passados como número da coluna
+    lista_restricoes_numerico = args.restriction # lista de restricoes para criar arestas, passadas como número da coluna
     limiar = args.limiar  # limiar usado para criar arestas
-    usar_or = args.usar_or  # lógica para criar arestas
-    lista_medidas = args.medidas  # lista de medidas que serão tomadas do grafo
+    usar_or = args.use_or  # lógica para criar arestas
+    lista_medidas = args.measures  # lista de medidas que serão tomadas do grafo
     nao_gerar_imagem_grafo = args.no_graph_image # define se será gerada uma imagem do grafo ou não
     usar_grafo_puro = args.raw_graph # define se será usado o grafo sem processamento (remover vértices de grau zero) ou não
     giant_component = args.giant_component # define se apenas o giant component será mostrado na imagem
@@ -630,15 +630,15 @@ def main():
 
     # == Verfica consistência de entrada == 
 
-    if args.identificadores == None:
-        print("Erro na passagem de parâmetro, o campo dos ids não foi informado.")
-        sys.exit("Saindo do programa")
+    if args.labels == None:
+        print("Error! Labels parameter wasn't informed!")
+        sys.exit("Exiting program")
 
-    if args.arquivo == None:
-        print("Erro na passagem de parâmetro, o campo do nome do arquivo não foi informado.")
-        sys.exit("Saindo do programa")
+    if args.vg_file == None:
+        print("Error! Input file path and name wasn't informed")
+        sys.exit("Exiting program")
 
-    print("Parâmetros OK")  # se todos os parâmetros necessário foram informados
+    print("Parameters OK")  # se todos os parâmetros necessário foram informados
 
     # == Processa listas numéricas ==
 
@@ -652,7 +652,7 @@ def main():
 
     # == Lê csv, traduz entrada numérica dos ids para atributos e normaliza dados, se foi pedido ==
 
-    print("Lendo arquivo...")
+    print("Reading file...")
     lista_dict, keys = importa_csv(nome_arquivo_csv)
 
     lista_ids_label = [] # usada como label do grafo, indica também atributos que não serão normalizados
@@ -661,11 +661,11 @@ def main():
 
     if not use_raw_data:
         lista_dict, keys = normaliza_lista_dict(lista_dict, keys, lista_ids_label)
-    print("Arquivo lido.")
+    print("File read.")
 
     # Traduz entrada numérica dos outros parâmetros
 
-    print("\nTraduzindo atributos...")
+    print("\nTranslating atributes...")
 
     atributos = []
     todos = False
@@ -690,43 +690,43 @@ def main():
 
     # == Prints para mostrar parâmetros selecionados ==
 
-    print("Atributos usados:")
-    print(f"Lista de atributos: {atributos}")
-    print(f"Lista de atributos para ids: {lista_ids_label}")
-    print(f"Lista de atributos restritivos: {lista_restricoes}")
-    print(f"Lista de medidas de centralidade: {lista_medidas}")
+    print("Atributes used:")
+    print(f"Atributes: {atributos}")
+    print(f"Labels: {lista_ids_label}")
+    print(f"Restrictions: {lista_restricoes}")
+    print(f"Centrality measures: {lista_medidas}")
     output_m = "True" if lista_medidas != ["none"] else "False"
-    print(f"Tomar medidas: {output_m}")
+    print(f"Take centrality measures: {output_m}")
     print(f"Limiar: {limiar}")
-    print(f"Usar lógica or: {usar_or}")
-    print(f"Arquivo: {nome_arquivo_csv}")
-    print(f"Não gerar imagem do grafo: {nao_gerar_imagem_grafo}")
-    print(f"Usar grafo puro: {usar_grafo_puro}")
-    print(f"Mostrar apenas giant component: {giant_component}")
-    print(f"Não normalizar entrada: {use_raw_data}")
-    print(f"Mostra vértices com degree a partir de: {min_degree}")
-    print(f"Step a partir do qual os vértices irão compor o grafo: {min_step}")
+    print(f"Use or logic: {usar_or}")
+    print(f"File: {nome_arquivo_csv}")
+    print(f"No virtual graph image: {nao_gerar_imagem_grafo}")
+    print(f"Use pure virtual graph: {usar_grafo_puro}")
+    print(f"Only plot giant component: {giant_component}")
+    print(f"Don't normalize input: {use_raw_data}")
+    print(f"Plots vertices with a degree bigger or equal to: {min_degree}")
+    print(f"Plots vertices with a step bigger or equal to: {min_step}")
     print(f"Amplitude of timestep of virtual graph neighbours dictionary: {interval_amplitude} steps")
     print("")
 
     # == Cria ids ==
 
-    print("Gerando lista de ids...")
+    print("Generating labels...")
     lista_ids = cria_lista_ids(lista_dict, lista_ids_label) # monta lista de identificadores dos vértices do grafo
     if not ids_validos(lista_ids):  # se os ids gerados não forem únicos
-        print("Erro: ids gerados não são únicos, usar outros atributos")
-        sys.exit("Saindo do programa")
+        print("Error! Labels created aren't unique. Use other atributes")
+        sys.exit("Exiting program")
     else:
-        print("Ids válidos")
+        print("Labels are valid")
 
     # == Monta lista de arestas ==
 
-    print("Gerando arestas...")
+    print("Generating edges...")
     arestas, pesos_arestas = monta_arestas(atributos, lista_dict, lista_restricoes, usar_or, limiar)
 
     # == Cria grafo e o processa ==
 
-    print("Atribuindo valores ao grafo...")
+    print("Atributing values to the virtual graph...")
     g_raw = ig.Graph()
     n_vertices = (len(lista_dict))
     g_raw.add_vertices(n_vertices)
@@ -762,9 +762,9 @@ def main():
                     to_delete_vertices.append(v)
             g.delete_vertices(to_delete_vertices)
 
-    print("Pronto")  # finalizou a atribuição
+    print("Done")  # finalizou a atribuição
 
-    print("\nInformações do grafo gerado:") # mostra informações do grafo, como número de vértices e quantidade de arestas
+    print("\nInformation about the virtual graph:") # mostra informações do grafo, como número de vértices e quantidade de arestas
     print(g.degree_distribution())
     print(g.summary())
 
@@ -785,27 +785,27 @@ def main():
     if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
         if custo == 1:
             if possui_medida_custosa:
-                print(f"O grafo possui mais que {arestas_para_custoso} arestas. O custo computacional para gerar uma imagem do grafo e tomar medidas de centralidade custosas será alto. Você deseja tomá-las e gerar uma imagem do grafo?")
-                print("1 - Tomar medidas custosas e gerar imagem do grafo")
-                print("2 - Apenas tomar medidas custosas")
-                print("3 - Apenas gerar imagem do grafo")
-                print("4 - Não gerar imagem e não tomar medidas custosas")
+                print(f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph and take costly centrality measures?")
+                print("1 - Take measures and generate image")
+                print("2 - Only take measures")
+                print("3 - Only genrate image")
+                print("4 - Don't generate image neither take measures")
 
                 # recebe o input do usuário, verificando a consistência da entrada
                 while opcao_grafo_grande != 1 and opcao_grafo_grande != 2 and opcao_grafo_grande != 3 and opcao_grafo_grande != 4:
-                    opcao_grafo_grande = int(input("Digite sua opção: "))
+                    opcao_grafo_grande = int(input("Type your option: "))
                     if opcao_grafo_grande != 1 and opcao_grafo_grande != 2 and opcao_grafo_grande != 3 and opcao_grafo_grande != 4:
-                        print("Opção inválida, digite novamente.")
+                        print("Invalid option, type again.")
             else:
-                print(f"O grafo possui mais que {arestas_para_custoso} arestas. O custo computacional para gerar uma imagem do grafo será alto. Você deseja gerar a imagem do grafo?")
-                print("1 - Gerar imagem do grafo")
-                print("2 - Não gerar imagem do grafo")
+                print(f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph?")
+                print("1 - Yes")
+                print("2 - No")
 
                 # recebe o input do usuário, verificando a consistência da entrada
                 while opcao_grafo_grande != 1 and opcao_grafo_grande != 2:
-                    opcao_grafo_grande = int(input("Digite sua opção: "))
+                    opcao_grafo_grande = int(input("Type your option: "))
                     if opcao_grafo_grande != 1 and opcao_grafo_grande != 2:
-                        print("Opção inválida, digite novamente.")
+                        print("Invalid option, type again.")
 
             # se for escolhido para não tomar medidas custosas
             if opcao_grafo_grande == 3 or opcao_grafo_grande == 4:
@@ -823,7 +823,7 @@ def main():
     if not nao_gerar_imagem_grafo:
         # se foi selecionado para fazer a imagem do grafo, ou se não for custoso
         if opcao_grafo_grande == 1 or opcao_grafo_grande == 3 or custo == 0:
-            print("\nPlotando grafo...")
+            print("\nPloting virtual graph...")
             if g.vcount() != 0:
                 vg_path = Path("results/graphs")
                 vg_path.mkdir(exist_ok=True, parents=True)
@@ -835,7 +835,7 @@ def main():
                     g_plot = g.copy()
 
                 if min_degree < 0:
-                    print("Degree mínimo é negativo e será desconsiderado")
+                    print("Minimum degree is negative and will not be considered")
                 elif min_degree != 0:
                     while possui_grau_minimo(g_plot, min_degree):
                         to_delete_vertices = []
@@ -847,32 +847,32 @@ def main():
                 if g_plot.vcount() != 0: # se o grafo não estiver vazio, plotar
                     visual_style = determine_visual_style(g_plot)
                     ig.plot(g_plot, target=str(vg_path/vg_name), **visual_style)
-                    print(f"Imagem '{str(vg_name)}' gerada")
+                    print(f"Image '{str(vg_name)}' generated")
                 else:
-                    print("Nenhuma imagem será gerada, pois o grafo está vazio")
+                    print("Empty virtual graph, no image generated")
             else:
-                print("Nenhuma imagem será gerada, pois o grafo está vazio")
+                print("Empty virtual graph, no image generated")
         else:
-            print("O grafo não será plotado.")
+            print("The virtual graph will not be ploted")
 
     # == Toma medidas de caracterização ==
 
     if nova_lista_medidas != ["none"]:
-        print("Gerando tabela...")
+        print("Generating table...")
         if len(nova_lista_medidas) != 0:
             if g.vcount() != 0:
                 nome_tabela = f"table_{nome_dados}.pdf"
                 nome_tabela_freq = f"freq_table_{nome_dados}.pdf"
                 # tabela com as medidas de caracterização selecionadas é gerada
                 monta_tabela(dados=calcula_medidas(g, nova_lista_medidas, g.vs["label"]), nome=nome_tabela, tipo="centrality")
-                print(f"Tabela '{nome_tabela}' gerada")
+                print(f"Table '{nome_tabela}' generated")
                 # tabela de frequências é gerada
                 monta_tabela(dados=calculate_frequency_keys(g, "Link"), nome=nome_tabela_freq, tipo="frequency")
-                print(f"Tabela '{nome_tabela_freq}' gerada")
+                print(f"Table '{nome_tabela_freq}' generated")
             else:
-                print("Nenhuma tabela será gerada, pois o grafo está vazio")
+                print("Empty graph, no table generated")
         else:
-            print("Lista de medidas está vazia.")
+            print("Centrality measurements list is empty")
 
     dict_vizinhos = cria_dicionario_vizinhos_links(g, keys, intervalo=interval_amplitude, max_step=calcula_max_step(lista_dict, keys))
 
@@ -886,7 +886,7 @@ def main():
     print(f"Generated dict file '{str(dict_pickle_file_name)}' at {str(dict_path)}")
 
     t_total = time.time() - t_inicio # Temporizador de saída
-    print(f"Finalizou em {t_total:.4f} segundos")
+    print(f"Finished in {t_total:.4f} seconds")
 
 if __name__ == "__main__":
     main()

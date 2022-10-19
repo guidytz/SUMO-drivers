@@ -66,7 +66,7 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
                 linha["id"] = id
                 id += 1
             else:
-                print(f"Linha {num_linha} contém atributo vazio, é link de borda ou possui ocupação zero e não será considerada")
+                print(f"Line {num_linha} contains empty atribute, is border link or has zero occupancy and will not be considered")
             num_linha += 1
 
         # converte atributos do dicionário para seus tipos respectivos (inicialmente são strings)
@@ -567,7 +567,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Lê csv, traduz entrada numérica dos ids para atributos e normaliza dados, se foi pedido ==
 
-    print("Lendo arquivo...")
+    print("Reading file...")
     lista_dict, keys = importa_csv(nome_arquivo_csv)
 
     lista_ids_label = [] # usada como label do grafo, indica também atributos que não serão normalizados
@@ -576,11 +576,11 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     if not use_raw_data:
         lista_dict, keys = normaliza_lista_dict(lista_dict, keys, lista_ids_label)
-    print("Arquivo lido.")
+    print("File read.")
 
     # Traduz entrada numérica dos outros parâmetros
 
-    print("\nTraduzindo atributos...")
+    print("\nTranslating atributes...")
 
     atributos = []
     todos = False
@@ -605,42 +605,43 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Prints para mostrar parâmetros selecionados ==
 
-    print("Atributos usados:")
-    print(f"Lista de atributos: {atributos}")
-    print(f"Lista de atributos para ids: {lista_ids_label}")
-    print(f"Lista de atributos restritivos: {lista_restricoes}")
-    print(f"Lista de medidas de centralidade: {lista_medidas}")
+    print("Atributes used:")
+    print(f"Atributes: {atributos}")
+    print(f"Labels: {lista_ids_label}")
+    print(f"Restrictions: {lista_restricoes}")
+    print(f"Centrality measures: {lista_medidas}")
     output_m = "True" if lista_medidas != ["none"] else "False"
-    print(f"Tomar medidas: {output_m}")
+    print(f"Take centrality measures: {output_m}")
     print(f"Limiar: {limiar}")
-    print(f"Usar lógica or: {usar_or}")
-    print(f"Arquivo: {nome_arquivo_csv}")
-    print(f"Não gerar imagem do grafo: {nao_gerar_imagem_grafo}")
-    print(f"Usar grafo puro: {usar_grafo_puro}")
-    print(f"Mostrar apenas giant component: {giant_component}")
-    print(f"Não normalizar entrada: {use_raw_data}")
-    print(f"Mostra vértices com degree a partir de: {min_degree}")
-    print(f"Step a partir do qual os vértices irão compor o grafo: {min_step}")
+    print(f"Use or logic: {usar_or}")
+    print(f"File: {nome_arquivo_csv}")
+    print(f"No virtual graph image: {nao_gerar_imagem_grafo}")
+    print(f"Use pure virtual graph: {usar_grafo_puro}")
+    print(f"Only plot giant component: {giant_component}")
+    print(f"Don't normalize input: {use_raw_data}")
+    print(f"Plots vertices with a degree bigger or equal to: {min_degree}")
+    print(f"Plots vertices with a step bigger or equal to: {min_step}")
+    print(f"Amplitude of timestep of virtual graph neighbours dictionary: {intervalo_vizinhos} steps")
     print("")
 
     # == Cria ids ==
 
-    print("Gerando lista de ids...")
+    print("Generating labels...")
     lista_ids = cria_lista_ids(lista_dict, lista_ids_label) # monta lista de identificadores dos vértices do grafo
     if not ids_validos(lista_ids):  # se os ids gerados não forem únicos
-        print("Erro: ids gerados não são únicos, usar outros atributos")
-        sys.exit("Saindo do programa")
+        print("Error! Labels created aren't unique. Use other atributes")
+        sys.exit("Exiting program")
     else:
-        print("Ids válidos")
+        print("Labels are valid")
 
     # == Monta lista de arestas ==
 
-    print("Gerando arestas...")
+    print("Generating edges...")
     arestas, pesos_arestas = monta_arestas(atributos, lista_dict, lista_restricoes, usar_or, limiar, precisao)
 
     # == Cria grafo e o processa ==
 
-    print("Atribuindo valores ao grafo...")
+    print("Atributing values to the virtual graph...")
     g_raw = ig.Graph()
     n_vertices = (len(lista_dict))
     g_raw.add_vertices(n_vertices)
@@ -676,9 +677,9 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                     to_delete_vertices.append(v)
             g.delete_vertices(to_delete_vertices)
 
-    print("Pronto")  # finalizou a atribuição
+    print("Done")  # finalizou a atribuição
 
-    print("\nInformações do grafo gerado:") # mostra informações do grafo, como número de vértices e quantidade de arestas
+    print("\nInformation about the virtual graph:") # mostra informações do grafo, como número de vértices e quantidade de arestas
     print(g.degree_distribution())
     print(g.summary())
 
@@ -699,27 +700,27 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
         if custo == 1:
             if possui_medida_custosa:
-                print(f"O grafo possui mais que {arestas_para_custoso} arestas. O custo computacional para gerar uma imagem do grafo e tomar medidas de centralidade custosas será alto. Você deseja tomá-las e gerar uma imagem do grafo?")
-                print("1 - Tomar medidas custosas e gerar imagem do grafo")
-                print("2 - Apenas tomar medidas custosas")
-                print("3 - Apenas gerar imagem do grafo")
-                print("4 - Não gerar imagem e não tomar medidas custosas")
+                print(f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph and take costly centrality measures?")
+                print("1 - Take measures and generate image")
+                print("2 - Only take measures")
+                print("3 - Only genrate image")
+                print("4 - Don't generate image neither take measures")
 
                 # recebe o input do usuário, verificando a consistência da entrada
                 while opcao_grafo_grande != 1 and opcao_grafo_grande != 2 and opcao_grafo_grande != 3 and opcao_grafo_grande != 4:
-                    opcao_grafo_grande = int(input("Digite sua opção: "))
+                    opcao_grafo_grande = int(input("Type your option: "))
                     if opcao_grafo_grande != 1 and opcao_grafo_grande != 2 and opcao_grafo_grande != 3 and opcao_grafo_grande != 4:
-                        print("Opção inválida, digite novamente.")
+                        print("Invalid option, type again.")
             else:
-                print(f"O grafo possui mais que {arestas_para_custoso} arestas. O custo computacional para gerar uma imagem do grafo será alto. Você deseja gerar a imagem do grafo?")
-                print("1 - Gerar imagem do grafo")
-                print("2 - Não gerar imagem do grafo")
+                print(f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph?")
+                print("1 - Yes")
+                print("2 - No")
 
                 # recebe o input do usuário, verificando a consistência da entrada
                 while opcao_grafo_grande != 1 and opcao_grafo_grande != 2:
-                    opcao_grafo_grande = int(input("Digite sua opção: "))
+                    opcao_grafo_grande = int(input("Type your option: "))
                     if opcao_grafo_grande != 1 and opcao_grafo_grande != 2:
-                        print("Opção inválida, digite novamente.")
+                        print("Invalid option, type again.")
 
             # se for escolhido para não tomar medidas custosas
             if opcao_grafo_grande == 3 or opcao_grafo_grande == 4:
@@ -737,7 +738,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     if not nao_gerar_imagem_grafo:
         # se foi selecionado para fazer a imagem do grafo, ou se não for custoso
         if opcao_grafo_grande == 1 or opcao_grafo_grande == 3 or custo == 0:
-            print("\nPlotando grafo...")
+            print("\nPloting virtual graph...")
             if g.vcount() != 0:
                 vg_path = Path("results/graphs")
                 vg_path.mkdir(exist_ok=True, parents=True)
@@ -749,7 +750,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                     g_plot = g.copy()
 
                 if min_degree < 0:
-                    print("Degree mínimo é negativo e será desconsiderado")
+                    print("Minimum degree is negative and will not be considered")
                 elif min_degree != 0:
                     while possui_grau_minimo(g_plot, min_degree):
                         to_delete_vertices = []
@@ -761,18 +762,18 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                 if g_plot.vcount() != 0: # se o grafo não estiver vazio, plotar
                     visual_style = determine_visual_style(g_plot)
                     ig.plot(g_plot, target=str(vg_path/vg_name), **visual_style)
-                    print(f"Imagem '{str(vg_name)}' gerada")
+                    print(f"Image '{str(vg_name)}' generated")
                 else:
-                    print("Nenhuma imagem será gerada, pois o grafo está vazio")
+                    print("Empty virtual graph, no image generated")
             else:
-                print("Nenhuma imagem será gerada, pois o grafo está vazio")
+                print("Empty virtual graph, no image generated")
         else:
-            print("O grafo não será plotado.")
+            print("The virtual graph will not be ploted")
 
     # == Toma medidas de caracterização ==
 
     if nova_lista_medidas != ["none"]:
-        print("Gerando tabela...")
+        print("Generating table...")
 
         if len(nova_lista_medidas) != 0:
             if g.vcount() != 0:
@@ -780,14 +781,14 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                 nome_tabela_freq = f"freq_table_{nome_dados}.pdf"
                 # tabela com as medidas de caracterização selecionadas é gerada
                 monta_tabela(dados=calcula_medidas(g, nova_lista_medidas, g.vs["label"]), nome=nome_tabela, tipo="centrality")
-                print(f"Tabela {nome_tabela} gerada")
+                print(f"Table '{nome_tabela}' generated")
                 # tabela de frequências é gerada
                 monta_tabela(dados=calculate_frequency_keys(g, "Link"), nome=nome_tabela_freq, tipo="frequency")
-                print(f"Tabela {nome_tabela_freq} gerada")
+                print(f"Table '{nome_tabela_freq}' generated")
             else:
-                print("Nenhuma tabela será gerada, pois o grafo está vazio")
+                print("Empty graph, no table generated")
         else:
-            print("Lista de medidas está vazia.")
+            print("Centrality measurements list is empty")
 
     dict_vizinhos = cria_dicionario_vizinhos_links(g, keys, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
 
