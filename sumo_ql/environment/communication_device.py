@@ -97,8 +97,6 @@ class CommunicationDevice:
         return []
 
 
-    # modificar para que, para cada link de saída, programa busca vizinhos no grafo no tempo atual da simulação e envia os dados
-    # sobre esses links junto com os de saída
     def get_outgoing_links_expected_rewards(self) -> Dict[str, np.ndarray]:
         """Returns a dictionary containing the expected rewards from all the outgoing links from the commDev's node.
 
