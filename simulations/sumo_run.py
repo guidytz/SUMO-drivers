@@ -287,7 +287,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             action = env.get_action(origin_node, destination_node)
             if agent_type == "QL":
                 obj = 0 if opt_travel_time else 1
-                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj]) # reward[obj]
+                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
+
             elif agent_type == "PQL":
                 agents[vehicle_id].learn(action, origin_node, destination_node, reward)
 
