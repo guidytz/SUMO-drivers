@@ -64,7 +64,7 @@ class CommunicationDevice:
             link (str): String with the link ID to get the expected reward
 
         Returns:
-            list: List of averages of the stored rewards for the given link if there is data stored or 0.0 otherwise
+            np.ndarray: List of averages of the stored rewards for the given link if there is data stored or 0.0 otherwise
         """
         nobj = len(self.__environment.objectives.known_objectives)
         
