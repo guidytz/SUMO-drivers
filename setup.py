@@ -13,6 +13,8 @@ setup(
         'sumolib',
         'libsumo',
         'sklearn',
+        'igraph',
+        'matplotlib',
         'pymoo',
         'seaborn'
     ],

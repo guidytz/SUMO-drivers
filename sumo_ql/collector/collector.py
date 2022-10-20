@@ -5,6 +5,7 @@ from datetime import datetime
 from random import SystemRandom
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 class DefaultCollector:
     """Default collector class that aggregates and saves data from the simulation.
@@ -17,7 +18,7 @@ class DefaultCollector:
         one considered the x axis within the dataframe, therefore this value will not be aggregated, but used as 
         reference to the other params aggregated.
     """
-    def __init__(self, aggregation_interval: int, path: str, params: List[str]) -> None:
+    def __init__(self, aggregation_interval: int, path: Path, params: List[str]) -> None:
         self._start_time = datetime.now()
         self._aggregation_interval = aggregation_interval
         self._path = path
@@ -43,10 +44,11 @@ class DefaultCollector:
     def save(self) -> None:
         """Method that saves the data stored to csv file.
         """
-        self._guarantee_folder_path()
-        signature = f"{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}"
-        csv_filename = self._path + f"/{self._name_addon}sim_{signature}.csv"
-        self._aggr_df.to_csv(csv_filename, index=False, compression="xz")
+        #self._guarantee_folder_path()
+        self._path.mkdir(exist_ok=True, parents=True)
+        signature = Path(f"sim_{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}.csv")
+        csv_filename = self._path / signature
+        self._aggr_df.to_csv(str(csv_filename), index=False) # compression="xz"
 
     def reset(self) -> None:
         """Method that resets the collector data to make a new run.
@@ -139,7 +141,7 @@ class TripCollector(DefaultCollector):
         network_name (str): Name of the simulation for saving purposes
         aggregation_interval (int, optional): Steps to calculate moving average. Defaults to 100.
         custom_path (str, optional): Custom path to save the files. Defaults to ''.
-        additional_folders (List[str], optional): additional folders to add in path to distingish simulations.
+        additional_folders (List[Path], optional): additional folders to add in path to distingish simulations.
         Defaults to None.
         param_list (List[str], optional): list containing all measured params
         date (datetime, optional): datetime object that stores the simulation begin time. Defaults to datetime.now(). 
@@ -148,7 +150,7 @@ class TripCollector(DefaultCollector):
     def __init__(self, network_name: str = "default",
                  aggregation_interval: int = 100,
                  custom_path: str = None,
-                 additional_folders: List[str] = None,
+                 additional_folders: List[Path] = None,
                  param_list: List[str] = None, 
                  date: datetime = datetime.now()) -> None:
         if network_name == "default":
@@ -156,7 +158,8 @@ class TripCollector(DefaultCollector):
             print("Results will be saved in a default folder and might not be distinguishable from other simulations")
 
         date = f"/{date.strftime('%m_%d_%y')}"
-        path = f"{(custom_path or 'results')}/TripMovingAverage/{network_name}/{date}/{'/'.join(additional_folders)}"
+        additional_paths = Path(*additional_folders)
+        path = Path(f"{(custom_path or 'results')}/TripMovingAverage/{network_name}/{date}") / additional_paths
         params = param_list if "TravelTime" in param_list else ["TravelTime"] + param_list
         params = [item.replace("TravelTime", "Travel Time") for item in params]
         params = ["Step"] + params
@@ -191,9 +194,8 @@ class TripCollector(DefaultCollector):
 
 
 class ObjectiveCollector:
-
-    def __init__(self, objecitve_list: List[str], sim_path: str) -> None:
-        self.__objectives = objecitve_list
+    def __init__(self, objective_list: List[str], sim_path: Path) -> None:
+        self.__objectives = objective_list
         self.__collector = pd.DataFrame({obj: [] for obj in self.__objectives})
         self.__sim_path = sim_path
 
@@ -215,8 +217,8 @@ class ObjectiveCollector:
         self.__collector = pd.concat([self.__collector, new_data], ignore_index=True)
 
     def save(self):
-        filename = f"{self.__sim_path}/fit_data_{'_'.join(self.__objectives)}.csv"
-        self.__collector.to_csv(filename, index=False, mode='a')
+        filename = Path(f"{self.__sim_path}/fit_data_{'_'.join(self.__objectives)}.csv")
+        self.__collector.to_csv(str(filename), index=False, mode='a')
 
     def __str__(self) -> str:
         return f"{self.__collector}"
@@ -230,15 +232,15 @@ class LinkCollector(DefaultCollector):
     def __init__(self, network_name: str = "default",
                  aggregation_interval: int = 100,
                  custom_path: str = None,
-                 additional_folders: List[str] = None,
+                 additional_folders: List[Path] = None,
                  params: List[str] = None,
                  date: datetime = datetime.now()) -> None:
         if network_name == "default":
             print("Warning: using 'default' as simulation name since the data collector wasn't informed.")
             print("Results will be saved in a default folder and might not be distinguishable from other simulations")
 
-        date = f"/{date.strftime('%m_%d_%y')}"
-        path = f"{(custom_path or 'results')}/LinkStepData/{network_name}/{date}/{'/'.join(additional_folders)}"
+        additional_paths = Path(*additional_folders)
+        path = Path(f"{(custom_path or 'results')}/LinkStepData/{network_name}") / additional_paths
 
         own_params = list(params or ["Speed"])
         if "TravelTime" in own_params:

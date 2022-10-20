@@ -3,6 +3,7 @@ import os
 import sys
 from typing import Dict, List, Union
 from xml.dom import minidom
+from pathlib import Path
 
 import numpy as np
 import sumolib
@@ -63,6 +64,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
 
     def __init__(self, sumocfg_file: str,
+                 graph_neighbours: dict,
                  simulation_time: int = 50000,
                  max_vehicles: int = 750,
                  right_arrival_bonus: int = 1000,
@@ -78,6 +80,7 @@ class SumoEnvironment(MultiAgentEnv):
                  min_toll_speed: float = 27.79,
                  toll_penalty: int = 50) -> None:
         self.__sumocfg_file = sumocfg_file
+        self.__graph_neighbours = graph_neighbours
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
         self.__network = sumolib.net.readNet(self.__network_file)
@@ -97,7 +100,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.__data_fit = None
         self.__normalize_rewards = normalize_rewards
 
-        network_filepath = self.__sumocfg_file[:self.__sumocfg_file.rfind('/')]
+        network_filepath = Path(self.__sumocfg_file[:self.__sumocfg_file.rfind('/')])
         if fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
         if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
@@ -115,6 +118,9 @@ class SumoEnvironment(MultiAgentEnv):
                                                                                     wrong_arrival_penalty,
                                                                                     min_toll_speed,
                                                                                     toll_penalty)
+
+        print(f"Objectives: {len(self.__objectives.known_objectives)}")
+
 
     def reset(self):
         self.__link_collector.reset()
@@ -198,9 +204,14 @@ class SumoEnvironment(MultiAgentEnv):
             link_id (str): Link ID to retrieve the destination node
 
         Returns:
-            str: Node ID that is the destination   of the link.
+            str: Node ID that is the destination of the link.
         """
         return self.__network.getEdge(link_id).getToNode().getID()
+
+    def get_graph_neighbours(self):
+        """Method that returns dictionary of graph neighbours"""
+
+        return self.__graph_neighbours
 
     def is_border_node(self, node_id: str) -> bool:
         """Method that tests whether a given node is in the border of the network.
@@ -451,16 +462,17 @@ class SumoEnvironment(MultiAgentEnv):
             self.__observations[vehicle_id]['ready_to_act'] = False
             self.__vehicles[vehicle_id].update_route(action)
 
-    def __update_comm_dev_info(self, link_id: str, reward: int) -> None:
+    def __update_comm_dev_info(self, link_id: str, reward: np.ndarray) -> None:
         """Method that receives a reward and a link id to update the information to the destination node CommDev about
         it.
 
         Args:
             link_id (str): Link ID were the reward was received
-            reward (int): reward received for taking this link.
+            reward (np.ndarray): reward received for taking this link.
         """
         node_id = self.get_link_destination(link_id)
         if self.__comm_dev[node_id].communication_success:
+            #print(f"Reward {reward} added to {node_id}")
             self.__comm_dev[node_id].update_stored_rewards(link_id, reward)
 
     def __handle_loaded_vehicles(self) -> None:

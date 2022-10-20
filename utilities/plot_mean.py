@@ -32,7 +32,6 @@ def list_files(path: str) -> List[str]:
 
 def set_label(label: str, count: int):
     """Sets plot label based on name
-
     Args:
         label (str): method name to label
         count (int): order of the name in plot
@@ -58,14 +57,12 @@ def gen_df(path: str,
            avg_gap: int = 600,
            compressed: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Generates a dataframe from csv file.
-
     Args:
         path (str): Path to csv file.
         cut_step (int, optional): Step to stop plotting. Defaults to 50000.
         plot_type (List[str], optional): Type of plot passed inside a list. Defaults to ["mean"] which means it will take an average from all links.
         avg_gap (int, optional): Window to take the moving average in plot. Defaults to 600.
         compressed (bool, optional): flag that indicates if file is compressed or not. Defaults to True.
-
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]: _description_
     """
