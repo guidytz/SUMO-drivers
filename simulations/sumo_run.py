@@ -397,6 +397,8 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
                         help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
     parser.add_argument("-mstep", "--min_step", type=int, default=0, 
                         help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
+    parser.add_argument("-dict", "--graph_dict", type=str, default="",
+                        help="Name of file containing python dictionary of virtual graph neighbours")
     parser.add_argument("-int", "--interval", type=int, default=250,
                         help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
 
