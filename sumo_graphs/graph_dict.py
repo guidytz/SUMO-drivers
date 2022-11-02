@@ -1,38 +1,39 @@
 # cria grafo com dados lidos de um csv
 
-from ast import parse
-from genericpath import exists
-from unicodedata import name
-import igraph as ig
-import time
-import sys
 import argparse as ap
-import os
-import itertools
-import string
-import itertools
-import sys
 import datetime as dt
-import matplotlib.pyplot as plt
+import itertools
 import math
+import os
 import pickle
-from csv import DictReader
-from pandas import DataFrame
+import sys
+import time
+from ast import parse
 from collections import Counter
+from csv import DictReader
 from decimal import Decimal, getcontext
 from pathlib import Path
+from typing import Sequence
+from unicodedata import name
+
+import igraph as ig
+import matplotlib.pyplot as plt
+from genericpath import exists
+from pandas import DataFrame
 
 # == Variáveis globais ==
-arestas_para_custoso = 2000 # quantidade de arestas para que o grafo seja considerado custoso
-precisao = 10 # precisao do resultado da subtração de atributos dos vértices para comparação com limiar
+arestas_para_custoso = 2000  # quantidade de arestas para que o grafo seja considerado custoso
+precisao = 10  # precisao do resultado da subtração de atributos dos vértices para comparação com limiar
 
-# == Funções para as diferentes partes do programa == 
+# == Funções para as diferentes partes do programa ==
 
 # - Importação de dados -
 
 # le csv inteiro e o guarda na memória, após, salva cada linha da leitura em uma lista
-# verifica se string é um númerico ou não 
-def eh_numero(num_str: string) -> bool:
+# verifica se string é um númerico ou não
+
+
+def eh_numero(num_str: str) -> bool:
     try:
         float(num_str)
     except ValueError:
@@ -40,13 +41,18 @@ def eh_numero(num_str: string) -> bool:
     return True
 
 # recebe um dicionário e as keys deste dicionário, verificando se existe nele alguma entrada vazia
-def tem_atributo_vazio(linha: dict, keys: list) -> bool:
-    for key in keys:
+
+
+def tem_atributo_vazio(linha: dict, keys: Sequence[str] | None) -> bool:
+    keys_list = list(keys or [])
+    for key in keys_list:
         if linha[key] == "":
             return True
     return False
 
 # checks if link has occupancy of zero
+
+
 def zero_occupancy_link(linha: dict):
     if float(linha["Occupancy"]) == 0:
         return True
@@ -54,6 +60,8 @@ def zero_occupancy_link(linha: dict):
         return False
 
 # checks if link is border link (only has meaning for grid netword)
+
+
 def is_border_link(link: str):
     if "top" in link or "bottom" in link or "right" in link or "left" in link:
         return True
@@ -61,18 +69,21 @@ def is_border_link(link: str):
         return False
 
 # lê os dados do csv e retorna cada linha como um dicionário cujas keys são a primeira coluna do csv e uma lista com as keys do dicionário
+
+
 def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
     with open(caminho_csv) as arquivo:
         # lê cada atributo como string, que será convertido posteriormente
         leitura = DictReader(arquivo)
-        keys = leitura.fieldnames  # guardas as keys do dicionário
+        keys = list(leitura.fieldnames or [])   # guardas as keys do dicionário
 
         linhas = []
         id = 0  # identificador usado para criar arestas
         num_linha = 2
         for linha in leitura:
-            if not tem_atributo_vazio(linha, keys) and not is_border_link(linha["Link"]) and not zero_occupancy_link(linha): # não inclui na lista de dicionários algum dicionário que tiver atributo vazio, ocupação zero ou é um link de borda
-                linhas.append(linha) # grava cada linha (um dicionário próprio) em uma lista de linhas
+            # não inclui na lista de dicionários algum dicionário que tiver atributo vazio, ocupação zero ou é um link de borda
+            if not tem_atributo_vazio(linha, keys) and not is_border_link(linha["Link"]) and not zero_occupancy_link(linha):
+                linhas.append(linha)  # grava cada linha (um dicionário próprio) em uma lista de linhas
                 linha["id"] = id
                 id += 1
             else:
@@ -83,11 +94,14 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
         for linha in linhas:
             for key in keys:
                 if eh_numero(linha[key]):
-                    linha[key] = float(linha[key]) # converte os atributos numéricos para float
-    
-    return linhas, keys  # retorna lista contendo dicionários e outra lista com as keys desses dicionários (são todas as mesmas)
+                    linha[key] = float(linha[key])  # converte os atributos numéricos para float
+
+    # retorna lista contendo dicionários e outra lista com as keys desses dicionários (são todas as mesmas)
+    return linhas, keys
 
 # normaliza os valores da lista de dicionários (com a fórmula n = (x-min)/(max-min)) e retorna uma lista de dicionários normalizada
+
+
 def normaliza_lista(lista_atributos):  # normaliza os valores de uma lista
     minimo = min(lista_atributos)
     maximo = max(lista_atributos)
@@ -103,6 +117,8 @@ def normaliza_lista(lista_atributos):  # normaliza os valores de uma lista
     return lista_atributos_norm
 
 # normaliza os valores do dicionário inteiro
+
+
 def normaliza_lista_dict(lista_dicionarios, keys, lista_ids_label):
     lista_dicionarios_norm = lista_dicionarios
 
@@ -129,9 +145,11 @@ def normaliza_lista_dict(lista_dicionarios, keys, lista_ids_label):
     # retorna a lista de dicionários normalizada
     return lista_dicionarios_norm, keys_norm
 
-#  - Processamento da entrada - 
+#  - Processamento da entrada -
 
 # recebe a lista contendo os vértices do grafo e os nomes dos atributos que irão compor o id, retornando a lista com os nomes dos atributos concatenados
+
+
 def cria_lista_ids(lista_dicionarios, atributos_usados):
     lista_ids = []
 
@@ -152,6 +170,8 @@ def cria_lista_ids(lista_dicionarios, atributos_usados):
     return lista_ids
 
 # recebe a lista contendo os ids dos nodos e retorna True se todos forem diferentes ou False caso contrário
+
+
 def ids_validos(lista_ids):
     pares_ids = itertools.combinations(lista_ids, 2)  # cria pares de ids
 
@@ -162,6 +182,8 @@ def ids_validos(lista_ids):
     return True  # caso contrário, retorna True
 
 # recebe uma lista de atributos (e.g. a lista de atributos usados para unir vértices) e monta uma string com estes atributos separados por "-"
+
+
 def cria_string_com_atributos(lista_atributos):
     string_atributos = ""
     for i in range(len(lista_atributos)):
@@ -171,20 +193,23 @@ def cria_string_com_atributos(lista_atributos):
             string_atributos += f"{str(lista_atributos[i])}-"
     return string_atributos
 
+
 def gets_name_file(directory_file: str) -> str:
     '''
     Input: directory and name of file
-    Output: string containing the name of the file
+    Output: str containing the name of the file
     '''
     nome_arquivo = ""
     names_dir = directory_file.split("/")
     for dir in names_dir:
         if ".csv" in dir:
             nome_arquivo = os.path.splitext(dir)[0]
-    
+
     return nome_arquivo
 
 # recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
+
+
 def monta_nome(limiar, lista_atributos, directory_file):
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
@@ -203,6 +228,8 @@ def monta_nome(limiar, lista_atributos, directory_file):
     return nome_final
 
 # converte string representando intervalo numérico na forma "início-fim" em uma lista contendo os números naquele intervalo
+
+
 def converte_intervalo(intervalo):
     numeros = intervalo.split("-")
 
@@ -222,6 +249,8 @@ def converte_intervalo(intervalo):
     return lista_intervalo
 
 # determina se a entrada é um intervalo numérico na forma "início-fim" ou uma lista de inteiros, retornando a lista de inteiros que corresponde ao intervalo ou a própria lista de inteiros
+
+
 def processa_int_ou_intervalo(entrada):
     lista_intervalo = []
 
@@ -237,6 +266,8 @@ def processa_int_ou_intervalo(entrada):
 # - Criação de arestas -
 
 # dependendo da lógica escolhida, verifica se deve ser criada uma aresta entre um par de nodos
+
+
 def verifica_aresta(lista_resultado, usar_or):
     if usar_or:
         for resultado in lista_resultado:
@@ -252,6 +283,8 @@ def verifica_aresta(lista_resultado, usar_or):
 # dados dois vértices e uma lista de atributos usados como restrição, a função retorna -1 se a lista de restrições contiver "none",
 # False se os vértices possuírem os mesmos valores para os mesmos atributos restritivos ou True se possuírem todos os valores diferentes
 # para os mesmos atributos restritivos
+
+
 def dentro_restricao(v1, v2, lista_restricoes):
     for restricao in lista_restricoes:
         if restricao == "none":
@@ -262,11 +295,15 @@ def dentro_restricao(v1, v2, lista_restricoes):
 
 # verifica se um atributo entre dois dicionários está dentro do limiar ou não
 # recebe dois dicionários, um atributo, um limiar e a precisão da diferença entre atributos
-def dentro_limiar(v1: dict, v2: dict, atributo: string, limiar: float, precisao: float) -> bool:
-    getcontext().prec = precisao 
+
+
+def dentro_limiar(v1: dict, v2: dict, atributo: str, limiar: float, precisao: int) -> bool:
+    getcontext().prec = precisao
     return abs(Decimal(v1[atributo]) - Decimal(v2[atributo])) <= limiar
 
 # monta uma lista de arestas a partir de uma lista de atributos, uma de dicionários, uma de restrições, uma lógica para montar arestas e um limiar
+
+
 def monta_arestas(atributos, lista_dicionarios, lista_restricoes, usar_or, limiar):
     arestas = []
     pesos_arestas = []
@@ -306,9 +343,11 @@ def monta_arestas(atributos, lista_dicionarios, lista_restricoes, usar_or, limia
     # retorna lista com arestas e lista com pesos das arestas
     return arestas, pesos_arestas
 
-# - Toma medidas sobre o grafo - 
+# - Toma medidas sobre o grafo -
 
 # determina se lista de medidas possui alguma medida considerada custosa
+
+
 def determina_possui_medida_custosa(lista_medidas, medidas_custosas):
     for medida_custosa in medidas_custosas:
         if medida_custosa in lista_medidas:
@@ -316,15 +355,18 @@ def determina_possui_medida_custosa(lista_medidas, medidas_custosas):
     return False
 
 # calcula medidas de centralidade do grafo, retornando um dicionário com as medidas
+
+
 def calcula_medidas(grafo, lista_medidas, lista_ids):
+    dict_valores_medidas: dict[str, list] = {}
     for medida in lista_medidas:
         lista_medida_calculada = getattr(grafo, medida)()
+        lista_ids_num_ordenada = []
 
         if medida == lista_medidas[0]:
             lista_medida = lista_medida_calculada.copy()  # usada para ordenar tabela
             lista_medida.sort(reverse=True)
 
-            lista_ids_num_ordenada = []
             for m_ord in lista_medida:
                 for i in range(grafo.vcount()):
                     if m_ord == lista_medida_calculada[i] and i not in lista_ids_num_ordenada:
@@ -350,6 +392,8 @@ def calcula_medidas(grafo, lista_medidas, lista_ids):
 
 # input: graph representing network composed of nodes that are dictionaries
 # output: dictionary with the frequency that the specified key appears in the graph
+
+
 def calculate_frequency_keys(graph, chosen_key):
     list_keys = []
     for v in graph.vs:
@@ -357,7 +401,8 @@ def calculate_frequency_keys(graph, chosen_key):
 
     dict_freq_keys = dict(Counter(key for key in list_keys))
 
-    sorted_dict_freq_keys = {item[0]: item[1] for item in sorted(dict_freq_keys.items(), key=lambda x: (-x[1], x[0]))}  # creates sorted dictionary by value in key in decreasing order
+    # creates sorted dictionary by value in key in decreasing order
+    sorted_dict_freq_keys = {item[0]: item[1] for item in sorted(dict_freq_keys.items(), key=lambda x: (-x[1], x[0]))}
 
     processed_dict = dict()
     processed_dict[chosen_key] = sorted_dict_freq_keys.keys()
@@ -370,9 +415,11 @@ def calculate_frequency_keys(graph, chosen_key):
 
     return processed_dict
 
-# recebe os dados em uma lista, o nome que o arquivo de saída terá e se o dados se referem 
+# recebe os dados em uma lista, o nome que o arquivo de saída terá e se o dados se referem
 # às medidas de centralidade ("centrality") ou frequência ("frequency")
-def monta_tabela(dados: list, nome: str, tipo: str) -> None:
+
+
+def monta_tabela(dados: dict, nome: str, tipo: str) -> None:
     local_path = Path(f"results/tables/{tipo}")
     local_path.mkdir(exist_ok=True, parents=True)
     local_nome = Path(nome)
@@ -380,17 +427,19 @@ def monta_tabela(dados: list, nome: str, tipo: str) -> None:
     fig, ax = plt.subplots(figsize=(11.69, 8.27))
     ax.axis("off")
     ax.axis("tight")
-    
+
     colunas = dados
     df = DataFrame(colunas, columns=colunas)
 
-    ax.table(cellText=df.values, colLabels=df.columns, cellLoc="center", loc="upper center")
+    ax.table(cellText=df.values, colLabels=list(df.columns), cellLoc="center", loc="upper center")
 
     plt.savefig(f"{str(local_path/local_nome)}", format="pdf", bbox_inches="tight")
 
-# - Visual do grafo - 
+# - Visual do grafo -
 
 # calcula o tamanho da imagem do grafo
+
+
 def calcula_bbox(n_arestas):
     bbox_limit = 3000
 
@@ -403,6 +452,8 @@ def calcula_bbox(n_arestas):
     return (bbox, bbox)
 
 # determina cor de um vértice, quão maior o degree, mais quente a cor
+
+
 def determina_cor_vertice(grau, media):
     razao = grau / media
 
@@ -442,6 +493,8 @@ def determina_cor_vertice(grau, media):
         return "#000000"  # black
 
 # cria lista de cores dos vértices do grafo
+
+
 def lista_cores(g):
     lista_graus = g.degree()
 
@@ -457,6 +510,8 @@ def lista_cores(g):
     return lista_cores
 
 # determina características visuais do grafo
+
+
 def determine_visual_style(g):
     font_lower_bound = 8
     visual_style = {}
@@ -468,12 +523,15 @@ def determine_visual_style(g):
     # tamanho do vértice será o maior número entre 15 e 6*math.sqrt(d)
     visual_style["vertex_size"] = [max(15, 6*math.sqrt(d)) for d in g.degree()]
     # tamanho da fonte entre 10 e 8, dependendo do grau do vértice
-    visual_style["vertex_label_size"] = [max(10, 4*math.sqrt(d) if 4*math.sqrt(d) < font_lower_bound else font_lower_bound) for d in g.degree()]
+    visual_style["vertex_label_size"] = [
+        max(10, 4*math.sqrt(d) if 4*math.sqrt(d) < font_lower_bound else font_lower_bound) for d in g.degree()]
     visual_style["layout"] = g.layout("auto")
 
     return visual_style
 
 # determina se o grafo possui algum vértice com grau mínimo passado
+
+
 def possui_grau_minimo(grafo, d_minimo):
     for v in grafo.vs:
         if v.degree() < d_minimo:
@@ -482,6 +540,8 @@ def possui_grau_minimo(grafo, d_minimo):
 
 # input: name of directory to be created
 # output: creates directory with the name passed
+
+
 def create_directory(dirname: str) -> None:
     if not os.path.exists(dirname):
         try:
@@ -489,14 +549,16 @@ def create_directory(dirname: str) -> None:
         except OSError:
             raise OSError(f"Não foi possível criar o diretório {dirname}")
 
+
 def calcula_max_step(lista_dict, keys):
     nome_step = list(filter(lambda x: x == "Step" or x == "step", keys))[0]
-    
+
     lista_step = []
     for v in lista_dict:
         lista_step.append(v[nome_step])
 
     return int(max(lista_step))
+
 
 def verifica_se_esta_no_intervalo(limite_inferior: int, limite_superior: int, valor: float, ultimo_intervalo: bool) -> bool:
     if not ultimo_intervalo:
@@ -511,6 +573,8 @@ def verifica_se_esta_no_intervalo(limite_inferior: int, limite_superior: int, va
             return False
 
 # recebe uma lista de vértices com mesmo link e retorna uma lista contendo todos os vizinhos desse link
+
+
 def retorna_vizinhos_link(lista_vertices_link: list, link: str, nome_link: str) -> list:
     lista_vizinhos_link = []
     for v_link in lista_vertices_link:
@@ -522,20 +586,24 @@ def retorna_vizinhos_link(lista_vertices_link: list, link: str, nome_link: str) 
     return lista_vizinhos_link
 
 # recebe uma lista de vizinhos do link e filtra os links vizinhos que estão no intervalo passado
+
+
 def retorna_vizinhos_no_intervalo(lista_vizinhos_link: list, intervalo: tuple, ultimo_intervalo: bool, nome_step: str, nome_link: str) -> list:
     limite_inferior = intervalo[0]
     limite_superior = intervalo[1]
-    
+
     # para cada vertice, verificar se esta no intervalo e adicionar à lista
     lista_vizinhos_no_intervalo = []
     for vizinho in lista_vizinhos_link:
         if verifica_se_esta_no_intervalo(limite_inferior, limite_superior, vizinho[nome_step], ultimo_intervalo):
             if vizinho[nome_link] not in lista_vizinhos_no_intervalo:
-                lista_vizinhos_no_intervalo.append(vizinho[nome_link]) # quantas informações dos vizinhos guardar
+                lista_vizinhos_no_intervalo.append(vizinho[nome_link])  # quantas informações dos vizinhos guardar
 
     return lista_vizinhos_no_intervalo
 
 # cria um dicionário contendo todos os links do grafo e seus vizinhos em determinado intervalo de tempo
+
+
 def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, max_step: int) -> dict:
     dict_vizinhos = dict()
 
@@ -551,8 +619,10 @@ def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, 
         if link not in lista_links_unica:
             lista_links_unica.append(link)
 
-    lista_intervalos = [] # constroi lista de intervalos (compostos por uma tupla) utilizando o último step e o tamanho do intervalo selecionado: ["[0-1)", "[1-2) ... [n-1, n]"] 
-    nome_intervalo = (0, 0)  # obs: intervalo é fechado à esquerda e aberto à direita, mas o último intervalo é fechado nos dois lados
+    # constroi lista de intervalos (compostos por uma tupla) utilizando o último step e o tamanho do intervalo selecionado: ["[0-1)", "[1-2) ... [n-1, n]"]
+    lista_intervalos = []
+    # obs: intervalo é fechado à esquerda e aberto à direita, mas o último intervalo é fechado nos dois lados
+    nome_intervalo = (0, 0)
     limite_inferior = 0
     limite_superior = 0
     if intervalo == 0:
@@ -567,68 +637,73 @@ def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, 
     for link in lista_links_unica:
         dict_vizinhos[link] = dict()
 
-        lista_link = list(filter(lambda v: v[nome_link] == link, grafo.vs)) # lista de vértices do grafo com link especificado
+        # lista de vértices do grafo com link especificado
+        lista_link = list(filter(lambda v: v[nome_link] == link, grafo.vs))  # type: ignore (igraph typing problem?)
         lista_vizinhos_link = retorna_vizinhos_link(lista_link, link, nome_link)
 
         for i in range(len(lista_intervalos)):
-            ultimo_intervalo = True if i == num_intervalos-1 else False # se for o último intervalo, ele será fechado dos dois lados
-            dict_vizinhos[link][lista_intervalos[i]] = retorna_vizinhos_no_intervalo(lista_vizinhos_link, lista_intervalos[i], ultimo_intervalo, nome_step, nome_link)
-    
+            # se for o último intervalo, ele será fechado dos dois lados
+            ultimo_intervalo = True if i == num_intervalos-1 else False
+            dict_vizinhos[link][lista_intervalos[i]] = retorna_vizinhos_no_intervalo(
+                lista_vizinhos_link, lista_intervalos[i], ultimo_intervalo, nome_step, nome_link)
+
     return dict_vizinhos
 
+
 def main():
-    t_inicio = time.time() # inicia temporizador de saída
+    t_inicio = time.time()  # inicia temporizador de saída
 
     # == Argparse e argumentos do usuário ==
 
     parser = ap.ArgumentParser()
-    parser.add_argument("-f", "--vg_file", 
+    parser.add_argument("-f", "--vg_file",
                         help="Path and name to the file containing the data that is going to be used to create the virtual graph.")
-    parser.add_argument("-atb", "--atributes", default=["ALL"], nargs="+", 
+    parser.add_argument("-atb", "--atributes", default=["ALL"], nargs="+",
                         help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-id", "--labels", nargs="+", 
+    parser.add_argument("-id", "--labels", nargs="+",
                         help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-rst", "--restriction", default=["none"], nargs="+", 
+    parser.add_argument("-rst", "--restriction", default=["none"], nargs="+",
                         help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-lim", "--limiar", type=float, default=0, 
+    parser.add_argument("-lim", "--limiar", type=float, default=0,
                         help="Limiar used to create an edge in the virtual graph. (default = 0)")
-    parser.add_argument("-o", "--use_or", action="store_true", default=False, 
+    parser.add_argument("-o", "--use_or", action="store_true", default=False,
                         help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
-    parser.add_argument("-ms", "--measures",  default=["none"], nargs="+", 
+    parser.add_argument("-ms", "--measures",  default=["none"], nargs="+",
                         help="List of centrality measures to be taken of the virtual graph. (default = none)")
-    parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False, 
+    parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False,
                         help=f"Determines if an image of the virtual graph will not be generated. (default = false)")
-    parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False, 
+    parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False,
                         help="Determines if all nodes with degree zero will not be removed. (default = false)")
-    parser.add_argument("-giant", "--giant_component", action="store_true", default=False, 
+    parser.add_argument("-giant", "--giant_component", action="store_true", default=False,
                         help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (default = false)")
-    parser.add_argument("-rdata", "--raw_data", action="store_true", default=False, 
+    parser.add_argument("-rdata", "--raw_data", action="store_true", default=False,
                         help="Determines if the input data will not be normalized. (default = false)")
-    parser.add_argument("-mdeg", "--min_degree", type=int, default=0, 
+    parser.add_argument("-mdeg", "--min_degree", type=int, default=0,
                         help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
-    parser.add_argument("-mstep", "--min_step", type=int, default=0, 
+    parser.add_argument("-mstep", "--min_step", type=int, default=0,
                         help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
     parser.add_argument("-int", "--interval", type=int, default=250,
                         help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
 
     args = parser.parse_args()
 
-    nome_arquivo_csv = args.vg_file # nome do arquivo csv a ser usado para gerar grafo
-    lista_atributos_numerico = args.atributes # lista de atributos, passados como número da coluna
-    lista_ids_label_numerico = args.labels # lista de ids usados no label, passados como número da coluna
-    lista_restricoes_numerico = args.restriction # lista de restricoes para criar arestas, passadas como número da coluna
+    nome_arquivo_csv = args.vg_file  # nome do arquivo csv a ser usado para gerar grafo
+    lista_atributos_numerico = args.atributes  # lista de atributos, passados como número da coluna
+    lista_ids_label_numerico = args.labels  # lista de ids usados no label, passados como número da coluna
+    lista_restricoes_numerico = args.restriction  # lista de restricoes para criar arestas, passadas como número da coluna
     limiar = args.limiar  # limiar usado para criar arestas
     usar_or = args.use_or  # lógica para criar arestas
     lista_medidas = args.measures  # lista de medidas que serão tomadas do grafo
-    nao_gerar_imagem_grafo = args.no_graph_image # define se será gerada uma imagem do grafo ou não
-    usar_grafo_puro = args.raw_graph # define se será usado o grafo sem processamento (remover vértices de grau zero) ou não
-    giant_component = args.giant_component # define se apenas o giant component será mostrado na imagem
+    nao_gerar_imagem_grafo = args.no_graph_image  # define se será gerada uma imagem do grafo ou não
+    # define se será usado o grafo sem processamento (remover vértices de grau zero) ou não
+    usar_grafo_puro = args.raw_graph
+    giant_component = args.giant_component  # define se apenas o giant component será mostrado na imagem
     use_raw_data = args.raw_data  # define se os dados usados serão normalizados
-    min_degree = args.min_degree # apenas serão mostrados vértices com grau a partir do especificado
-    min_step = args.min_step # apenas serão considerados vértices cujo step é maior ou igual a este valor
-    interval_amplitude = args.interval # amplitude of the virtual graph neighbours dictionary
+    min_degree = args.min_degree  # apenas serão mostrados vértices com grau a partir do especificado
+    min_step = args.min_step  # apenas serão considerados vértices cujo step é maior ou igual a este valor
+    interval_amplitude = args.interval  # amplitude of the virtual graph neighbours dictionary
 
-    # == Verfica consistência de entrada == 
+    # == Verfica consistência de entrada ==
 
     if args.labels == None:
         print("Error! Labels parameter wasn't informed!")
@@ -655,9 +730,9 @@ def main():
     print("Reading file...")
     lista_dict, keys = importa_csv(nome_arquivo_csv)
 
-    lista_ids_label = [] # usada como label do grafo, indica também atributos que não serão normalizados
+    lista_ids_label = []  # usada como label do grafo, indica também atributos que não serão normalizados
     for num_id in lista_ids_label_numerico:  # traduz os número passados como argumento correspondente às colunas
-        lista_ids_label.append(keys[num_id-1]) # numeração das colunas começa em 1, por isso -1
+        lista_ids_label.append(keys[num_id-1])  # numeração das colunas começa em 1, por isso -1
 
     if not use_raw_data:
         lista_dict, keys = normaliza_lista_dict(lista_dict, keys, lista_ids_label)
@@ -679,7 +754,7 @@ def main():
         todos = True
         for atributo in keys:
             if atributo not in lista_ids_label:
-                atributos.append(atributo) # atributos usados serão todos menos os que compõem o id
+                atributos.append(atributo)  # atributos usados serão todos menos os que compõem o id
 
     if lista_restricoes_numerico != ["none"]:
         lista_restricoes = []
@@ -712,7 +787,7 @@ def main():
     # == Cria ids ==
 
     print("Generating labels...")
-    lista_ids = cria_lista_ids(lista_dict, lista_ids_label) # monta lista de identificadores dos vértices do grafo
+    lista_ids = cria_lista_ids(lista_dict, lista_ids_label)  # monta lista de identificadores dos vértices do grafo
     if not ids_validos(lista_ids):  # se os ids gerados não forem únicos
         print("Error! Labels created aren't unique. Use other atributes")
         sys.exit("Exiting program")
@@ -735,7 +810,7 @@ def main():
     g_raw.es["peso"] = pesos_arestas  # arestas recebem seus pesos
 
     for key in keys:
-        g_raw.vs[key] = [veiculo[key] for veiculo in lista_dict] # grafo recebe os atributos dos dicionários
+        g_raw.vs[key] = [veiculo[key] for veiculo in lista_dict]  # grafo recebe os atributos dos dicionários
 
     # pega o nome do atributo referente ao step no arquivo de entrada
     nome_step = list(filter(lambda x: x == "Step" or x == "step", keys))[0]
@@ -747,16 +822,16 @@ def main():
         if min_step > 0:  # se for considerado um step mínimo, remover vértices abaixo desse step
             for v in g.vs:
                 if v[nome_step] < min_step:
-                    to_delete_vertices.append(v) # seleciona ids com step abaixo do mínimo
-            g.delete_vertices(to_delete_vertices) # remove vértices com step abaixo do mínimo
+                    to_delete_vertices.append(v)  # seleciona ids com step abaixo do mínimo
+            g.delete_vertices(to_delete_vertices)  # remove vértices com step abaixo do mínimo
 
-        to_delete_vertices = [] # remove vértices cujo grau é zero
+        to_delete_vertices = []  # remove vértices cujo grau é zero
         for v in g.vs:
             if v.degree() == 0:
-                to_delete_vertices.append(v) # seleciona ids com degree zero
-        g.delete_vertices(to_delete_vertices) # remove todos os ids que não formam nenhuma aresta (cujo grau é zero)
+                to_delete_vertices.append(v)  # seleciona ids com degree zero
+        g.delete_vertices(to_delete_vertices)  # remove todos os ids que não formam nenhuma aresta (cujo grau é zero)
     else:
-        if min_step > 0: # se o usuário escolheu não remover os vértices de grau zero, verificar se escolheu um step mínimo
+        if min_step > 0:  # se o usuário escolheu não remover os vértices de grau zero, verificar se escolheu um step mínimo
             for v in g.vs:
                 if v[nome_step] < min_step:
                     to_delete_vertices.append(v)
@@ -764,15 +839,17 @@ def main():
 
     print("Done")  # finalizou a atribuição
 
-    print("\nInformation about the virtual graph:") # mostra informações do grafo, como número de vértices e quantidade de arestas
+    # mostra informações do grafo, como número de vértices e quantidade de arestas
+    print("\nInformation about the virtual graph:")
     print(g.degree_distribution())
     print(g.summary())
 
     # == Trata custo computacional ==
 
-    medidas_custosas = ["betweenness"] # lista de medidas que são custosas e não desejáveis de ser tomadas se o grafo for muito grande
+    # lista de medidas que são custosas e não desejáveis de ser tomadas se o grafo for muito grande
+    medidas_custosas = ["betweenness"]
     possui_medida_custosa = determina_possui_medida_custosa(lista_medidas, medidas_custosas)
-    nova_lista_medidas = lista_medidas.copy() # usada para, se for escolhido, filtrar as medidas que são custosas
+    nova_lista_medidas = lista_medidas.copy()  # usada para, se for escolhido, filtrar as medidas que são custosas
     custo = 0  # define a intensidade do custo computacional: 0 para baixo, 1 para médio e 2 para alto
     opcao_grafo_grande = 0
 
@@ -781,11 +858,13 @@ def main():
     else:
         custo = 1
 
+    nome_dados = ""
     # se o usuário optou por gerar uma imagem do grafo ou realizar alguma medida
     if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
         if custo == 1:
             if possui_medida_custosa:
-                print(f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph and take costly centrality measures?")
+                print(
+                    f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph and take costly centrality measures?")
                 print("1 - Take measures and generate image")
                 print("2 - Only take measures")
                 print("3 - Only genrate image")
@@ -797,7 +876,8 @@ def main():
                     if opcao_grafo_grande != 1 and opcao_grafo_grande != 2 and opcao_grafo_grande != 3 and opcao_grafo_grande != 4:
                         print("Invalid option, type again.")
             else:
-                print(f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph?")
+                print(
+                    f"The graph has more than {arestas_para_custoso} edges. Do you really wish to generate an image of this graph?")
                 print("1 - Yes")
                 print("2 - No")
 
@@ -813,7 +893,7 @@ def main():
 
                 for medida in lista_medidas:
                     if medida not in medidas_custosas:
-                        nova_lista_medidas.append(medida) # filtra medidas custosas da lista de medidas
+                        nova_lista_medidas.append(medida)  # filtra medidas custosas da lista de medidas
 
         # salva informações que irão compor os nomes dos arquivos de saída
         nome_dados = monta_nome(limiar, lista_atributos_numerico, nome_arquivo_csv)
@@ -828,7 +908,7 @@ def main():
                 vg_path = Path("results/graphs")
                 vg_path.mkdir(exist_ok=True, parents=True)
                 vg_name = Path(f"img_{nome_dados}.pdf")
-                
+
                 if giant_component:  # se foi escolhido para apenas mostrar o giant component do grafo
                     g_plot = g.components().giant().copy()
                 else:  # caso contrario, mostrar todo o grafo
@@ -840,11 +920,11 @@ def main():
                     while possui_grau_minimo(g_plot, min_degree):
                         to_delete_vertices = []
                         for v in g_plot.vs:
-                            if v.degree() < min_degree: # apenas deixar vértices cujo grau é igual ou maior que o passado em mdeg
+                            if v.degree() < min_degree:  # apenas deixar vértices cujo grau é igual ou maior que o passado em mdeg
                                 to_delete_vertices.append(v)
                         g_plot.delete_vertices(to_delete_vertices)
 
-                if g_plot.vcount() != 0: # se o grafo não estiver vazio, plotar
+                if g_plot.vcount() != 0:  # se o grafo não estiver vazio, plotar
                     visual_style = determine_visual_style(g_plot)
                     ig.plot(g_plot, target=str(vg_path/vg_name), **visual_style)
                     print(f"Image '{str(vg_name)}' generated")
@@ -864,7 +944,8 @@ def main():
                 nome_tabela = f"table_{nome_dados}.pdf"
                 nome_tabela_freq = f"freq_table_{nome_dados}.pdf"
                 # tabela com as medidas de caracterização selecionadas é gerada
-                monta_tabela(dados=calcula_medidas(g, nova_lista_medidas, g.vs["label"]), nome=nome_tabela, tipo="centrality")
+                monta_tabela(dados=calcula_medidas(g, nova_lista_medidas,
+                             g.vs["label"]), nome=nome_tabela, tipo="centrality")
                 print(f"Table '{nome_tabela}' generated")
                 # tabela de frequências é gerada
                 monta_tabela(dados=calculate_frequency_keys(g, "Link"), nome=nome_tabela_freq, tipo="frequency")
@@ -874,7 +955,8 @@ def main():
         else:
             print("Centrality measurements list is empty")
 
-    dict_vizinhos = cria_dicionario_vizinhos_links(g, keys, intervalo=interval_amplitude, max_step=calcula_max_step(lista_dict, keys))
+    dict_vizinhos = cria_dicionario_vizinhos_links(
+        g, keys, intervalo=interval_amplitude, max_step=calcula_max_step(lista_dict, keys))
 
     # Saves dictionary to pickle file
 
@@ -885,8 +967,9 @@ def main():
         pickle.dump(dict_vizinhos, dict_pickle_file)
     print(f"Generated dict file '{str(dict_pickle_file_name)}' at {str(dict_path)}")
 
-    t_total = time.time() - t_inicio # Temporizador de saída
+    t_total = time.time() - t_inicio  # Temporizador de saída
     print(f"Finished in {t_total:.4f} seconds")
+
 
 if __name__ == "__main__":
     main()
