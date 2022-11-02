@@ -10,3 +10,4 @@ results
 log
 *.egg-info
 *.sh
+**/build
