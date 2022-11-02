@@ -1,6 +1,6 @@
-from typing import List
 import random as rd
 from datetime import datetime
+
 
 class ODPair:
     """Class responsible for holding information regarding OD-pairs that are necessary in the environment.
@@ -12,10 +12,10 @@ class ODPair:
     def __init__(self, straight_distance: float) -> None:
         self.__straight_distance: float = straight_distance
         self.__min_load: int = -1
-        self.__current_load: List[str] = []
-        self.__vehicles_within: List[str] = []
+        self.__current_load: list[str] = []
+        self.__vehicles_within: list[str] = []
 
-        rd.seed(datetime.now())
+        rd.seed(datetime.now().timestamp())
 
     @property
     def min_load(self) -> int:
@@ -80,6 +80,6 @@ class ODPair:
 
     def append_vehicle(self, vehicle_id: str) -> None:
         self.__vehicles_within.append(vehicle_id)
-        
+
     def random_vehicle(self) -> str:
         return rd.choice([vehicle_id for vehicle_id in self.__vehicles_within if vehicle_id not in self.__current_load])

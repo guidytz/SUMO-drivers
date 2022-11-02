@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -27,14 +27,14 @@ class Vehicle:
         wrong_destination_penalty (int): penalty to subtract to reward if vehicle arrives at wrong destination
         environment (SumoEnvironment): objet of the environment the vehicle is within
     """
-    _normalizer = None
+    _normalizer: scaler | None = None
 
     def __init__(self, vehicle_id: str,
                  origin: str,
                  destination: str,
                  arrival_bonus: int,
                  wrong_destination_penalty: int,
-                 original_route: List[str],
+                 original_route: list[str],
                  environment: SumoEnvironment,
                  objectives: Objectives,
                  min_toll_speed: float,
@@ -46,8 +46,8 @@ class Vehicle:
         self.__wrong_destination_penalty = -wrong_destination_penalty
         self.__original_route = original_route
         self.__env = environment
-        self.__current_link = None
-        self.__last_link = None
+        self.__current_link = ""
+        self.__last_link = ""
         self.__load_time = -1.0
         self.__just_changed = False
         self.__departure_time = -1.0
@@ -55,9 +55,9 @@ class Vehicle:
         self.__last_link_departure_time = -1.0
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
-        self.__emission = defaultdict(lambda: 0)
-        self.__lst_em_rewards = defaultdict(lambda: 0)
-        self.__cumulative_em = defaultdict(lambda: 0)
+        self.__emission = defaultdict(lambda: 0.)
+        self.__lst_em_rewards = defaultdict(lambda: 0.)
+        self.__cumulative_em = defaultdict(lambda: 0.)
         self.__objectives = objectives
         self.__link_inclusion = [tc.VAR_ROAD_ID] if tc.VAR_ROAD_ID not in self.__objectives.known_objectives else []
         self.__color = None
@@ -78,7 +78,7 @@ class Vehicle:
             ready_to_at (bool): variable indicating if the learning agent controling the vehicle can take its next
             action
         """
-        self.__current_link = None
+        self.__current_link = ""
         self.__load_time = -1.0
         self.__departure_time = -1.0
         self.__arrival_time = -1.0
@@ -86,8 +86,8 @@ class Vehicle:
         self.__travel_time_last_link = -1.0
         self.__route = list([self.__origin])
         self.__emission = defaultdict(lambda: 0)
-        self.__lst_em_rewards = defaultdict(lambda: 0)
-        self.__cumulative_em = defaultdict(lambda: 0)
+        self.__lst_em_rewards = defaultdict(lambda: 0.)
+        self.__cumulative_em = defaultdict(lambda: 0.)
 
     @property
     def vehicle_id(self) -> str:
@@ -126,12 +126,12 @@ class Vehicle:
         return f"{self.__origin}|{self.__destination}"
 
     @property
-    def original_route(self) -> List[str]:
+    def original_route(self) -> list[str]:
         """Property that returns the vehicle's original route defined in the route file. This route uses links instead
         of nodes.
 
         Returns:
-            List(str): list containing all the links present in the vehicle's original route
+            list(str): list containing all the links present in the vehicle's original route
         """
         return self.__original_route
 
@@ -159,11 +159,11 @@ class Vehicle:
         self.__load_time = current_time
 
     @property
-    def route(self) -> List[str]:
+    def route(self) -> list[str]:
         """property that returns the vehicle's current route
 
         Returns:
-            List[str]: vehicle's current route
+            list[str]: vehicle's current route
         """
         return self.__route
 
@@ -185,7 +185,7 @@ class Vehicle:
         """
         return self.__last_link
 
-    def compute_reward(self, use_bonus_or_penalty: bool = True, normalize: bool = False) -> np.array:
+    def compute_reward(self, use_bonus_or_penalty: bool = True, normalize: bool = False) -> np.ndarray:
         """Method that computes the reward the agent should receive based on its last action.
         The reward is based on the vehicle's last travel time plus a bonus (if the destination is the vehicle's expected
         destination) or minus a penalty (if the vehicle reaches a destination node that isn't its expected destination)
@@ -236,18 +236,19 @@ class Vehicle:
         Returns:
             scaler: the normalizer that can be used to normalize reward data.
         """
-        if type(self)._normalizer is None:
+        cls = type(self)
+        if cls._normalizer is None:
             path = self.__env.sim_path
             fit_file = f"{path}/fit_data_{'_'.join(self.__objectives.objectives_str_list)}.csv"
             try:
                 fit_data = pd.read_csv(fit_file).to_numpy()
-                type(self)._normalizer = scaler().fit(fit_data)
+                cls._normalizer = scaler().fit(fit_data)
             except FileNotFoundError:
                 err_str = f"File {fit_file} not found."
                 err_str += "Fit data must be in scenario directory."
                 err_str += " Please run simulation with flag '--collect' before"
                 raise RuntimeError(err_str) from FileNotFoundError
-        return type(self)._normalizer
+        return cls._normalizer
 
     @property
     def ready_to_act(self) -> bool:
@@ -388,7 +389,7 @@ class Vehicle:
         return self.__departure_time != -1
 
     @property
-    def travel_time(self) -> int:
+    def travel_time(self) -> float:
         """Property that return the vehicle's travel time if it traveled until a destination node.
 
         Raises:
@@ -406,12 +407,12 @@ class Vehicle:
         return self.__arrival_time - self.__departure_time
 
     @property
-    def cumulative_data(self) -> List[int]:
+    def cumulative_data(self) -> list[float]:
         """Property that returns all the cumulative data from the last link traveled.
         The data regards travel time information as well as observed emissions in the current simulation.
 
         Returns:
-            List[int]: list that contains all data collected in the last link, with travel time being the first info.
+            list[int]: list that contains all data collected in the last link, with travel time being the first info.
         """
         return [self.travel_time] + list(self.__cumulative_em.values())
 
@@ -426,7 +427,7 @@ class Vehicle:
         """
         return link == self.__current_link
 
-    def __update_current_link(self, link: str, current_time: int) -> None:
+    def __update_current_link(self, link: str, current_time: int) -> str:
         """Method to update the vehicle's current link.
 
         Args:
@@ -460,7 +461,7 @@ class Vehicle:
             for key in self.__emission:
                 self.__cumulative_em[key] += self.__emission[key]
                 self.__lst_em_rewards[key] = self.__emission[key]
-            self.__emission = defaultdict(lambda: 0)
+            self.__emission = defaultdict(lambda: 0.)
         for key, value in consumption_data.items():
             self.__emission[key] += value
 
@@ -487,37 +488,37 @@ class Vehicle:
 class Objectives:
     """Class that holds objective params for Multi-objective learning
     """
-    __emissions: Dict[str, int] = {
+    __emissions: dict[str, int] = {
         "CO": tc.VAR_COEMISSION,
         "CO2": tc.VAR_CO2EMISSION,
         "HC": tc.VAR_HCEMISSION,
         "PMx": tc.VAR_PMXEMISSION,
         "NOx": tc.VAR_NOXEMISSION,
     }
-    __conversions: Dict[str, int] = {
+    __conversions: dict[str, int] = {
         "TravelTime": tc.VAR_ROAD_ID,
         **__emissions,
         "Fuel": tc.VAR_FUELCONSUMPTION
     }
 
     def __init__(self, params) -> None:
-        self.__known_objectives: List[int] = Objectives.__retrieve_objectives(params)
+        self.__known_objectives: list[int] = Objectives.__retrieve_objectives(params)
 
     @property
-    def known_objectives(self) -> List[int]:
+    def known_objectives(self) -> list[int]:
         """Known objectives for the current simulation
 
         Returns:
-            List[int]: list containing all the objetives for the given simulation
+            list[int]: list containing all the objetives for the given simulation
         """
         return self.__known_objectives
 
     @property
-    def objectives_str_list(self) -> List[str]:
+    def objectives_str_list(self) -> list[str]:
         """Property that returns a list containing all objective strings for the current simulation's objectives.
 
         Returns:
-            List[str]: list containing all objective strings.
+            list[str]: list containing all objective strings.
         """
         return [string for string, value in self.__conversions.items() if value in self.known_objectives]
 
@@ -543,14 +544,14 @@ class Objectives:
         return any(obj for obj in self.known_objectives if obj in type(self).__emissions.values())
 
     @classmethod
-    def __retrieve_objectives(cls, params: List[str]) -> List[int]:
+    def __retrieve_objectives(cls, params: list[str]) -> list[int]:
         """Function that converts a list of string objetives to their respective IDs
 
         Args:
-            params (List[str]): list of objective strings to convert to IDs
+            params (list[str]): list of objective strings to convert to IDs
 
         Returns:
-            List[int]: list of valid objective IDs for the given string listt
+            list[int]: list of valid objective IDs for the given string listt
         """
-
-        return list(filter(lambda x: x is not None, [cls.__conversions.get(par) for par in params]))
+        converted_list = [cls.__conversions.get(param) for param in params]
+        return [param for param in converted_list if param is not None]
