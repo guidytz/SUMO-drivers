@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='SUMO-QL',
     version='1.1',
-    packages=['sumo_ql', ],
+    packages=['sumo_ql', 'sumo_graphs'],
     install_requires=[
         'numpy',
         'pandas',
