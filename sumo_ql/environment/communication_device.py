@@ -1,13 +1,15 @@
 from __future__ import annotations
-from datetime import datetime
-from os import link
+
 import random as rd
-from traceback import print_tb
-from typing import Dict, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING
+
 import numpy as np
+from sumolib.net.node import Node
 
 if TYPE_CHECKING:
     from sumo_ql.environment.sumo_environment import SumoEnvironment
+
 
 class CommunicationDevice:
     """Class that is responsible for taking care of the infrastructure information such as the expected rewards for
@@ -20,17 +22,17 @@ class CommunicationDevice:
         environment (SumoEnvironment): Stores the object of the environment the commDev is in
     """
 
-    def __init__(self, node: str, max_queue_size: int, comm_success_rate: float, environment: SumoEnvironment) -> None:
+    def __init__(self, node: Node, max_queue_size: int, comm_success_rate: float, environment: SumoEnvironment) -> None:
         self.__node = node
         self.__max_queue_size = max_queue_size
         self.__comm_success_rate = comm_success_rate
         self.__environment = environment
         self.__data = {link.getID(): list() for link in node.getIncoming()}
 
-        rd.seed(datetime.now())
+        rd.seed(datetime.now().timestamp())
 
     @property
-    def communication_success(self) -> None:
+    def communication_success(self) -> bool:
         """Property that returns if the communication should fail or succeed based on a random number taken and the
         success rate stored.
 
@@ -67,21 +69,21 @@ class CommunicationDevice:
             np.ndarray: List of averages of the stored rewards for the given link if there is data stored or 0.0 otherwise
         """
         nobj = len(self.__environment.objectives.known_objectives)
-        
+
         if link not in self.__data.keys():
             raise RuntimeError("Link is not connected to commDev's node")
 
         if len(self.__data[link]) > 0:
             data_mean = np.mean(self.__data[link], axis=0)
-            if len(data_mean) == nobj: # if the amount of data is correct
+            if len(data_mean) == nobj:  # if the amount of data is correct
                 return data_mean
-            else:   
+            else:
                 print(f"Size data mean doesn't match number of objectives for {link}")
         else:
             print(f"Empty link data list for {link}")
 
         return np.zeros(shape=nobj)
-    
+
     def get_graph_neighbours_interval(self, graph_neighbours_link: dict, current_step: int) -> list:
         number_of_intervals = len(graph_neighbours_link)
         i = 0
@@ -96,12 +98,11 @@ class CommunicationDevice:
         #print("Interval not found, returning empty list")
         return []
 
-
-    def get_outgoing_links_expected_rewards(self) -> Dict[str, np.ndarray]:
+    def get_outgoing_links_expected_rewards(self) -> dict[str, np.ndarray]:
         """Returns a dictionary containing the expected rewards from all the outgoing links from the commDev's node.
 
         Returns:
-            Dict[str, float]: dictionary containing expected rewards from all outgoing links from the commDev's node.
+            dict[str, float]: dictionary containing expected rewards from all outgoing links from the commDev's node.
             Being that the keys are the links ID and the values are the expected rewards.
         """
         links_data = dict()
@@ -116,7 +117,8 @@ class CommunicationDevice:
             graph_neighbours = self.__environment.get_graph_neighbours()
             if link_id in list(graph_neighbours.keys()):
                 current_step = self.__environment.current_step
-                graph_neighbours_link_interval = self.get_graph_neighbours_interval(graph_neighbours[link_id], current_step)
+                graph_neighbours_link_interval = self.get_graph_neighbours_interval(
+                    graph_neighbours[link_id], current_step)
 
                 for link_graph_neighbour in graph_neighbours_link_interval:
                     node_id = self.__environment.get_link_destination(link_graph_neighbour)

@@ -1,23 +1,18 @@
 import argparse
-import errno
 import logging
 import os
+import pickle
 import sys
 from datetime import datetime
 from multiprocessing import Pool
-import logging
-import numpy as np
-import pickle
-from typing import Dict, List, Union
 from pathlib import Path
 
 import numpy as np
+from sumo_graphs.graph import generate_graph_neighbours_dict
 from sumo_ql.agent.q_learning import PQLAgent, QLAgent
 from sumo_ql.collector.collector import DefaultCollector, LinkCollector
 from sumo_ql.environment.sumo_environment import SumoEnvironment
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.collector.collector import LinkCollector, DefaultCollector
-from sumo_graphs.graph import generate_graph_neighbours_dict
 
 SAVE_OBJ_CHOSEN = False
 
@@ -36,22 +31,22 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         OSError: the function raises an OSError if the log directory can't be created.
         Exception: If any unknown error occurs during the simulation, it raises an exception.
     """
-    agents: Dict[str, QLAgent] = dict()
+    agents: dict[str, QLAgent | PQLAgent] = dict()
     observations = None
     rewards = None
-    env: SumoEnvironment = None
+    env: SumoEnvironment
     collect_fit: bool = False
     agent_type = args.agent_type
     opt_travel_time = args.objectives[0] == "TravelTime"
 
-    if args.vg_file == None and args.graph_dict == "":
+    if args.vg_file is None and args.graph_dict == "":
         uses_virtual_graph = False
         print("Empty graph neighbours dict, not using virtual graph")
         graph_neighbours_dict = {}
     else:
         print("Using virtual graph")
         uses_virtual_graph = True
-        if args.vg_file == None:
+        if args.vg_file is None:
             # reads pickle file containing virtual graph neighbours dictionary
             print("Reading graph neighbours dictionary from pickle file...")
             with open(f"{args.graph_dict}", "rb") as vg_dict_pickle:
@@ -60,12 +55,14 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             # generates graph neighbours dict
             print("Generating graph neighbours dictionary...")
             network_name = str(args.cfgfile).split('/')[-2]
-            graph_neighbours_dict = generate_graph_neighbours_dict(args.vg_file, args.atributes, args.labels, args.restriction,
-                                                                        args.limiar, args.use_or, args.measures, args.no_graph_image,
-                                                                        args.raw_graph, args.giant_component, args.raw_data, args.min_degree,
-                                                                        args.min_step, arestas_para_custoso=2000, precisao=10, intervalo_vizinhos=args.interval,
-                                                                        network_name=network_name)
-                                                                        
+            graph_neighbours_dict = generate_graph_neighbours_dict(args.vg_file, args.atributes, args.labels,
+                                                                   args.restriction, args.limiar, args.use_or,
+                                                                   args.measures, args.no_graph_image, args.raw_graph,
+                                                                   args.giant_component, args.raw_data, args.min_degree,
+                                                                   args.min_step, arestas_para_custoso=2000,
+                                                                   precisao=10, intervalo_vizinhos=args.interval,
+                                                                   network_name=network_name)
+
     print("====== SUMO-QL-GRAPH ======")
 
     if args.collect:
@@ -73,14 +70,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             print("Making a data fit collect run.")
         else:
             print("Warning: data fit collect only happens in single run simulations.")
-
-    def create_dir(dirname: str) -> None:
-        try:
-            os.mkdir(f"{dirname}")
-        except OSError as error:
-            if error.errno != errno.EEXIST:
-                print(f"Couldn't create folder {dirname}, error message: {error.strerror}")
-                raise OSError(error).with_traceback(error.__traceback__)
 
     def create_log(dirname: str, date: datetime) -> None:
         """Method that creates a log file that has information of beginning and end of simulations when making multiple
@@ -94,8 +83,6 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             OSError: the method raises an OSError if the directory couldn't be created (it doesn't raise the error if
             the directory already exists).
         """
-        #create_dir("log")
-        #create_dir(f"log/{dirname}")
 
         log_directory = Path(f"log/{dirname}")
         log_directory.mkdir(exist_ok=True, parents=True)
@@ -112,9 +99,9 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                 moving_avg_gap: int,
                                 date: datetime,
                                 uses_virtual_graph: bool,
-                                agent_type = str,
+                                agent_type: str,
                                 n_runs: int = 1,
-                                objectives: List[str] = None) -> LinkCollector:
+                                objectives: list[str] | None = None) -> LinkCollector:
         """Method that generates a data collector based on the information used in the simulation.
 
         Args:
@@ -127,6 +114,9 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Returns:
             DataCollector: class responsible for collecting data from the environment.
         """
+        if objectives is None:
+            raise RuntimeError("Objectives list cannot be empty!")
+
         main_simulation_name = str(cfgfile).split('/')[-2]
         additional_folders = list()
 
@@ -200,6 +190,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
     def run(iteration) -> None:
         """Method that runs a simulation.
         """
+        chosen_obj_collector: DefaultCollector | None = None
         if iteration != -1:
             logging.info("Iteration %s started.", iteration)
         observations = env.reset()
@@ -208,11 +199,13 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         if agent_type == "PQL":
             network_name = str(args.cfgfile).split('/')[-2]
             chosen_obj_collector = DefaultCollector(1,
-                                                    Path(f"results/ChosenObj/{network_name}/{date.strftime('%y_%m_%d')}"),
+                                                    Path("results/ChosenObj/") /
+                                                    f"{network_name}" /
+                                                    f"{date.strftime('%y_%m_%d')}",
                                                     ["Step"] + args.objectives)
 
         while not done['__all__']:
-            actions = dict()
+            actions: dict[str, int] = dict()
             for vehicle_id, vehicle in observations.items():
                 if vehicle['reinserted'] and vehicle_id not in agents:
                     create_agent(vehicle_id)
@@ -223,17 +216,23 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                     handle_communication(vehicle_id, vehicle['current_state'])
                     current_state = vehicle['current_state']
                     available_actions = vehicle['available_actions']
-                    if agent_type == "QL":
-                        actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
-                    elif agent_type == "PQL":
-                        actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state,
-                                                                                 available_actions)
-                        if chosen_obj != -1:
-                            chosen_sum[chosen_obj] += 1
-            if agent_type == "PQL":
-                obj_collection_dict = {key: [val] for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
-                obj_collection_dict["Step"] = [env.current_step]
-                chosen_obj_collector.append(obj_collection_dict)
+                    match agents:
+                        case dict(QLAgent(_)):
+                            actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
+                        case dict(PQLAgent(_)):
+                            actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state,
+                                                                                     available_actions)
+                            if chosen_obj != -1:
+                                chosen_sum[chosen_obj] += 1
+
+            match chosen_obj_collector:
+                case None:
+                    raise RuntimeError("Collector for chosen objectives should not be None here.")
+                case DefaultCollector(_):
+                    obj_collection_dict = {key: [val]
+                                           for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
+                    obj_collection_dict["Step"] = [env.current_step]
+                    chosen_obj_collector.append(obj_collection_dict)
 
             observations, rewards, done, _ = env.step(actions)
 
@@ -257,7 +256,8 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         Args:
             vehicle_id (str): vehicle id to identify the agent.
         """
-        #print(f"Setting agent with {args.alpha} and {args.gamma}")
+        # print(f"Setting agent with {args.alpha} and {args.gamma}")
+
         if agent_type == "QL":
             agents[vehicle_id] = QLAgent(action_space=env.action_space,
                                          exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
@@ -265,13 +265,13 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                                          gamma=args.gamma)
         elif agent_type == "PQL":
             agents[vehicle_id] = PQLAgent(action_space=env.action_space,
-                                         exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
-                                         alpha=args.alpha,
-                                         gamma=args.gamma)
+                                          exploration_strategy=EpsilonGreedy(initial_epsilon=0.05, min_epsilon=0.05),
+                                          alpha=args.alpha,
+                                          gamma=args.gamma)
         else:
             raise RuntimeError(f"Agent {agent_type} not recognized. Agents should be QL or PQL.")
 
-    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: np.array) -> None:
+    def handle_learning(vehicle_id: str, origin_node: str, destination_node: str, reward: np.ndarray) -> None:
         """Method that takes care of the learning process for the agent given.
 
         Args:
@@ -285,12 +285,12 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
         """
         try:
             action = env.get_action(origin_node, destination_node)
-            if agent_type == "QL":
-                obj = 0 if opt_travel_time else 1
-                agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
-
-            elif agent_type == "PQL":
-                agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+            match agents:
+                case dict(QLAgent(_)):
+                    obj = 0 if opt_travel_time else 1
+                    agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
+                case dict(PQLAgent(_)):
+                    agents[vehicle_id].learn(action, origin_node, destination_node, reward)
 
         except Exception as exception:
             print(f"{vehicle_id = }")
@@ -312,14 +312,14 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             for link, expected_reward in expected_rewards.items():
                 origin = env.get_link_origin(link)
                 destination = env.get_link_destination(link)
-                handle_learning(vehicle_id, origin, destination, expected_reward)    
+                handle_learning(vehicle_id, origin, destination, expected_reward)
 
     # Run the simulation
     env = create_environment(args, graph_neighbours_dict)
     run(iteration)
 
 
-def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
+def parse_args() -> tuple[argparse.Namespace, argparse.ArgumentParser]:
     """Method that implements the argument parser for the script.
 
     Returns:
@@ -371,34 +371,41 @@ def parse_args() -> Union[argparse.Namespace, argparse.ArgumentParser]:
 
     # graph arguments
 
-    parser.add_argument("-f", "--vg_file", 
-                        help="Path and name to the file containing the data that is going to be used to create the virtual graph.")
-    parser.add_argument("-atb", "--atributes", default=["ALL"], nargs="+", 
-                        help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-id", "--labels", nargs="+", 
-                        help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-rst", "--restriction", default=["none"], nargs="+", 
-                        help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-lim", "--limiar", type=float, default=0, 
+    parser.add_argument("-f", "--vg_file",
+                        help="Path and name to the file containing the data that is going to be used to create the "
+                        "virtual graph.")
+    parser.add_argument("-atb", "--atributes", default=["ALL"], nargs="+",
+                        help="List of atributes used to create the virtual graph. Atribute is given by the number of "
+                        "the column of the input file.")
+    parser.add_argument("-id", "--labels", nargs="+",
+                        help="List of atributes that will compose the label of the virtual graph. Atribute is given by "
+                        "the number of the column of the input file.")
+    parser.add_argument("-rst", "--restriction", default=["none"], nargs="+",
+                        help="List of atributes that the nodes cannot share in order to create an edge in the virtual "
+                        "graph. Atribute is given by the number of the column of the input file.")
+    parser.add_argument("-lim", "--limiar", type=float, default=0,
                         help="Limiar used to create an edge in the virtual graph. (default = 0)")
-    parser.add_argument("-o", "--use_or", action="store_true", default=False, 
-                        help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
-    parser.add_argument("-ms", "--measures",  default=["none"], nargs="+", 
+    parser.add_argument("-o", "--use_or", action="store_true", default=False,
+                        help="Use or logic instead of the and logic to create an edge between nodes given multiple "
+                        "atributes. (default = false)")
+    parser.add_argument("-ms", "--measures",  default=["none"], nargs="+",
                         help="List of centrality measures to be taken of the virtual graph. (default = none)")
-    parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False, 
-                        help=f"Determines if an image of the virtual graph will not be generated. (default = false)")
-    parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False, 
+    parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False,
+                        help="Determines if an image of the virtual graph will not be generated. (default = false)")
+    parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False,
                         help="Determines if all nodes with degree zero will not be removed. (default = false)")
-    parser.add_argument("-giant", "--giant_component", action="store_true", default=False, 
-                        help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (default = false)")
-    parser.add_argument("-rdata", "--raw_data", action="store_true", default=False, 
+    parser.add_argument("-giant", "--giant_component", action="store_true", default=False,
+                        help="Determines if only the giant component of the virtual graph will be present in the "
+                        "virtual graph image. (default = false)")
+    parser.add_argument("-rdata", "--raw_data", action="store_true", default=False,
                         help="Determines if the input data will not be normalized. (default = false)")
-    parser.add_argument("-mdeg", "--min_degree", type=int, default=0, 
+    parser.add_argument("-mdeg", "--min_degree", type=int, default=0,
                         help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
-    parser.add_argument("-mstep", "--min_step", type=int, default=0, 
+    parser.add_argument("-mstep", "--min_step", type=int, default=0,
                         help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
     parser.add_argument("-int", "--interval", type=int, default=250,
-                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
+                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. "
+                        "(default = 250)")
 
     return parser.parse_args(), parser
 
