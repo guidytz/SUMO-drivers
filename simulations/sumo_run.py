@@ -210,7 +210,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                 if vehicle['reinserted'] and vehicle_id not in agents:
                     create_agent(vehicle_id)
 
-            chosen_sum = [0 for obj in range(len(args.objectives))]
+            chosen_sum = [0 for _ in range(len(args.objectives))]
             for vehicle_id, vehicle in observations.items():
                 if vehicle['ready_to_act'] and vehicle_id in agents:
                     handle_communication(vehicle_id, vehicle['current_state'])
@@ -225,14 +225,15 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
                             if chosen_obj != -1:
                                 chosen_sum[chosen_obj] += 1
 
-            match chosen_obj_collector:
-                case None:
-                    raise RuntimeError("Collector for chosen objectives should not be None here.")
-                case DefaultCollector(_):
-                    obj_collection_dict = {key: [val]
-                                           for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
-                    obj_collection_dict["Step"] = [env.current_step]
-                    chosen_obj_collector.append(obj_collection_dict)
+            if agent_type == "PQL":
+                match chosen_obj_collector:
+                    case None:
+                        raise RuntimeError("Collector for chosen objectives should not be None here.")
+                    case DefaultCollector(_):
+                        obj_collection_dict = {key: [val]
+                                            for key, val in zip(env.objectives.objectives_str_list, chosen_sum)}
+                        obj_collection_dict["Step"] = [env.current_step]
+                        chosen_obj_collector.append(obj_collection_dict)
 
             observations, rewards, done, _ = env.step(actions)
 
