@@ -11,3 +11,4 @@ log
 *.egg-info
 *.sh
 **/build
+*.pkl
