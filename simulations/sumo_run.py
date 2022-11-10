@@ -8,7 +8,7 @@ from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
-from sumo_graphs.virtual_graph import generate_graph_neighbours_dict
+from sumo_vg.virtual_graph import generate_graph_neighbours_dict
 from sumo_ql.agent.q_learning import PQLAgent, QLAgent
 from sumo_ql.collector.collector import DefaultCollector, LinkCollector
 from sumo_ql.environment.sumo_environment import SumoEnvironment
