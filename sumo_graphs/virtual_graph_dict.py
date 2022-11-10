@@ -664,8 +664,8 @@ def main():
                         help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
     parser.add_argument("-rst", "--restriction", default=["none"], nargs="+",
                         help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-lim", "--limiar", type=float, default=0,
-                        help="Limiar used to create an edge in the virtual graph. (default = 0)")
+    parser.add_argument("-tsh", "--threshold", type=float, default=0,
+                        help="Threshold used to create an edge in the virtual graph. (default = 0)")
     parser.add_argument("-o", "--use_or", action="store_true", default=False,
                         help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
     parser.add_argument("-ms", "--measures",  default=["none"], nargs="+",
@@ -691,7 +691,7 @@ def main():
     lista_atributos_numerico = args.atributes  # lista de atributos, passados como número da coluna
     lista_ids_label_numerico = args.labels  # lista de ids usados no label, passados como número da coluna
     lista_restricoes_numerico = args.restriction  # lista de restricoes para criar arestas, passadas como número da coluna
-    limiar = args.limiar  # limiar usado para criar arestas
+    limiar = args.threshold  # limiar usado para criar arestas
     usar_or = args.use_or  # lógica para criar arestas
     lista_medidas = args.measures  # lista de medidas que serão tomadas do grafo
     nao_gerar_imagem_grafo = args.no_graph_image  # define se será gerada uma imagem do grafo ou não

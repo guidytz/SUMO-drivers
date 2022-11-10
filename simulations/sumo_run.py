@@ -8,7 +8,7 @@ from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
-from sumo_graphs.graph import generate_graph_neighbours_dict
+from sumo_graphs.virtual_graph import generate_graph_neighbours_dict
 from sumo_ql.agent.q_learning import PQLAgent, QLAgent
 from sumo_ql.collector.collector import DefaultCollector, LinkCollector
 from sumo_ql.environment.sumo_environment import SumoEnvironment
@@ -56,14 +56,13 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
             print("Generating graph neighbours dictionary...")
             network_name = str(args.cfgfile).split('/')[-2]
             graph_neighbours_dict = generate_graph_neighbours_dict(args.vg_file, args.atributes, args.labels,
-                                                                   args.restriction, args.limiar, args.use_or,
+                                                                   args.restriction, args.threshold, args.use_or,
                                                                    args.measures, args.no_graph_image, args.raw_graph,
                                                                    args.giant_component, args.raw_data, args.min_degree,
                                                                    args.min_step, arestas_para_custoso=2000,
                                                                    precisao=10, intervalo_vizinhos=args.interval,
                                                                    network_name=network_name)
 
-    print("====== SUMO-QL-GRAPH ======")
 
     if args.collect:
         if (collect_fit := args.n_runs == 1):
@@ -384,8 +383,8 @@ def parse_args() -> tuple[argparse.Namespace, argparse.ArgumentParser]:
     parser.add_argument("-rst", "--restriction", default=["none"], nargs="+",
                         help="List of atributes that the nodes cannot share in order to create an edge in the virtual "
                         "graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-lim", "--limiar", type=float, default=0,
-                        help="Limiar used to create an edge in the virtual graph. (default = 0)")
+    parser.add_argument("-tsh", "--threshold", type=float, default=0,
+                        help="Threshold used to create an edge in the virtual graph. (default = 0)")
     parser.add_argument("-o", "--use_or", action="store_true", default=False,
                         help="Use or logic instead of the and logic to create an edge between nodes given multiple "
                         "atributes. (default = false)")
