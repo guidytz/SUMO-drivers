@@ -1,4 +1,4 @@
-# cria grafo com dados lidos de um csv
+# functions to create virtual graph
 
 import datetime as dt
 import itertools
@@ -9,57 +9,63 @@ from collections import Counter
 from csv import DictReader
 from decimal import Decimal, getcontext
 from pathlib import Path
-
 import igraph as ig
 import matplotlib.pyplot as plt
 from pandas import DataFrame
 
+
 # == Funções para as diferentes partes do programa ==
+
 
 # - Importação de dados -
 
-# le csv inteiro e o guarda na memória, após, salva cada linha da leitura em uma lista
-# verifica se string é um númerico ou não
-
 
 def eh_numero(num_str: str) -> bool:
+    '''
+    Le csv inteiro e o guarda na memória, após, salva cada linha da leitura em uma lista
+    verifica se string é um númerico ou não 
+    '''
     try:
         float(num_str)
     except ValueError:
         return False
     return True
 
-# recebe um dicionário e as keys deste dicionário, verificando se existe nele alguma entrada vazia
-
 
 def tem_atributo_vazio(linha: dict, keys: list) -> bool:
+    '''
+    Recebe um dicionário e as keys deste dicionário, verificando se existe nele alguma entrada vazia
+    '''
     for key in keys:
         if linha[key] == "":
             return True
     return False
 
-# checks if link has occupancy of zero
 
-
-def zero_occupancy_link(linha: dict):
+def zero_occupancy_link(linha: dict) -> bool:
+    '''
+    Checks if link has occupancy of zero
+    '''
     if float(linha["Occupancy"]) == 0:
         return True
     else:
         return False
 
-# checks if link is border link (only has meaning for grid netword)
 
-
-def is_border_link(link: str):
+def is_border_link(link: str) -> bool:
+    '''
+    Checks if link is border link (only makes sense in grid network)
+    '''
     if "top" in link or "bottom" in link or "right" in link or "left" in link:
         return True
     else:
         return False
 
-# lê os dados do csv e retorna cada linha como um dicionário cujas keys são a primeira coluna do csv e uma lista com as keys do dicionário
 
-
-def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
+def importa_csv(caminho_csv: str) -> list:  # recebe o caminho e o nome do arquivo a ser lido
+    '''
+    Lê os dados do csv e retorna cada linha como um dicionário cujas keys são o header do csv e uma lista com as keys do dicionário
+    '''
     with open(caminho_csv) as arquivo:
         # lê cada atributo como string, que será convertido posteriormente
         leitura = DictReader(arquivo)
@@ -87,10 +93,11 @@ def importa_csv(caminho_csv):  # recebe o caminho e o nome do arquivo a ser lido
     # retorna lista contendo dicionários e outra lista com as keys desses dicionários (são todas as mesmas)
     return linhas, keys
 
-# normaliza os valores da lista de dicionários (com a fórmula n = (x-min)/(max-min)) e retorna uma lista de dicionários normalizada
 
-
-def normaliza_lista(lista_atributos):  # normaliza os valores de uma lista
+def normaliza_lista(lista_atributos: list) -> list: 
+    '''
+    Normaliza os valores de uma lista (com a fórmula n = (x-min)/(max-min)) e retorna uma lista com valores normalizados
+    '''
     minimo = min(lista_atributos)
     maximo = max(lista_atributos)
 
@@ -104,10 +111,11 @@ def normaliza_lista(lista_atributos):  # normaliza os valores de uma lista
 
     return lista_atributos_norm
 
-# normaliza os valores do dicionário inteiro
 
-
-def normaliza_lista_dict(lista_dicionarios, keys, lista_ids_label):
+def normaliza_lista_dict(lista_dicionarios: list, keys: list, lista_ids_label: list) -> list:
+    '''
+    Normaliza os valores de uma lista de dicionários
+    '''
     lista_dicionarios_norm = lista_dicionarios
 
     keys_norm = []
@@ -133,12 +141,14 @@ def normaliza_lista_dict(lista_dicionarios, keys, lista_ids_label):
     # retorna a lista de dicionários normalizada
     return lista_dicionarios_norm, keys_norm
 
+
 #  - Processamento da entrada -
 
-# recebe a lista contendo os vértices do grafo e os nomes dos atributos que irão compor o id, retornando a lista com os nomes dos atributos concatenados
 
-
-def cria_lista_ids(lista_dicionarios, atributos_usados):
+def cria_lista_ids(lista_dicionarios: list, atributos_usados: list) -> list:
+    '''
+    Recebe a lista contendo os vértices do grafo e os nomes dos atributos que irão compor o id, retornando a lista com os atributos concatenados
+    '''
     lista_ids = []
 
     for nodo in lista_dicionarios:
@@ -157,10 +167,11 @@ def cria_lista_ids(lista_dicionarios, atributos_usados):
 
     return lista_ids
 
-# recebe a lista contendo os ids dos nodos e retorna True se todos forem diferentes ou False caso contrário
 
-
-def ids_validos(lista_ids):
+def ids_validos(lista_ids: list) -> bool:
+    '''
+    Recebe a lista contendo os ids dos nodos e retorna True se todos forem diferentes ou False caso contrário
+    '''
     pares_ids = itertools.combinations(lista_ids, 2)  # cria pares de ids
 
     for par in pares_ids:
@@ -169,10 +180,11 @@ def ids_validos(lista_ids):
 
     return True  # caso contrário, retorna True
 
-# recebe uma lista de atributos (e.g. a lista de atributos usados para unir vértices) e monta uma string com estes atributos separados por "-"
 
-
-def cria_string_com_atributos(lista_atributos):
+def cria_string_com_atributos(lista_atributos: list) -> str:
+    '''
+    Recebe uma lista de atributos e monta uma string com estes atributos separados por "-"
+    '''
     string_atributos = ""
     for i in range(len(lista_atributos)):
         if i == len(lista_atributos)-1:
@@ -181,10 +193,25 @@ def cria_string_com_atributos(lista_atributos):
             string_atributos += f"{str(lista_atributos[i])}-"
     return string_atributos
 
-# recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
+
+def gets_name_file(directory_file: str) -> str:
+    '''
+    Input: directory and name of file
+    Output: str containing the name of the file
+    '''
+    nome_arquivo = ""
+    names_dir = directory_file.split("/")
+    for dir in names_dir:
+        if ".csv" in dir:
+            nome_arquivo = os.path.splitext(dir)[0]
+
+    return nome_arquivo
 
 
-def monta_nome(limiar, lista_atributos, network_name):
+def monta_nome(limiar: float, lista_atributos: list, directory_file: str) -> str:
+    '''
+    Recebe os parâmetros do usuário e gera o nome do arquivo que contém alguns dados do grafo
+    '''
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
 
@@ -193,14 +220,15 @@ def monta_nome(limiar, lista_atributos, network_name):
     limiar_str = str(limiar)
     # remove o ponto do limiar para nao causar problemas com o nome e a extensão do arquivo
     limiar_str_processada = limiar_str.replace('.', "'")
-    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{network_name}"
+    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{directory_file}"
 
     return nome_final
 
-# converte string representando intervalo numérico na forma "início-fim" em uma lista contendo os números naquele intervalo
 
-
-def converte_intervalo(intervalo):
+def converte_intervalo(intervalo: str) -> list:
+    '''
+    Converte string representando intervalo numérico na forma "início-fim" em uma lista contendo os números naquele intervalo
+    '''
     numeros = intervalo.split("-")
 
     inicio = int(numeros[0])
@@ -218,10 +246,11 @@ def converte_intervalo(intervalo):
 
     return lista_intervalo
 
-# determina se a entrada é um intervalo numérico na forma "início-fim" ou uma lista de inteiros, retornando a lista de inteiros que corresponde ao intervalo ou a própria lista de inteiros
 
-
-def processa_int_ou_intervalo(entrada):
+def processa_int_ou_intervalo(entrada: str) -> list:
+    '''
+    Determina se a entrada é um intervalo numérico na forma "início-fim" ou uma lista de inteiros, retornando a lista de inteiros que corresponde ao intervalo ou a própria lista de inteiros
+    '''
     lista_intervalo = []
 
     for v in entrada:
@@ -233,12 +262,14 @@ def processa_int_ou_intervalo(entrada):
 
     return lista_intervalo
 
+
 # - Criação de arestas -
 
-# dependendo da lógica escolhida, verifica se deve ser criada uma aresta entre um par de nodos
 
-
-def verifica_aresta(lista_resultado, usar_or):
+def verifica_aresta(lista_resultado: list, usar_or: bool) -> bool:
+    '''
+    Dependendo da lógica escolhida, verifica se deve ser criada uma aresta entre um par de nodos
+    '''
     if usar_or:
         for resultado in lista_resultado:
             if resultado == 1:  # dada a lista final de resultados, se houver algum verdadeiro, a aresta é criada
@@ -250,12 +281,13 @@ def verifica_aresta(lista_resultado, usar_or):
                 return False
         return True
 
-# dados dois vértices e uma lista de atributos usados como restrição, a função retorna -1 se a lista de restrições contiver "none",
-# False se os vértices possuírem os mesmos valores para os mesmos atributos restritivos ou True se possuírem todos os valores diferentes
-# para os mesmos atributos restritivos
 
-
-def dentro_restricao(v1, v2, lista_restricoes):
+def dentro_restricao(v1: dict, v2: dict, lista_restricoes: list) -> bool:
+    '''
+    Dados dois vértices e uma lista de atributos usados como restrição, a função retorna -1 se a lista de restrições contiver "none",
+    False se os vértices possuírem os mesmos valores para os mesmos atributos restritivos ou True se possuírem todos os valores diferentes
+    para os mesmos atributos restritivos
+    '''
     for restricao in lista_restricoes:
         if restricao == "none":
             return -1
@@ -263,18 +295,20 @@ def dentro_restricao(v1, v2, lista_restricoes):
             return False
     return True
 
-# verifica se um atributo entre dois dicionários está dentro do limiar ou não
-# recebe dois dicionários, um atributo, um limiar e a precisão da diferença entre atributos
 
-
-def dentro_limiar(v1: dict, v2: dict, atributo: str, limiar: float, precisao: int) -> bool:
+def dentro_limiar(v1: dict, v2: dict, atributo: str, limiar: float, precisao: float) -> bool:
+    '''
+    Verifica se um atributo entre dois dicionários está dentro do limiar ou não
+    recebe dois dicionários, um atributo, um limiar e a precisão da diferença entre atributos
+    '''
     getcontext().prec = precisao
     return abs(Decimal(v1[atributo]) - Decimal(v2[atributo])) <= limiar
 
-# monta uma lista de arestas a partir de uma lista de atributos, uma de dicionários, uma de restrições, uma lógica para montar arestas e um limiar
 
-
-def monta_arestas(atributos, lista_dicionarios, lista_restricoes, usar_or, limiar, precisao):
+def monta_arestas(atributos: list, lista_dicionarios: list, lista_restricoes: list, usar_or: bool, limiar: float, precisao: float):
+    '''
+    Monta uma lista de arestas a partir de uma lista de atributos, uma de dicionários, uma de restrições, uma lógica para montar arestas e um limiar
+    '''
     arestas = []
     pesos_arestas = []
     # para cada par de dicionários da lista
@@ -313,21 +347,24 @@ def monta_arestas(atributos, lista_dicionarios, lista_restricoes, usar_or, limia
     # retorna lista com arestas e lista com pesos das arestas
     return arestas, pesos_arestas
 
+
 # - Toma medidas sobre o grafo -
 
-# determina se lista de medidas possui alguma medida considerada custosa
 
-
-def determina_possui_medida_custosa(lista_medidas, medidas_custosas):
+def determina_possui_medida_custosa(lista_medidas: list, medidas_custosas: list) -> bool:
+    '''
+    Determina se lista de medidas possui alguma medida considerada custosa
+    '''
     for medida_custosa in medidas_custosas:
         if medida_custosa in lista_medidas:
             return True
     return False
 
-# calcula medidas de centralidade do grafo, retornando um dicionário com as medidas
 
-
-def calcula_medidas(grafo, lista_medidas, lista_ids):
+def calcula_medidas(grafo: ig.Graph, lista_medidas: list, lista_ids: list) -> dict:
+    '''
+    Calcula medidas de centralidade do grafo, retornando um dicionário com as medidas
+    '''
     dict_valores_medidas: dict[str, list] = {}
     for medida in lista_medidas:
         lista_medida_calculada = getattr(grafo, medida)()
@@ -360,11 +397,12 @@ def calcula_medidas(grafo, lista_medidas, lista_ids):
 
     return dict_valores_medidas
 
-# input: graph representing network composed of nodes that are dictionaries
-# output: dictionary with the frequency that the specified key appears in the graph
 
-
-def calculate_frequency_keys(graph, chosen_key):
+def calculate_frequency_keys(graph: ig.Graph, chosen_key: str) -> dict:
+    '''
+    Input: graph representing network composed of nodes that are dictionaries
+    Output: dictionary with the frequency that the specified key appears in the graph
+    '''
     list_keys = []
     for v in graph.vs:
         list_keys.append(v[chosen_key])
@@ -385,11 +423,12 @@ def calculate_frequency_keys(graph, chosen_key):
 
     return processed_dict
 
-# recebe os dados em uma lista, o nome que o arquivo de saída terá e se o dados se referem
-# às medidas de centralidade ("centrality") ou frequência ("frequency")
 
-
-def monta_tabela(dados: dict, nome: str, tipo: str) -> None:
+def monta_tabela(dados: list, nome: str, tipo: str) -> None:
+    '''
+    Recebe os dados em uma lista, o nome que o arquivo de saída terá e se o dados se referem 
+    às medidas de centralidade ("centrality") ou frequência ("frequency")
+    '''
     local_path = Path(f"results/tables/{tipo}")
     local_path.mkdir(exist_ok=True, parents=True)
     local_nome = Path(nome)
@@ -405,12 +444,14 @@ def monta_tabela(dados: dict, nome: str, tipo: str) -> None:
 
     plt.savefig(f"{str(local_path/local_nome)}", format="pdf", bbox_inches="tight")
 
+
 # - Visual do grafo -
 
-# calcula o tamanho da imagem do grafo
 
-
-def calcula_bbox(n_arestas):
+def calcula_bbox(n_arestas: int) -> tuple:
+    '''
+    Calcula o tamanho da imagem do grafo
+    '''
     bbox_limit = 3000
 
     # criada com raiz quadrada, chegando perto dos pontos
@@ -421,10 +462,11 @@ def calcula_bbox(n_arestas):
 
     return (bbox, bbox)
 
-# determina cor de um vértice, quão maior o degree, mais quente a cor
 
-
-def determina_cor_vertice(grau, media):
+def determina_cor_vertice(grau: float, media: float) -> str:
+    '''
+    Determina cor de um vértice, quão maior o degree, mais quente a cor
+    '''
     razao = grau / media
 
     if razao < 0.1:
@@ -462,10 +504,11 @@ def determina_cor_vertice(grau, media):
     else:
         return "#000000"  # black
 
-# cria lista de cores dos vértices do grafo
 
-
-def lista_cores(g):
+def lista_cores(g: ig.Graph) -> list:
+    '''
+    Cria lista de cores dos vértices do grafo
+    '''
     lista_graus = g.degree()
 
     if len(lista_graus) == 0:
@@ -479,12 +522,12 @@ def lista_cores(g):
 
     return lista_cores
 
-# determina características visuais do grafo
 
-
-def determine_visual_style(g):
+def determine_visual_style(g: ig.Graph) -> dict:
+    '''
+    Determina características visuais do grafo
+    '''
     font_lower_bound = 8
-
     visual_style = {}
     visual_style["bbox"] = calcula_bbox(g.ecount())
     visual_style["margin"] = 60
@@ -500,28 +543,21 @@ def determine_visual_style(g):
 
     return visual_style
 
-# determina se o grafo possui algum vértice com grau mínimo passado
 
-
-def possui_grau_minimo(grafo, d_minimo):
+def possui_grau_minimo(grafo: ig.Graph, d_minimo: float) -> bool:
+    '''
+    Determina se o grafo possui algum vértice com grau mínimo passado
+    '''
     for v in grafo.vs:
         if v.degree() < d_minimo:
             return True
     return False
 
-# input: name of directory to be created
-# output: creates directory with the name passed
 
-
-def create_directory(dirname: str) -> None:
-    if not os.path.exists(dirname):
-        try:
-            os.mkdir(f"{dirname}")
-        except OSError:
-            raise OSError(f"Não foi possível criar o diretório {dirname}")
-
-
-def calcula_max_step(lista_dict, keys):
+def calcula_max_step(lista_dict: list, keys: list) -> int:
+    '''
+    Calcula step máximo 
+    '''
     nome_step = list(filter(lambda x: x == "Step" or x == "step", keys))[0]
 
     lista_step = []
@@ -532,6 +568,9 @@ def calcula_max_step(lista_dict, keys):
 
 
 def verifica_se_esta_no_intervalo(limite_inferior: int, limite_superior: int, valor: float, ultimo_intervalo: bool) -> bool:
+    '''
+    Recebe número e verifica se este está dentro de um intervalo [x, y) (ou, se for o último intervalo, [w, z])
+    '''
     if not ultimo_intervalo:
         if valor >= limite_inferior and valor < limite_superior:
             return True
@@ -543,10 +582,11 @@ def verifica_se_esta_no_intervalo(limite_inferior: int, limite_superior: int, va
         else:
             return False
 
-# recebe uma lista de vértices com mesmo link e retorna uma lista contendo todos os vizinhos desse link
-
 
 def retorna_vizinhos_link(lista_vertices_link: list, link: str, nome_link: str) -> list:
+    '''
+    Recebe uma lista de vértices com mesmo link e retorna uma lista contendo todos os vizinhos desse link
+    '''
     lista_vizinhos_link = []
     for v_link in lista_vertices_link:
         lista_vizinhos = v_link.neighbors()
@@ -556,10 +596,11 @@ def retorna_vizinhos_link(lista_vertices_link: list, link: str, nome_link: str) 
 
     return lista_vizinhos_link
 
-# recebe uma lista de vizinhos do link e filtra os links vizinhos que estão no intervalo passado
-
 
 def retorna_vizinhos_no_intervalo(lista_vizinhos_link: list, intervalo: tuple, ultimo_intervalo: bool, nome_step: str, nome_link: str) -> list:
+    '''
+    Recebe uma lista de vizinhos do link e filtra os links vizinhos que estão no intervalo passado
+    '''
     limite_inferior = intervalo[0]
     limite_superior = intervalo[1]
 
@@ -572,10 +613,11 @@ def retorna_vizinhos_no_intervalo(lista_vizinhos_link: list, intervalo: tuple, u
 
     return lista_vizinhos_no_intervalo
 
-# cria um dicionário contendo todos os links do grafo e seus vizinhos em determinado intervalo de tempo
-
 
 def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, max_step: int) -> dict:
+    '''
+    Cria um dicionário contendo todos os links do grafo e seus vizinhos em determinado intervalo de tempo
+    '''
     dict_vizinhos = dict()
 
     nome_link = list(filter(lambda x: x == "Link" or x == "link", keys))[0]
@@ -625,6 +667,10 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                                    limiar: float, usar_or: bool, lista_medidas: list, nao_gerar_imagem_grafo: bool, usar_grafo_puro: bool, giant_component: bool,
                                    use_raw_data: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int,
                                    network_name: str) -> dict:
+    '''
+    Main script to generate the virtual graph, its image, take centrality measurements of it and generate 
+    finally the virtual graph neighbours dictionary
+    '''
 
     # == Processa listas numéricas ==
 
@@ -651,7 +697,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # Traduz entrada numérica dos outros parâmetros
 
-    print("\nTranslating atributes...")
+    print("Translating atributes...")
 
     atributos = []
     todos = False
@@ -693,7 +739,6 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print(f"Plots vertices with a degree bigger or equal to: {min_degree}")
     print(f"Plots vertices with a step bigger or equal to: {min_step}")
     print(f"Amplitude of timestep of virtual graph neighbours dictionary: {intervalo_vizinhos} steps")
-    print("")
 
     # == Cria ids ==
 
@@ -751,7 +796,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print("Done")  # finalizou a atribuição
 
     # mostra informações do grafo, como número de vértices e quantidade de arestas
-    print("\nInformation about the virtual graph:")
+    print("Information about the virtual graph:")
     print(g.degree_distribution())
     print(g.summary())
 
@@ -814,7 +859,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     if not nao_gerar_imagem_grafo:
         # se foi selecionado para fazer a imagem do grafo, ou se não for custoso
         if opcao_grafo_grande == 1 or opcao_grafo_grande == 3 or custo == 0:
-            print("\nPloting virtual graph...")
+            print("Ploting virtual graph...")
             if g.vcount() != 0:
                 vg_path = Path("results/graphs")
                 vg_path.mkdir(exist_ok=True, parents=True)
@@ -869,5 +914,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     dict_vizinhos = cria_dicionario_vizinhos_links(
         g, keys, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
+
+    print("")
 
     return dict_vizinhos
