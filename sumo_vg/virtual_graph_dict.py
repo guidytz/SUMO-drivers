@@ -1,7 +1,6 @@
 # standalone script to generate virtual graph dictionary file
 
 import argparse as ap
-import datetime as dt
 import pickle
 import sys
 import time
