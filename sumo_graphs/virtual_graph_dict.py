@@ -960,7 +960,7 @@ def main():
 
     # Saves dictionary to pickle file
 
-    dict_path = Path("sumo_graphs/dictionaries")
+    dict_path = Path("results/dictionaries")
     dict_path.mkdir(exist_ok=True, parents=True)
     dict_pickle_file_name = Path(f"dict_{gets_name_file(nome_arquivo_csv)}.pkl")
     with open(dict_path/dict_pickle_file_name, "wb") as dict_pickle_file:
