@@ -41,7 +41,7 @@ def run_sim(args: argparse.Namespace, date: datetime = datetime.now(), iteration
 
     if args.vg_file is None and args.graph_dict == "":
         uses_virtual_graph = False
-        print("Empty graph neighbours dict, not using virtual graph")
+        print("Not using virtual graph")
         graph_neighbours_dict = {}
     else:
         print("Using virtual graph")
