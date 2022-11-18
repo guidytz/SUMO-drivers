@@ -3,7 +3,6 @@
 import datetime as dt
 import itertools
 import math
-import os
 import sys
 from collections import Counter
 from csv import DictReader
@@ -199,13 +198,9 @@ def gets_name_file(directory_file: str) -> str:
     Input: directory and name of file
     Output: str containing the name of the file
     '''
-    nome_arquivo = ""
-    names_dir = directory_file.split("/")
-    for dir in names_dir:
-        if ".csv" in dir:
-            nome_arquivo = os.path.splitext(dir)[0]
-
-    return nome_arquivo
+    path = Path(directory_file)
+    if path.suffix == ".csv":
+        return path.stem
 
 
 def monta_nome(limiar: float, lista_atributos: list, directory_file: str) -> str:
@@ -214,13 +209,12 @@ def monta_nome(limiar: float, lista_atributos: list, directory_file: str) -> str
     '''
     tempo = dt.datetime.now()
     hora_atual = tempo.strftime('%H%M%S')
-
     atributos = cria_string_com_atributos(lista_atributos)
-
     limiar_str = str(limiar)
     # remove o ponto do limiar para nao causar problemas com o nome e a extensão do arquivo
     limiar_str_processada = limiar_str.replace('.', "'")
-    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{directory_file}"
+    directory_file_stem = gets_name_file(directory_file)
+    nome_final = f"{hora_atual}_atb{atributos}_l{limiar_str_processada}_{directory_file_stem}"
 
     return nome_final
 
