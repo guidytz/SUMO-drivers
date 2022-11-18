@@ -288,7 +288,7 @@ def main():
                 if g_plot.vcount() != 0:  # se o grafo não estiver vazio, plotar
                     visual_style = determine_visual_style(g_plot)
                     ig.plot(g_plot, target=str(vg_path/vg_name), **visual_style)
-                    print(f"Image '{str(vg_name)}' generated")
+                    print(f"Image '{str(vg_name)}' generated at {vg_path}")
                 else:
                     print("Empty virtual graph, no image generated")
             else:
@@ -307,10 +307,8 @@ def main():
                 # tabela com as medidas de caracterização selecionadas é gerada
                 monta_tabela(dados=calcula_medidas(g, nova_lista_medidas,
                              g.vs["label"]), nome=nome_tabela, tipo="centrality")
-                print(f"Table '{nome_tabela}' generated")
                 # tabela de frequências é gerada
                 monta_tabela(dados=calculate_frequency_keys(g, "Link"), nome=nome_tabela_freq, tipo="frequency")
-                print(f"Table '{nome_tabela_freq}' generated")
             else:
                 print("Empty graph, no table generated")
         else:
