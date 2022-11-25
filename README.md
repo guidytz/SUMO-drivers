@@ -54,7 +54,7 @@ This will run the application with the chosen scenario, applying Q-Learning algo
 To define the number of steps to run the simulations, use the argument _-s_ followed by the value desired. For example, to run
 the 5x5 network present in the scenario folder for 30.000 steps, run the following:
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000
 ```
 
 ### Steps Before Learning Starts
@@ -65,13 +65,13 @@ is no learning algorithm involved and the agents just follow the routes present 
 This setting is specified with the _-w_ argument. So, for exemple, if we want to run the 5x5 network for 30.000 steps and populate
 the network for 4.000 steps, run the following:
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -w 4000
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000 -w 4000
 ```
 
 This also allows us to run the simulation without using a learning algorithm by simply using the same value for the steps and
 populating steps. For example, running the 5x5 network for 30.000 steps without the agents learning:
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -w 30000
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000 -w 30000
 ```
 
 ### Communication Success Rate
@@ -80,7 +80,7 @@ This approach allows the learning process to be improved with the use of [Car-to
 be set by adjusting the success rate of the communication using the _-r_ argument. So, if we want to run a simulation that has
 a communication with a 75% success rate, we follow the example below:
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -s 30000 -r 0.75
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000 -r 0.75
 ```
 
 At the current version, the only algorithm that supports communication is the base Q-Learning algorithm, so the communication
@@ -93,11 +93,11 @@ with each objective separately in order to collect important data to normalize t
 to optimize travel time and carbon monoxide emission in a multiobjective run, we first run the collect runs for each of them like
 the following:
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -a QL --objectives TravelTime CO
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -a QL --objectives TravelTime CO
 ```
 
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -a QL --objectives CO TravelTime
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -a QL --objectives CO TravelTime
 ```
 
 The _-a_ argument sets the Q-Learning algorithm as the main learning algorithm the agents will use, the _--objectives_ argument
@@ -107,7 +107,7 @@ in the informed list.
 After collecting has been done, it is possible to use the multiobjective algorithm that aims at optimizing all objetives informed.
 Following the example aforementioned, to optimize travel time and carbon monoxide using Pareto Q-Learning, run the following:
 ```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumcfg -a PQL --objectives TravelTime CO
+python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -a PQL --objectives TravelTime CO
 ```
 
 ### Additional Arguments
