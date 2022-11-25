@@ -128,6 +128,23 @@ export LIBSUMO_AS_TRACI=1
 ```
 This allows the simulation use Libsumo instead of Traci, which enhances the performance considerably. However, simulations using sumo-gui are not available using this method. See [Libsumo documentation](https://sumo.dlr.de/docs/Libsumo.html).
 
+### Default values
+The default values are specified below:
+* **Demand:** 750 vehicles runnning at each step
+* **Max steps:** 60,000 steps
+* **Steps before learning behaviour starts:** 3,000 steps
+* **Learning agent:** Q-Learning
+* **Alpha:** 0.5
+* **Gamma:** 0.9
+* **Objectives to optimize:** Travel time
+* **Number of steps to sumarize data collected:** 1
+* **Success rate in communication:** 0
+* **CommDev Queue size in communication:** 30
+* **Correct arrival bonus:** 1000
+* **Wrong arrival penalty:** 1000
+
+Some more specific default values can be seen in the script's documentation.
+
 ## Documentation
 It is possible to see the module documentation using [pdoc](https://pdoc3.github.io/pdoc/).
 Just install pdoc using:
