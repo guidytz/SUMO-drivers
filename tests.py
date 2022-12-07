@@ -24,7 +24,14 @@ def main(command_line=None):
     # no_learn = subparsers.add_parser("nl", help="bla", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     args = parser.parse_args(command_line)
-    config: QLConfig | NonLearnerConfig = args.func(args)
+
+    try:
+        config: QLConfig | NonLearnerConfig = args.func(args)
+    except AttributeError:
+        print("Wrong usage of script")
+        parser.print_help()
+        sys.exit(1)
+
     print(config.__dict__)
 
 
