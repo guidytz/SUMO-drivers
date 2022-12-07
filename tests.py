@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from script_configs.configs import QLConfig, add_fields
+from script_configs.configs import NonLearnerConfig, QLConfig, add_fields
 
 
 def main(command_line=None):
@@ -12,18 +12,19 @@ def main(command_line=None):
     ql = subparsers.add_parser(ql_base_config.name, help=QLConfig.__doc__,
                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     ql = add_fields(ql, ql_base_config)
+    ql.set_defaults(func=QLConfig.from_namespace)
+
+    nl_base_config = NonLearnerConfig()
+    nl = subparsers.add_parser(nl_base_config.name, help=NonLearnerConfig.__doc__,
+                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    nl = add_fields(nl, nl_base_config)
+    nl.set_defaults(func=NonLearnerConfig.from_namespace)
 
     # pql = subparsers.add_parser("pql", help="bla", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # no_learn = subparsers.add_parser("nl", help="bla", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     args = parser.parse_args(command_line)
-    config: QLConfig
-    match args.command:
-        case ql_base_config.name:
-            config = QLConfig.from_namespace(args)
-        case _:
-            print("Unknown param.")
-            sys.exit(1)
+    config: QLConfig | NonLearnerConfig = args.func(args)
     print(config.__dict__)
 
 

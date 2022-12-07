@@ -6,22 +6,36 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field, fields
 from typing import Type, TypeVar
 
-
-def describe(text: str, shorten: bool = False) -> dict:
-    return dict(description=text, shorten=shorten)
+DEFAULT_GROUP = {"name": "Common arguments", "description": "Params used in any simulation"}
 
 
-def add_fields(parser: argparse.ArgumentParser, config: QLConfig) -> argparse.ArgumentParser:
+def describe(text: str, shorten: bool = False, rename: str | None = None, group: dict | None = None) -> dict:
+    group = group or DEFAULT_GROUP
+    return dict(description=text, shorten=shorten, rename=rename, group=group)
+
+
+def add_fields(parser: argparse.ArgumentParser, config: QLConfig | NonLearnerConfig) -> argparse.ArgumentParser:
+    current_group = DEFAULT_GROUP
+    group = parser.add_argument_group(current_group["name"], current_group["description"])
     for argument, default in asdict(config).items():
-        arg_names = [f"--{argument}"]
+        config_group = config.group(argument)
+        name = config.rename(argument) or argument
+        arg_names = [f"--{name}"]
         if config.shorten(argument):
-            arg_names = [f"-{argument[0]}"] + arg_names
+            arg_names = [f"-{name[0]}"] + arg_names
 
         action = "store_true" if type(default) == bool else "store"
         required = default is None
 
-        parser.add_argument(*arg_names, default=default, dest=f"{argument}", action=action, required=required,
-                            help=config.description(argument))
+        if config_group != current_group:
+            group = parser.add_argument_group(config_group["name"], config_group["description"])
+            current_group = config_group
+
+        arg = group.add_argument(*arg_names, default=default, dest=f"{argument}", action=action, required=required,
+                                 help=config.description(argument),)
+
+        if type(default) == list:
+            arg.nargs = '+'
 
     return parser
 
@@ -39,6 +53,8 @@ class BaseConfig(ABC):
     nruns: int = field(default=1, metadata=describe("Number of multiple simulation runs.", shorten=True))
     parallel: int = field(default=False, metadata=describe(
         "Flag to indicate parallel runs with multiple simulations."))
+    observe_list: list[str] = field(default_factory=lambda: ["TravelTime"],
+                                    metadata=describe("Parameters to collect data from.", rename="observe-list"))
 
     def description(self, field_name: str) -> str:
         return self.__dataclass_fields__[field_name].metadata["description"]
@@ -46,25 +62,52 @@ class BaseConfig(ABC):
     def shorten(self, field_name: str) -> bool:
         return self.__dataclass_fields__[field_name].metadata["shorten"]
 
+    def rename(self, field_name) -> str | None:
+        return self.__dataclass_fields__[field_name].metadata["rename"]
+
+    def group(self, field_name) -> dict:
+        return self.__dataclass_fields__[field_name].metadata["group"]
+
     @property
     @abstractmethod
     def name(self) -> str:
         raise NotImplementedError("This method should be called from a concrete class")
 
+    @staticmethod
+    def main_group() -> dict:
+        return DEFAULT_GROUP
+
     @classmethod
     def from_namespace(cls: Type[T], args: argparse.Namespace) -> T:
         params_dict = args.__dict__
         del params_dict["command"]
+        del params_dict["func"]
         return cls(**params_dict)
 
 
 @dataclass(frozen=True)
-class QLConfig(BaseConfig):
-    """Base Q-Learning Agent.
+class NonLearnerConfig(BaseConfig):
+    """Base Non Learning Agent Simulation
     """
 
+    @property
+    def name(self) -> str:
+        return "nl"
+
+
+@dataclass(frozen=True)
+class QLConfig(BaseConfig):
+    """Base Q-Learning Agent Simulation
+    """
+
+    wait_learn: int = field(default=3000, metadata=describe(
+        "Time steps to wait before the learning starts.", rename="wait-learn"))
     alpha: float = field(default=0.5, metadata=describe("Agent's learning rate."))
     gamma: float = field(default=0.9, metadata=describe("Agent's discount factor for future actions."))
+
+    @staticmethod
+    def main_group() -> dict:
+        return {"name": "QLParams", "description": "Params used with Q-Learning simulation"}
 
     @property
     def name(self) -> str:
