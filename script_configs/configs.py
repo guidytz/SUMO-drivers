@@ -6,17 +6,24 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field, fields
 from typing import Type, TypeVar
 
-DEFAULT_GROUP = {"name": "Common arguments", "description": "Params used in any simulation"}
+
+@dataclass
+class _Group:
+    name: str = field(default="Common arguments")
+    description: str = field(default="Params used in any simulation")
+
+    def __eq__(self, __o: _Group) -> bool:
+        return self.name == __o.name
 
 
-def describe(text: str, shorten: bool = False, rename: str | None = None, group: dict | None = None) -> dict:
-    group = group or DEFAULT_GROUP
+def describe(text: str, shorten: bool = False, rename: str | None = None, group: _Group | None = None) -> dict:
+    group = group or _Group()
     return dict(description=text, shorten=shorten, rename=rename, group=group)
 
 
 def add_fields(parser: argparse.ArgumentParser, config: QLConfig | NonLearnerConfig) -> argparse.ArgumentParser:
-    current_group = DEFAULT_GROUP
-    group = parser.add_argument_group(current_group["name"], current_group["description"])
+    current_group = _Group()
+    group = parser.add_argument_group(current_group.name, current_group.description)
     for argument, default in asdict(config).items():
         config_group = config.group(argument)
         name = config.rename(argument) or argument
@@ -28,7 +35,7 @@ def add_fields(parser: argparse.ArgumentParser, config: QLConfig | NonLearnerCon
         required = default is None
 
         if config_group != current_group:
-            group = parser.add_argument_group(config_group["name"], config_group["description"])
+            group = parser.add_argument_group(config_group.name, config_group.description)
             current_group = config_group
 
         arg = group.add_argument(*arg_names, default=default, dest=f"{argument}", action=action, required=required,
@@ -65,7 +72,7 @@ class BaseConfig(ABC):
     def rename(self, field_name) -> str | None:
         return self.__dataclass_fields__[field_name].metadata["rename"]
 
-    def group(self, field_name) -> dict:
+    def group(self, field_name) -> _Group:
         return self.__dataclass_fields__[field_name].metadata["group"]
 
     @property
@@ -74,8 +81,8 @@ class BaseConfig(ABC):
         raise NotImplementedError("This method should be called from a concrete class")
 
     @staticmethod
-    def main_group() -> dict:
-        return DEFAULT_GROUP
+    def main_group() -> _Group:
+        return _Group()
 
     @classmethod
     def from_namespace(cls: Type[T], args: argparse.Namespace) -> T:
@@ -100,14 +107,15 @@ class QLConfig(BaseConfig):
     """Base Q-Learning Agent Simulation
     """
 
-    wait_learn: int = field(default=3000, metadata=describe(
-        "Time steps to wait before the learning starts.", rename="wait-learn"))
-    alpha: float = field(default=0.5, metadata=describe("Agent's learning rate."))
-    gamma: float = field(default=0.9, metadata=describe("Agent's discount factor for future actions."))
-
     @staticmethod
-    def main_group() -> dict:
-        return {"name": "QLParams", "description": "Params used with Q-Learning simulation"}
+    def main_group() -> _Group:
+        return _Group(name="Q-Learning Agent Params", description="Params used with Q-Learning simulation")
+
+    wait_learn: int = field(default=3000, metadata=describe(
+        "Time steps to wait before the learning starts.", rename="wait-learn", group=main_group()))
+    alpha: float = field(default=0.5, metadata=describe("Agent's learning rate.", group=main_group()))
+    gamma: float = field(default=0.9, metadata=describe(
+        "Agent's discount factor for future actions.", group=main_group()))
 
     @property
     def name(self) -> str:
