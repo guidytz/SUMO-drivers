@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Type, TypeVar
 
 
-@dataclass
+@dataclass(frozen=True)
 class _Group:
     name: str = field(default="Common arguments")
     description: str = field(default="Params used in any simulation")
@@ -21,9 +21,10 @@ def describe(text: str, shorten: bool = False, rename: str | None = None, group:
     return dict(description=text, shorten=shorten, rename=rename, group=group)
 
 
-def add_fields(parser: argparse.ArgumentParser, config: QLConfig | NonLearnerConfig) -> argparse.ArgumentParser:
+def add_fields(parser: argparse.ArgumentParser, config: QLConfig | PQLConfig | NonLearnerConfig) -> argparse.ArgumentParser:
     current_group = _Group()
     group = parser.add_argument_group(current_group.name, current_group.description)
+    group_map = {current_group: group}
     for argument, default in asdict(config).items():
         config_group = config.group(argument)
         name = config.rename(argument) or argument
@@ -34,9 +35,10 @@ def add_fields(parser: argparse.ArgumentParser, config: QLConfig | NonLearnerCon
         action = "store_true" if type(default) == bool else "store"
         required = default is None
 
-        if config_group != current_group:
+        group = group_map.get(config_group)
+        if group is None:
             group = parser.add_argument_group(config_group.name, config_group.description)
-            current_group = config_group
+            group_map[config_group] = group
 
         arg = group.add_argument(*arg_names, default=default, dest=f"{argument}", action=action, required=required,
                                  help=config.description(argument),)
@@ -103,20 +105,77 @@ class NonLearnerConfig(BaseConfig):
 
 
 @dataclass(frozen=True)
-class QLConfig(BaseConfig):
+class LearningAgentConfig(BaseConfig):
+    """Base Learning Agent configs"""
+    @staticmethod
+    def main_group() -> _Group:
+        return _Group(name="Learning Agent Params", description="Params used with any learning agent simulation")
+
+    wait_learn: int = field(default=3000, metadata=describe(
+        "Time steps to wait before the learning starts.", rename="wait-learn", group=main_group()))
+    normalize_rewards: bool = field(default=False, metadata=describe(
+        "Flag that indicates if rewards should be normalized. Requires a previous reward collection run.",
+        rename="normalize-rewards", group=main_group()))
+    collect_rewards: bool = field(default=False, metadata=describe(
+        "Flag that indicates if rewards received should be collected to use them in normalizer in a posterior run.",
+        rename="collect-rewards", group=main_group()))
+    toll_speed: float = field(default=-1, metadata=describe("Speed threshold in which links should impose a toll on emission. "
+                                                            "This parameter is only used in emission objectives. "
+                                                            "The default indicates the toll is not used.",
+                                                            group=main_group(), rename="toll-speed"))
+    toll_value: float = field(default=-1, metadata=describe("Toll value to be added as penalty to emission. "
+                                                            "This parameter is only used in emission objectives. "
+                                                            "The default indicates the toll is not used.",
+                                                            group=main_group(), rename="toll-value"))
+    success_rate: float = field(default=0.0, metadata=describe("Communication success rate.", rename="success-rate",
+                                                               group=_Group(name="Communication params", description="Params used when using C2I communication.")))
+    queue_size: int = field(default=30, metadata=describe("CommDev queue size to store rewards.", rename="queue-size",
+                                                          group=_Group(name="Communication params", description="Params used when using C2I communication.")))
+
+
+@dataclass(frozen=True)
+class QLConfig(LearningAgentConfig):
     """Base Q-Learning Agent Simulation
     """
-
     @staticmethod
     def main_group() -> _Group:
         return _Group(name="Q-Learning Agent Params", description="Params used with Q-Learning simulation")
 
-    wait_learn: int = field(default=3000, metadata=describe(
-        "Time steps to wait before the learning starts.", rename="wait-learn", group=main_group()))
     alpha: float = field(default=0.5, metadata=describe("Agent's learning rate.", group=main_group()))
     gamma: float = field(default=0.9, metadata=describe(
         "Agent's discount factor for future actions.", group=main_group()))
+    bonus: int = field(default=500, metadata=describe(
+        "Right destination bonus.", shorten=True, group=LearningAgentConfig.main_group()))
+    penalty: int = field(default=500, metadata=describe(
+        "Wrong destination penalty.", shorten=True, group=LearningAgentConfig.main_group()))
+    objective: str = field(default="TravelTime", metadata=describe(
+        "Agent's main objective to optimize", shorten=True, group=main_group()))
 
     @property
     def name(self) -> str:
         return "ql"
+
+
+@dataclass(frozen=True)
+class PQLConfig(LearningAgentConfig):
+    """Base Pareto Q-Learning Agent Simulation
+    """
+    @staticmethod
+    def main_group() -> _Group:
+        return _Group(name="Pareto Q-Learning Agent Params", description="Params used with Pareto Q-Learning simulation")
+
+    gamma: float = field(default=0.9, metadata=describe(
+        "Agent's discount factor for future actions.", group=main_group()))
+    bonus: int = field(default=1, metadata=describe(
+        "Right destination bonus.", shorten=True, group=LearningAgentConfig.main_group()))
+    penalty: int = field(default=1, metadata=describe(
+        "Wrong destination penalty.", shorten=True, group=LearningAgentConfig.main_group()))
+    normalize_rewards: bool = field(default=True, metadata=describe(
+        "Flag that indicates if rewards should be normalized. Requires a previous reward collection run.",
+        rename="normalize-rewards", group=LearningAgentConfig.main_group()))
+    objectives: list[str] = field(default_factory=lambda: ["TravelTime", "CO"], metadata=describe(
+        "Agent's main objectives to optimize", shorten=True, group=main_group()))
+
+    @property
+    def name(self) -> str:
+        return "pql"
