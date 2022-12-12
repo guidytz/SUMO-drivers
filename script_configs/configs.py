@@ -4,7 +4,7 @@ import argparse
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field, fields
-from typing import Type, TypeVar
+from typing import Type, TypeAlias, TypeVar
 
 
 @dataclass(frozen=True)
@@ -21,50 +21,11 @@ def describe(text: str, shorten: bool = False, rename: str | None = None, group:
     return dict(description=text, shorten=shorten, rename=rename, group=group)
 
 
-def add_fields(parser: argparse.ArgumentParser, config: QLConfig | PQLConfig | NonLearnerConfig) -> argparse.ArgumentParser:
-    current_group = _Group()
-    group = parser.add_argument_group(current_group.name, current_group.description)
-    group_map = {current_group: group}
-    for argument, default in asdict(config).items():
-        config_group = config.group(argument)
-        name = config.rename(argument) or argument
-        arg_names = [f"--{name}"]
-        if config.shorten(argument):
-            arg_names = [f"-{name[0]}"] + arg_names
-
-        action = "store_true" if type(default) == bool else "store"
-        required = default is None
-
-        group = group_map.get(config_group)
-        if group is None:
-            group = parser.add_argument_group(config_group.name, config_group.description)
-            group_map[config_group] = group
-
-        arg = group.add_argument(*arg_names, default=default, dest=f"{argument}", action=action, required=required,
-                                 help=config.description(argument),)
-
-        if type(default) == list:
-            arg.nargs = '+'
-
-    return parser
-
-
-T = TypeVar('T', bound='BaseConfig')
+T = TypeVar('T', bound='EmptyConfig')
 
 
 @dataclass(frozen=True)
-class BaseConfig(ABC):
-    sumocfg: str | None = field(default=None, metadata=describe("Path to '.sumocfg' file. MANDATORY"))
-    demand: int = field(default=750, metadata=describe("Desired network demand.", shorten=True))
-    steps: int = field(default=60000, metadata=describe("Number of max simulation steps.", shorten=True))
-    wav: int = field(default=1, metadata=describe("Average in data collection window size.", shorten=True))
-    gui: bool = field(default=False, metadata=describe("Use SUMO GUI flag.", shorten=True))
-    nruns: int = field(default=1, metadata=describe("Number of multiple simulation runs.", shorten=True))
-    parallel: int = field(default=False, metadata=describe(
-        "Flag to indicate parallel runs with multiple simulations."))
-    observe_list: list[str] = field(default_factory=lambda: ["TravelTime"],
-                                    metadata=describe("Parameters to collect data from.", rename="observe-list"))
-
+class EmptyConfig(ABC):
     def description(self, field_name: str) -> str:
         return self.__dataclass_fields__[field_name].metadata["description"]
 
@@ -76,6 +37,10 @@ class BaseConfig(ABC):
 
     def group(self, field_name) -> _Group:
         return self.__dataclass_fields__[field_name].metadata["group"]
+
+    def __iter__(self):
+        for attr, value in self.__dict__.items():
+            yield attr, value
 
     @property
     @abstractmethod
@@ -95,6 +60,20 @@ class BaseConfig(ABC):
 
 
 @dataclass(frozen=True)
+class BaseConfig(EmptyConfig):
+    sumocfg: str | None = field(default=None, metadata=describe("Path to '.sumocfg' file. MANDATORY"))
+    demand: int = field(default=750, metadata=describe("Desired network demand.", shorten=True))
+    steps: int = field(default=60000, metadata=describe("Number of max simulation steps.", shorten=True))
+    wav: int = field(default=1, metadata=describe("Average in data collection window size.", shorten=True))
+    gui: bool = field(default=False, metadata=describe("Use SUMO GUI flag.", shorten=True))
+    nruns: int = field(default=1, metadata=describe("Number of multiple simulation runs.", shorten=True))
+    parallel: int = field(default=False, metadata=describe(
+        "Flag to indicate parallel runs with multiple simulations."))
+    observe_list: list[str] = field(default_factory=lambda: ["TravelTime"],
+                                    metadata=describe("Parameters to collect data from.", rename="observe-list"))
+
+
+@dataclass(frozen=True)
 class NonLearnerConfig(BaseConfig):
     """Base Non Learning Agent Simulation
     """
@@ -105,9 +84,40 @@ class NonLearnerConfig(BaseConfig):
 
 
 @dataclass(frozen=True)
+class CommunicationConfig(EmptyConfig):
+    """Communication config with its params
+    """
+    @staticmethod
+    def main_group() -> _Group:
+        return _Group(name="Communication Params", description="Params used with C2I communication")
+
+    @property
+    def name(self) -> str:
+        return "comm"
+
+    success_rate: float = field(default=0.0, metadata=describe("Communication success rate.", rename="success-rate",
+                                                               group=main_group()))
+    queue_size: int = field(default=30, metadata=describe("CommDev queue size to store rewards.", rename="queue-size",
+                                                          group=main_group()))
+
+
+@dataclass(frozen=True)
+class GraphConfig(EmptyConfig):
+    """Virtual Graph config with its params
+    """
+    @staticmethod
+    def main_group() -> _Group:
+        return _Group(name="Graph Params", description="Params used virtual graph")
+
+    @property
+    def name(self) -> str:
+        return "graph"
+
+
+@ dataclass(frozen=True)
 class LearningAgentConfig(BaseConfig):
     """Base Learning Agent configs"""
-    @staticmethod
+    @ staticmethod
     def main_group() -> _Group:
         return _Group(name="Learning Agent Params", description="Params used with any learning agent simulation")
 
@@ -119,25 +129,22 @@ class LearningAgentConfig(BaseConfig):
     collect_rewards: bool = field(default=False, metadata=describe(
         "Flag that indicates if rewards received should be collected to use them in normalizer in a posterior run.",
         rename="collect-rewards", group=main_group()))
-    toll_speed: float = field(default=-1, metadata=describe("Speed threshold in which links should impose a toll on emission. "
-                                                            "This parameter is only used in emission objectives. "
-                                                            "The default indicates the toll is not used.",
+    toll_speed: float = field(default=-1, metadata=describe("Speed threshold in which links should impose a toll on "
+                                                            "emission. This parameter is only used in emission "
+                                                            "objectives. The default indicates the toll is not used.",
                                                             group=main_group(), rename="toll-speed"))
     toll_value: float = field(default=-1, metadata=describe("Toll value to be added as penalty to emission. "
                                                             "This parameter is only used in emission objectives. "
                                                             "The default indicates the toll is not used.",
                                                             group=main_group(), rename="toll-value"))
-    success_rate: float = field(default=0.0, metadata=describe("Communication success rate.", rename="success-rate",
-                                                               group=_Group(name="Communication params", description="Params used when using C2I communication.")))
-    queue_size: int = field(default=30, metadata=describe("CommDev queue size to store rewards.", rename="queue-size",
-                                                          group=_Group(name="Communication params", description="Params used when using C2I communication.")))
+    communication: CommunicationConfig = field(default_factory=CommunicationConfig)
 
 
-@dataclass(frozen=True)
+@ dataclass(frozen=True)
 class QLConfig(LearningAgentConfig):
     """Base Q-Learning Agent Simulation
     """
-    @staticmethod
+    @ staticmethod
     def main_group() -> _Group:
         return _Group(name="Q-Learning Agent Params", description="Params used with Q-Learning simulation")
 
@@ -151,16 +158,16 @@ class QLConfig(LearningAgentConfig):
     objective: str = field(default="TravelTime", metadata=describe(
         "Agent's main objective to optimize", shorten=True, group=main_group()))
 
-    @property
+    @ property
     def name(self) -> str:
         return "ql"
 
 
-@dataclass(frozen=True)
+@ dataclass(frozen=True)
 class PQLConfig(LearningAgentConfig):
     """Base Pareto Q-Learning Agent Simulation
     """
-    @staticmethod
+    @ staticmethod
     def main_group() -> _Group:
         return _Group(name="Pareto Q-Learning Agent Params", description="Params used with Pareto Q-Learning simulation")
 
@@ -176,6 +183,45 @@ class PQLConfig(LearningAgentConfig):
     objectives: list[str] = field(default_factory=lambda: ["TravelTime", "CO"], metadata=describe(
         "Agent's main objectives to optimize", shorten=True, group=main_group()))
 
-    @property
+    @ property
     def name(self) -> str:
         return "pql"
+
+
+Config: TypeAlias = QLConfig | PQLConfig | NonLearnerConfig | CommunicationConfig | GraphConfig
+
+
+def add_fields(parser: argparse.ArgumentParser, config: Config) -> argparse.ArgumentParser:
+    group_map = {}
+    if issubclass(config.__class__, BaseConfig):
+        current_group = _Group()
+        group = parser.add_argument_group(current_group.name, current_group.description)
+        group_map = {current_group: group}
+    for argument, value in config:
+        match value:
+            case CommunicationConfig(_):
+                add_fields(parser, value)
+            case GraphConfig(_):
+                add_fields(parser, value)
+            case _:
+                config_group = config.group(argument)
+                name = config.rename(argument) or argument
+                arg_names = [f"--{name}"]
+                if config.shorten(argument):
+                    arg_names = [f"-{name[0]}"] + arg_names
+
+                action = "store_true" if type(value) == bool else "store"
+                required = value is None
+
+                group = group_map.get(config_group)
+                if group is None:
+                    group = parser.add_argument_group(config_group.name, config_group.description)
+                    group_map[config_group] = group
+
+                arg = group.add_argument(*arg_names, default=value, dest=f"{argument}", action=action, required=required,
+                                         help=config.description(argument))
+
+                if type(value) == list:
+                    arg.nargs = '+'
+
+    return parser
