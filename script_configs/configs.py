@@ -113,10 +113,10 @@ class GraphConfig(EmptyConfig):
         return "graph"
 
 
-@ dataclass(frozen=True)
+@dataclass(frozen=True)
 class LearningAgentConfig(BaseConfig):
     """Base Learning Agent configs"""
-    @ staticmethod
+    @staticmethod
     def main_group() -> _Group:
         return _Group(name="Learning Agent Params", description="Params used with any learning agent simulation")
 
@@ -137,13 +137,38 @@ class LearningAgentConfig(BaseConfig):
                                                             "The default indicates the toll is not used.",
                                                             group=main_group(), rename="toll-value"))
     communication: CommunicationConfig = field(default_factory=CommunicationConfig)
+    # graph: GraphConfig = field(default_factory=GraphConfig)
+
+    @classmethod
+    def from_namespace(cls: Type[T], args: argparse.Namespace) -> T:
+        comm_config_dict = CommunicationConfig().__dict__
+        graph_config_dict = GraphConfig().__dict__
+
+        params_dict = args.__dict__.copy()
+        for arg, value in params_dict.items():
+            if arg in comm_config_dict:
+                comm_config_dict[arg] = value
+                del args.__dict__[arg]
+            elif arg in graph_config_dict:
+                graph_config_dict[arg] = value
+                del args.__dict__[arg]
+
+        main_config_dict = super().from_namespace(args).__dict__
+
+        communication = CommunicationConfig(**comm_config_dict)
+        main_config_dict["communication"] = communication
+
+        # graph = GraphConfig(**graph_config_dict)
+        # main_config_dict["graph"] = graph
+
+        return cls(**main_config_dict)
 
 
-@ dataclass(frozen=True)
+@dataclass(frozen=True)
 class QLConfig(LearningAgentConfig):
     """Base Q-Learning Agent Simulation
     """
-    @ staticmethod
+    @staticmethod
     def main_group() -> _Group:
         return _Group(name="Q-Learning Agent Params", description="Params used with Q-Learning simulation")
 
@@ -157,16 +182,16 @@ class QLConfig(LearningAgentConfig):
     objective: str = field(default="TravelTime", metadata=describe(
         "Agent's main objective to optimize", shorten=True, group=main_group()))
 
-    @ property
+    @property
     def name(self) -> str:
         return "ql"
 
 
-@ dataclass(frozen=True)
+@dataclass(frozen=True)
 class PQLConfig(LearningAgentConfig):
     """Base Pareto Q-Learning Agent Simulation
     """
-    @ staticmethod
+    @staticmethod
     def main_group() -> _Group:
         return _Group(name="Pareto Q-Learning Agent Params", description="Params used with Pareto Q-Learning simulation")
 
@@ -182,7 +207,7 @@ class PQLConfig(LearningAgentConfig):
     objectives: list[str] = field(default_factory=lambda: ["TravelTime", "CO"], metadata=describe(
         "Agent's main objectives to optimize", shorten=True, group=main_group()))
 
-    @ property
+    @property
     def name(self) -> str:
         return "pql"
 
