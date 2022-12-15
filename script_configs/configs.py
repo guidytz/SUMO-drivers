@@ -66,8 +66,7 @@ class BaseConfig(EmptyConfig):
     wav: int = field(default=1, metadata=describe("Average in data collection window size.", shorten=True))
     gui: bool = field(default=False, metadata=describe("Use SUMO GUI flag.", shorten=True))
     nruns: int = field(default=1, metadata=describe("Number of multiple simulation runs.", shorten=True))
-    parallel: int = field(default=False, metadata=describe(
-        "Flag to indicate parallel runs with multiple simulations."))
+    parallel: int = field(default=False, metadata=describe("Flag to indicate parallel runs with multiple simulations."))
     observe_list: list[str] = field(default_factory=lambda: ["TravelTime"],
                                     metadata=describe("Parameters to collect data from.", rename="observe-list"))
 
@@ -109,7 +108,7 @@ class GraphConfig(EmptyConfig):
                                    metadata=describe("List of atributes that the nodes cannot share in order to create "
                                                      "an edge in the virtual graph. Atribute is given by the number of "
                                                      "the column of the input file.", rename="vg-restriction",
-                                                     group=main_group()))
+                                                     group=main_group()))        # graph = GraphConfig(**graph_config_dict)
 
     threshold: float = field(default=0., metadata=describe("Threshold used to create an edge in the virtual graph.",
                                                            rename="vg-threshold", group=main_group()))
@@ -168,10 +167,9 @@ class CommunicationConfig(EmptyConfig):
 
     success_rate: float = field(default=0.0, metadata=describe("Communication success rate.", rename="success-rate",
                                                                group=main_group()))
+
     queue_size: int = field(default=30, metadata=describe("CommDev queue size to store rewards.", rename="queue-size",
                                                           group=main_group()))
-
-    virtual_graph: GraphConfig = field(default_factory=GraphConfig)
 
 
 @dataclass(frozen=True)
@@ -181,24 +179,31 @@ class LearningAgentConfig(BaseConfig):
     def main_group() -> _Group:
         return _Group(name="Learning Agent Params", description="Params used with any learning agent simulation")
 
-    wait_learn: int = field(default=3000, metadata=describe(
-        "Time steps to wait before the learning starts.", rename="wait-learn", group=main_group()))
-    normalize_rewards: bool = field(default=False, metadata=describe(
-        "Flag that indicates if rewards should be normalized. Requires a previous reward collection run.",
-        rename="normalize-rewards", group=main_group()))
-    collect_rewards: bool = field(default=False, metadata=describe(
-        "Flag that indicates if rewards received should be collected to use them in normalizer in a posterior run.",
-        rename="collect-rewards", group=main_group()))
+    wait_learn: int = field(default=3000, metadata=describe("Time steps to wait before the learning starts.",
+                                                            rename="wait-learn", group=main_group()))
+
+    normalize_rewards: bool = field(default=False, metadata=describe("Flag that indicates if rewards should be "
+                                                                     "normalized. Requires a previous reward "
+                                                                     "collection run.",
+                                                                     rename="normalize-rewards", group=main_group()))
+
+    collect_rewards: bool = field(default=False, metadata=describe("Flag that indicates if rewards received should be "
+                                                                   "collected to use them in normalizer in a posterior "
+                                                                   "run.",
+                                                                   rename="collect-rewards", group=main_group()))
+
     toll_speed: float = field(default=-1, metadata=describe("Speed threshold in which links should impose a toll on "
                                                             "emission. This parameter is only used in emission "
                                                             "objectives. The default indicates the toll is not used.",
                                                             group=main_group(), rename="toll-speed"))
+
     toll_value: float = field(default=-1, metadata=describe("Toll value to be added as penalty to emission. "
                                                             "This parameter is only used in emission objectives. "
                                                             "The default indicates the toll is not used.",
                                                             group=main_group(), rename="toll-value"))
+
     communication: CommunicationConfig = field(default_factory=CommunicationConfig)
-    # graph: GraphConfig = field(default_factory=GraphConfig)
+    virtual_graph: GraphConfig = field(default_factory=GraphConfig)
 
     @classmethod
     def from_namespace(cls: Type[T], args: argparse.Namespace) -> T:
@@ -219,8 +224,8 @@ class LearningAgentConfig(BaseConfig):
         communication = CommunicationConfig(**comm_config_dict)
         main_config_dict["communication"] = communication
 
-        # graph = GraphConfig(**graph_config_dict)
-        # main_config_dict["graph"] = graph
+        graph = GraphConfig(**graph_config_dict)
+        main_config_dict["virtual_graph"] = graph
 
         return cls(**main_config_dict)
 
@@ -234,14 +239,17 @@ class QLConfig(LearningAgentConfig):
         return _Group(name="Q-Learning Agent Params", description="Params used with Q-Learning simulation")
 
     alpha: float = field(default=0.5, metadata=describe("Agent's learning rate.", group=main_group()))
-    gamma: float = field(default=0.9, metadata=describe(
-        "Agent's discount factor for future actions.", group=main_group()))
-    bonus: int = field(default=500, metadata=describe(
-        "Right destination bonus.", shorten=True, group=LearningAgentConfig.main_group()))
-    penalty: int = field(default=500, metadata=describe(
-        "Wrong destination penalty.", shorten=True, group=LearningAgentConfig.main_group()))
-    objective: str = field(default="TravelTime", metadata=describe(
-        "Agent's main objective to optimize", shorten=True, group=main_group()))
+    gamma: float = field(default=0.9, metadata=describe("Agent's discount factor for future actions.",
+                                                        group=main_group()))
+
+    bonus: int = field(default=500, metadata=describe("Right destination bonus.", shorten=True,
+                                                      group=LearningAgentConfig.main_group()))
+
+    penalty: int = field(default=500, metadata=describe("Wrong destination penalty.", shorten=True,
+                                                        group=LearningAgentConfig.main_group()))
+
+    objective: str = field(default="TravelTime", metadata=describe("Agent's main objective to optimize", shorten=True,
+                                                                   group=main_group()))
 
     @property
     def name(self) -> str:
@@ -256,17 +264,24 @@ class PQLConfig(LearningAgentConfig):
     def main_group() -> _Group:
         return _Group(name="Pareto Q-Learning Agent Params", description="Params used with Pareto Q-Learning simulation")
 
-    gamma: float = field(default=0.9, metadata=describe(
-        "Agent's discount factor for future actions.", group=main_group()))
-    bonus: int = field(default=1, metadata=describe(
-        "Right destination bonus.", shorten=True, group=LearningAgentConfig.main_group()))
-    penalty: int = field(default=1, metadata=describe(
-        "Wrong destination penalty.", shorten=True, group=LearningAgentConfig.main_group()))
-    normalize_rewards: bool = field(default=True, metadata=describe(
-        "Flag that indicates if rewards should be normalized. Requires a previous reward collection run.",
-        rename="normalize-rewards", group=LearningAgentConfig.main_group()))
-    objectives: list[str] = field(default_factory=lambda: ["TravelTime", "CO"], metadata=describe(
-        "Agent's main objectives to optimize", shorten=True, group=main_group()))
+    gamma: float = field(default=0.9, metadata=describe("Agent's discount factor for future actions.",
+                                                        group=main_group()))
+
+    bonus: int = field(default=1, metadata=describe("Right destination bonus.", shorten=True,
+                                                    group=LearningAgentConfig.main_group()))
+
+    penalty: int = field(default=1, metadata=describe("Wrong destination penalty.", shorten=True,
+                                                      group=LearningAgentConfig.main_group()))
+
+    normalize_rewards: bool = field(default=True, metadata=describe("Flag that indicates if rewards should be "
+                                                                    "normalized. Requires a previous reward collection "
+                                                                    "run.",
+                                                                    rename="normalize-rewards",
+                                                                    group=LearningAgentConfig.main_group()))
+
+    objectives: list[str] = field(default_factory=lambda: ["TravelTime", "CO"],
+                                  metadata=describe("Agent's main objectives to optimize", shorten=True,
+                                                    group=main_group()))
 
     @property
     def name(self) -> str:
@@ -296,7 +311,7 @@ def add_fields(parser: argparse.ArgumentParser, config: Config) -> argparse.Argu
                     arg_names = [f"-{name[0]}"] + arg_names
 
                 action = "store_true" if type(value) == bool else "store"
-                required = value is None
+                required = value is None and config.__class__ is not GraphConfig
 
                 group = group_map.get(config_group)
                 if group is None:
