@@ -99,7 +99,7 @@ class GraphConfig(EmptyConfig):
                                                     "given by the number of the column of the input file.",
                                                     rename="vg-attributes", group=main_group()))
 
-    labels: list[str] | None = field(default_factory=lambda: [],
+    labels: list[str | None] = field(default_factory=lambda: [None],
                                      metadata=describe("List of atributes that will compose the label of the virtual "
                                                        "graph. Atribute is given by the number of the column of the "
                                                        "input file.", rename="vg-labels", group=main_group()))
@@ -108,7 +108,7 @@ class GraphConfig(EmptyConfig):
                                    metadata=describe("List of atributes that the nodes cannot share in order to create "
                                                      "an edge in the virtual graph. Atribute is given by the number of "
                                                      "the column of the input file.", rename="vg-restriction",
-                                                     group=main_group()))        # graph = GraphConfig(**graph_config_dict)
+                                                     group=main_group()))
 
     threshold: float = field(default=0., metadata=describe("Threshold used to create an edge in the virtual graph.",
                                                            rename="vg-threshold", group=main_group()))
@@ -151,6 +151,27 @@ class GraphConfig(EmptyConfig):
     @property
     def name(self) -> str:
         return "graph"
+
+    @classmethod
+    def create(cls, params: dict) -> None | GraphConfig:
+        file = params.get("file")
+        labels = params.get("labels")
+
+        match file, labels:
+            case None, [None]:
+                return
+
+            case None, _:
+                raise ValueError("Graph file not informed!")
+
+            case _, None:
+                raise ValueError("Labels is a necessary parameter for graphs!")
+
+            case _, [None]:
+                raise ValueError("Labels is a necessary parameter for graphs!")
+
+            case _:
+                return cls(**params)
 
 
 @dataclass(frozen=True)
@@ -224,7 +245,7 @@ class LearningAgentConfig(BaseConfig):
         communication = CommunicationConfig(**comm_config_dict)
         main_config_dict["communication"] = communication
 
-        graph = GraphConfig(**graph_config_dict)
+        graph = GraphConfig.create(graph_config_dict)
         main_config_dict["virtual_graph"] = graph
 
         return cls(**main_config_dict)

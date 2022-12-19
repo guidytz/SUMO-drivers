@@ -1,12 +1,13 @@
 import argparse
 import sys
 
+from script_configs import CustomParser
 from script_configs.configs import (NonLearnerConfig, PQLConfig, QLConfig,
                                     add_fields)
 
 
 def main(command_line=None):
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = CustomParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, fromfile_prefix_chars="@")
     subparsers = parser.add_subparsers(dest="command", help="Possible agent types")
 
     ql_base_config = QLConfig()
@@ -27,10 +28,10 @@ def main(command_line=None):
     pql = add_fields(pql, pql_base_config)
     pql.set_defaults(func=PQLConfig.from_namespace)
 
-    args = parser.parse_args(command_line)
+    options = parser.parse_args(command_line)
 
     try:
-        config: QLConfig | NonLearnerConfig = args.func(args)
+        config: QLConfig | NonLearnerConfig | PQLConfig = options.func(options)
     except AttributeError:
         print("Wrong usage of script")
         parser.print_help()
