@@ -21,6 +21,8 @@ MAX_VEHICLE_MARGIN = 100
 CONVERSION_DICT = {
     "Step": "Step",
     "Link": "Link",
+    "Junction": "Junction", 
+    "Junction Type": "JunctionType",
     "Travel Time": tc.VAR_CURRENT_TRAVELTIME,
     "Speed": tc.LAST_STEP_MEAN_SPEED,
     "Occupancy": tc.LAST_STEP_OCCUPANCY,
@@ -145,7 +147,7 @@ class SumoEnvironment(MultiAgentEnv):
             traci.route.add(route_id, vehicle.original_route)
             self.__od_pairs[vehicle.od_pair].increase_load(vehicle_id)
 
-        subs_params = [CONVERSION_DICT[param] for param in self.__link_collector.watched_params[2:]]
+        subs_params = [CONVERSION_DICT[param] for param in self.__link_collector.watched_params[4:]]
         for edge in self.__network.getEdges():
             traci.edge.subscribe(edge.getID(), subs_params)
 
@@ -205,6 +207,17 @@ class SumoEnvironment(MultiAgentEnv):
             str: Node ID that is the destination of the link.
         """
         return self.__network.getEdge(link_id).getToNode().getID()
+
+    def get_link_destination_type(self, link_id: str) -> str:
+        """Method that returns the destination node type given the link ID.
+
+        Args:
+            link_id (str): Link ID to retrieve the destination node
+
+        Returns:
+            str: Type of node that is the destination of the link.
+        """
+        return self.__network.getEdge(link_id).getToNode().getType()
 
     def get_graph_neighbours(self):
         """Method that returns dictionary of graph neighbours"""
@@ -642,6 +655,8 @@ class SumoEnvironment(MultiAgentEnv):
             link_id = edge.getID()
             link_data = traci.edge.getSubscriptionResults(link_id)
             step_data["Link"].append(link_id)
+            step_data["Junction"].append(self.get_link_destination(link_id))
+            step_data["Junction Type"].append(self.get_link_destination_type(link_id))
             for key, value in link_data.items():
                 conv_key = key_list[value_list.index(key)]
                 if key == tc.VAR_CURRENT_TRAVELTIME:

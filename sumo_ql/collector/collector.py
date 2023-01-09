@@ -83,6 +83,8 @@ class DefaultCollector:
         Args:
             aggregated_df (pd.DataFrame): aggregated information to append to main df.
         """
+        #print(f"{aggregated_df.columns=}\n")
+        #print(f"{self._aggr_df.columns=}")
         self._aggr_df = pd.concat([self._aggr_df, aggregated_df[self._params]], ignore_index=True)
         self._collector_df = self._empty_df[self._params[1:]]
 
@@ -224,10 +226,12 @@ class LinkCollector(DefaultCollector):
             own_params.remove("TravelTime")
             own_params.append("Speed")
 
-        own_params = ["Step", "Link", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
+        own_params = ["Step", "Link", "Junction", "Junction Type", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
         super().__init__(aggregation_interval, path, own_params)
 
     def _aggregate(self, curr_value: int) -> None:
         aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean').reset_index()
-        aggregated_df[self._params[0]] = curr_value
+        aggregated_df[self._params[0]] = curr_value # adding step
+        aggregated_df[self._params[2]] = self._collector_df[self._params[2]] # adding junction
+        aggregated_df[self._params[3]] = self._collector_df[self._params[3]] # adding junction type
         self._update_main_dfs(aggregated_df)
