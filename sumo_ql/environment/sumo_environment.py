@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import math
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from xml.dom import minidom
 
@@ -10,6 +13,8 @@ import traci
 import traci.constants as tc
 from gym import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+
+from script_configs.configs import NonLearnerConfig, PQLConfig, QLConfig
 from sumo_ql.collector.collector import LinkCollector, ObjectiveCollector
 from sumo_ql.environment.communication_device import CommunicationDevice
 from sumo_ql.environment.od_pair import ODPair
@@ -34,6 +39,85 @@ CONVERSION_DICT = {
     "Fuel": tc.VAR_FUELCONSUMPTION
 }
 HALTING_SPEED = 0.1
+
+
+@dataclass(frozen=True)
+class EnvConfig:
+    sumocfg_file: str
+    simulation_steps: int
+    steps_to_populate: int
+    max_vehicles: int
+    right_arrival_bonus: int
+    wrong_arrival_penalty: int
+    communication_success_rate: float
+    max_comm_dev_queue_size: int
+    data_collector: LinkCollector
+    use_gui: bool
+    objectives: list[str]
+    fit_data_collect: bool
+    normalize_rewards: bool
+    min_toll_speed: float
+    toll_penalty: int
+    graph_neighbours: dict
+
+    @classmethod
+    def from_sim_config(cls, config: NonLearnerConfig | QLConfig | PQLConfig, data_collector: LinkCollector) -> EnvConfig:
+        if config.sumocfg is None:
+            raise RuntimeError("Sumo cfg files should have a valid path!")
+        match config:
+            case NonLearnerConfig(_):
+                return cls(sumocfg_file=config.sumocfg,
+                           simulation_steps=config.steps,
+                           steps_to_populate=config.steps,
+                           max_vehicles=config.demand,
+                           right_arrival_bonus=0,
+                           wrong_arrival_penalty=0,
+                           communication_success_rate=0.0,
+                           max_comm_dev_queue_size=0,
+                           data_collector=data_collector,
+                           use_gui=config.gui,
+                           objectives=config.observe_list,
+                           fit_data_collect=False,
+                           normalize_rewards=False,
+                           min_toll_speed=np.infty,
+                           toll_penalty=0,
+                           graph_neighbours=dict())
+            case QLConfig(_):
+                print(f"Optimizing: {config.objective}")
+                return cls(sumocfg_file=config.sumocfg,
+                           simulation_steps=config.steps,
+                           steps_to_populate=config.steps,
+                           max_vehicles=config.demand,
+                           right_arrival_bonus=config.bonus,
+                           wrong_arrival_penalty=config.penalty,
+                           communication_success_rate=config.communication.success_rate,
+                           max_comm_dev_queue_size=config.communication.queue_size,
+                           data_collector=data_collector,
+                           use_gui=config.gui,
+                           objectives=[config.objective],
+                           fit_data_collect=config.collect_rewards,
+                           normalize_rewards=config.normalize_rewards,
+                           min_toll_speed=config.toll_speed,
+                           toll_penalty=config.toll_value,
+                           graph_neighbours=dict())
+            case PQLConfig(_):
+                print(f"Optimizing: {config.objectives}")
+                return cls(sumocfg_file=config.sumocfg,
+                           simulation_steps=config.steps,
+                           steps_to_populate=config.steps,
+                           max_vehicles=config.demand,
+                           right_arrival_bonus=config.bonus,
+                           wrong_arrival_penalty=config.penalty,
+                           communication_success_rate=config.communication.success_rate,
+                           max_comm_dev_queue_size=config.communication.queue_size,
+                           data_collector=data_collector,
+                           use_gui=config.gui,
+                           objectives=config.objectives,
+                           fit_data_collect=config.collect_rewards,
+                           normalize_rewards=config.normalize_rewards,
+                           min_toll_speed=config.toll_speed,
+                           toll_penalty=config.toll_value,
+                           graph_neighbours=dict())
 
 
 class SumoEnvironment(MultiAgentEnv):
@@ -62,32 +146,17 @@ class SumoEnvironment(MultiAgentEnv):
             in future experiments (usually to normalize rewards). Defaults to False.
         """
 
-    def __init__(self, sumocfg_file: str,
-                 graph_neighbours: dict,
-                 simulation_time: int = 50000,
-                 max_vehicles: int = 750,
-                 right_arrival_bonus: int = 1000,
-                 wrong_arrival_penalty: int = 1000,
-                 communication_success_rate: float = 1,
-                 max_comm_dev_queue_size: int = 30,
-                 steps_to_populate: int = 3000,
-                 use_gui: bool = False,
-                 data_collector: LinkCollector | None = None,
-                 objectives: None | list[str] = None,
-                 fit_data_collect: bool = False,
-                 normalize_rewards: bool = False,
-                 min_toll_speed: float = 27.79,
-                 toll_penalty: int = 50) -> None:
-        self.__sumocfg_file = sumocfg_file
-        self.__graph_neighbours = graph_neighbours
+    def __init__(self, config: EnvConfig) -> None:
+        self.__sumocfg_file = config.sumocfg_file
+        self.__graph_neighbours = config.graph_neighbours
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
         self.__network: sumolib.net.Net = sumolib.net.readNet(self.__network_file)
-        self.__simulation_time = simulation_time
+        self.__simulation_time = config.simulation_steps
         self.__current_step = 0
-        self.__max_vehicles_running = max_vehicles
-        self.__steps_to_populate = steps_to_populate if steps_to_populate < simulation_time else simulation_time
-        self.__link_collector = data_collector or LinkCollector()  # in case of being None
+        self.__max_vehicles_running = config.max_vehicles
+        self.__steps_to_populate = config.steps_to_populate
+        self.__link_collector = config.data_collector
         self.__action_space: dict[str, spaces.Discrete] = dict()
         self.__comm_dev: dict[str, CommunicationDevice] = dict()
         self.__vehicles: dict[str, Vehicle] = dict()
@@ -95,28 +164,28 @@ class SumoEnvironment(MultiAgentEnv):
         self.__current_running_vehicles_n = 0
         self.__observations: dict[str, dict] = dict()
         self.__loaded_vehicles: list[str] = list()
-        self.__objectives: Objectives = Objectives(objectives or [tc.VAR_ROAD_ID])
+        self.__objectives: Objectives = Objectives(config.objectives)
         self.__data_fit = None
-        self.__normalize_rewards = normalize_rewards
+        self.__normalize_rewards = config.normalize_rewards
 
         network_filepath = Path(self.__sumocfg_file[:self.__sumocfg_file.rfind('/')])
-        if fit_data_collect:
+        if config.fit_data_collect:
             self.__data_fit = ObjectiveCollector(self.__objectives.objectives_str_list, network_filepath)
-        if 'LIBSUMO_AS_TRACI' in os.environ and use_gui:
+        if 'LIBSUMO_AS_TRACI' in os.environ and config.use_gui:
             print("Warning: using libsumo as traci can't be performed with GUI. Using sumo without GUI instead.")
             self.__sumo_bin = sumolib.checkBinary('sumo')
         else:
-            self.__sumo_bin = sumolib.checkBinary('sumo-gui') if use_gui else sumolib.checkBinary('sumo')
+            self.__sumo_bin = sumolib.checkBinary('sumo-gui') if config.use_gui else sumolib.checkBinary('sumo')
 
         for node in self.__network.getNodes():
-            self.__comm_dev[node.getID()] = CommunicationDevice(node, max_comm_dev_queue_size,
-                                                                communication_success_rate, self)
+            self.__comm_dev[node.getID()] = CommunicationDevice(node, config.max_comm_dev_queue_size,
+                                                                config.communication_success_rate, self)
             self.__action_space[node.getID()] = spaces.Discrete(len(node.getOutgoing()))
 
-        self.__vehicles, self.__od_pairs = self.__instantiate_vehicles_and_od_pairs(right_arrival_bonus,
-                                                                                    wrong_arrival_penalty,
-                                                                                    min_toll_speed,
-                                                                                    toll_penalty)
+        self.__vehicles, self.__od_pairs = self.__instantiate_vehicles_and_od_pairs(config.right_arrival_bonus,
+                                                                                    config.wrong_arrival_penalty,
+                                                                                    config.min_toll_speed,
+                                                                                    config.toll_penalty)
 
         print(f"Objectives: {len(self.__objectives.known_objectives)}")
 
@@ -470,7 +539,7 @@ class SumoEnvironment(MultiAgentEnv):
         """
         node_id = self.get_link_destination(link_id)
         if self.__comm_dev[node_id].communication_success:
-            #print(f"Reward {reward} added to {node_id}")
+            # print(f"Reward {reward} added to {node_id}")
             self.__comm_dev[node_id].update_stored_rewards(link_id, reward)
 
     def __handle_loaded_vehicles(self) -> None:

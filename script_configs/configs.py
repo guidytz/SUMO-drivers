@@ -66,7 +66,9 @@ class BaseConfig(EmptyConfig):
     wav: int = field(default=1, metadata=describe("Average in data collection window size.", shorten=True))
     gui: bool = field(default=False, metadata=describe("Use SUMO GUI flag.", shorten=True))
     nruns: int = field(default=1, metadata=describe("Number of multiple simulation runs.", shorten=True))
-    parallel: int = field(default=False, metadata=describe("Flag to indicate parallel runs with multiple simulations."))
+    parallel: bool = field(default=False,
+                           metadata=describe("Flag to indicate parallel runs with multiple simulations."))
+
     observe_list: list[str] = field(default_factory=lambda: ["TravelTime"],
                                     metadata=describe("Parameters to collect data from.", rename="observe-list"))
 
@@ -142,11 +144,17 @@ class GraphConfig(EmptyConfig):
                                                          "value will be ploted.", rename="max-degree",
                                                          group=main_group()))
 
+    min_step: int = field(default=0, metadata=describe("Only vertices with a step bigger or equal to this value will be"
+                                                       " ploted.", rename="vg-min-step", group=main_group()))
+
     vg_dict: str = field(default="", metadata=describe("Name of file containing python dictionary of virtual graph "
                                                        "neighbours", rename="vg-dict", group=main_group()))
 
     interval: int = field(default=250, metadata=describe("Amplitude of the timestep interval of the virtual graph "
                                                          "neighbours dictionary.", group=main_group()))
+
+    # parser.add_argument("-mstep", "--min_step", type=int, default=0,
+    #                 help=". (default = 0)")
 
     @property
     def name(self) -> str:
@@ -218,10 +226,10 @@ class LearningAgentConfig(BaseConfig):
                                                             "objectives. The default indicates the toll is not used.",
                                                             group=main_group(), rename="toll-speed"))
 
-    toll_value: float = field(default=-1, metadata=describe("Toll value to be added as penalty to emission. "
-                                                            "This parameter is only used in emission objectives. "
-                                                            "The default indicates the toll is not used.",
-                                                            group=main_group(), rename="toll-value"))
+    toll_value: int = field(default=-1, metadata=describe("Toll value to be added as penalty to emission. "
+                                                          "This parameter is only used in emission objectives. "
+                                                          "The default indicates the toll is not used.",
+                                                          group=main_group(), rename="toll-value"))
 
     communication: CommunicationConfig = field(default_factory=CommunicationConfig)
     virtual_graph: GraphConfig = field(default_factory=GraphConfig)
@@ -341,6 +349,14 @@ def add_fields(parser: argparse.ArgumentParser, config: Config) -> argparse.Argu
 
                 arg = group.add_argument(*arg_names, default=value, dest=f"{argument}", action=action, required=required,
                                          help=config.description(argument))
+
+                match value:
+                    case None:
+                        arg.type = str
+                    case list(_):
+                        arg.type = str
+                    case _:
+                        arg.type = type(value)
 
                 if type(value) == list:
                     arg.nargs = '+'
