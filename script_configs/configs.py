@@ -61,9 +61,9 @@ class EmptyConfig(ABC):
 @dataclass(frozen=True)
 class BaseConfig(EmptyConfig):
     sumocfg: str | None = field(default=None, metadata=describe("Path to '.sumocfg' file. MANDATORY"))
-    demand: int = field(default=750, metadata=describe("Desired network demand.", shorten=True))
     steps: int = field(default=60000, metadata=describe("Number of max simulation steps.", shorten=True))
-    wav: int = field(default=1, metadata=describe("Average in data collection window size.", shorten=True))
+    demand: int = field(default=750, metadata=describe("Desired network demand.", shorten=True))
+    aw: int = field(default=1, metadata=describe("Average in data collection window size.", shorten=True))
     gui: bool = field(default=False, metadata=describe("Use SUMO GUI flag.", shorten=True))
     nruns: int = field(default=1, metadata=describe("Number of multiple simulation runs.", shorten=True))
     parallel: bool = field(default=False,
@@ -97,18 +97,18 @@ class GraphConfig(EmptyConfig):
                                                "to create the virtual graph.", rename="vg-file", group=main_group()))
 
     attributes: list[str] = field(default_factory=lambda: ["ALL"],
-                                  metadata=describe("List of atributes used to create the virtual graph. Atribute is "
+                                  metadata=describe("List of atrributes used to create the virtual graph. Atrribute is "
                                                     "given by the number of the column of the input file.",
                                                     rename="vg-attributes", group=main_group()))
 
     labels: list[str | None] = field(default_factory=lambda: [None],
-                                     metadata=describe("List of atributes that will compose the label of the virtual "
-                                                       "graph. Atribute is given by the number of the column of the "
+                                     metadata=describe("List of attributes that will compose the label of the virtual "
+                                                       "graph. Attribute is given by the number of the column of the "
                                                        "input file.", rename="vg-labels", group=main_group()))
 
     restriction: list[str] = field(default_factory=lambda: ["none"],
-                                   metadata=describe("List of atributes that the nodes cannot share in order to create "
-                                                     "an edge in the virtual graph. Atribute is given by the number of "
+                                   metadata=describe("List of attributes that the nodes cannot share in order to create "
+                                                     "an edge in the virtual graph. Attribute is given by the number of "
                                                      "the column of the input file.", rename="vg-restriction",
                                                      group=main_group()))
 
@@ -116,7 +116,7 @@ class GraphConfig(EmptyConfig):
                                                            rename="vg-threshold", group=main_group()))
 
     use_or: bool = field(default=False, metadata=describe("Use or logic instead of the and logic to create an edge "
-                                                          "between nodes given multiple atributes.",
+                                                          "between nodes given multiple attributes.",
                                                           rename="use-or-logic", group=main_group()))
 
     measures: list[str] = field(default_factory=lambda: ["none"],
@@ -137,24 +137,21 @@ class GraphConfig(EmptyConfig):
                                                              rename="vg-normalize", group=main_group()))
 
     min_degree: int = field(default=0, metadata=describe("Only vertices with a degree bigger than or equal to this "
-                                                         "value will be ploted.", rename="min-degree",
+                                                         "value will be plotted.", rename="min-degree",
                                                          group=main_group()))
 
     max_degree: int = field(default=0, metadata=describe("Only vertices with a degree lower than or equal to this "
-                                                         "value will be ploted.", rename="max-degree",
+                                                         "value will be plotted.", rename="max-degree",
                                                          group=main_group()))
 
     min_step: int = field(default=0, metadata=describe("Only vertices with a step bigger or equal to this value will be"
-                                                       " ploted.", rename="vg-min-step", group=main_group()))
+                                                       " plotted.", rename="vg-min-step", group=main_group()))
 
     vg_dict: str = field(default="", metadata=describe("Name of file containing python dictionary of virtual graph "
-                                                       "neighbours", rename="vg-dict", group=main_group()))
+                                                       "neighbours", rename="vg-dict-file", group=main_group()))
 
     interval: int = field(default=250, metadata=describe("Amplitude of the timestep interval of the virtual graph "
-                                                         "neighbours dictionary.", group=main_group()))
-
-    # parser.add_argument("-mstep", "--min_step", type=int, default=0,
-    #                 help=". (default = 0)")
+                                                         "neighbors dictionary.", group=main_group()))
 
     @property
     def name(self) -> str:
