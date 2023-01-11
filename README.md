@@ -5,8 +5,8 @@ traffic simulation.
 
 ## Requirements
 
-* Python 3.10+.
-* SUMO v 1.9.2.
+- Python 3.10+.
+- SUMO v 1.8.0.
 
 ### SUMO Installation
 
@@ -30,129 +30,188 @@ Other options for installing SUMO in different systems can be found in [SUMO's d
 ### Installing the package
 
 To install the package, run:
+
 ```bash
 git clone https://github.com/guidytz/SUMO-QL
 cd SUMO-QL
 python3 -m pip install -e .
 ```
 
-## Basic Usage
+## Usage
 
-```bash
-python3 simulations/sumo_run.py -c <scenario>
+The script has three basic agent modes:
+
+- Non-Learning Agent
+- Q-Learning Agent
+- Pareto Q-Learning Agent
+
+Each of these agents have their specific parameters that can be passed through command line, but all of them require a .sumofg file
+which contains configurations involving the SUMO network in use.
+
+Examples of basic usage with each agent are given below:
+
+### Non-Learning Agent
+
+Using the positional argument `nl`:
+
+```
+python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file>
 ```
 
-Where the scenario is a basic .sumocfg file containing info about network and route files necessary for the simulation. Some
-examples can be found in [scenario](https://github.com/guidytz/SUMO-QL/tree/master/scenario).
+### Q-Learning Agent
 
-This will run the application with the chosen scenario, applying Q-Learning algorithm to each car agent.
+Using the positional argument `ql`:
 
-## Other Configurations
-
-### Number of Steps
-
-To define the number of steps to run the simulations, use the argument _-s_ followed by the value desired. For example, to run
-the 5x5 network present in the scenario folder for 30.000 steps, run the following:
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000
+```
+python3 simulations/sumo_run.py ql --sumocfg <path-to-sumocfg-file>
 ```
 
-### Steps Before Learning Starts
+### Pareto Q-Learning Agent
 
-In order to populate the network before staring the learning process, it is important to define a number of steps in which there
-is no learning algorithm involved and the agents just follow the routes present in the SUMO configuration file.
+Using the positional argument `pql`:
 
-This setting is specified with the _-w_ argument. So, for exemple, if we want to run the 5x5 network for 30.000 steps and populate
-the network for 4.000 steps, run the following:
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000 -w 4000
+```
+python3 simulations/sumo_run.py pql --sumocfg <path-to-sumocfg-file>
 ```
 
-This also allows us to run the simulation without using a learning algorithm by simply using the same value for the steps and
-populating steps. For example, running the 5x5 network for 30.000 steps without the agents learning:
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000 -w 30000
-```
+## Common Arguments
 
-### Communication Success Rate
+Below are described common arguments to every agent.
 
-This approach allows the learning process to be improved with the use of [Car-to-Infrastructure Communication](https://peerj.com/articles/cs-428/), this can
-be set by adjusting the success rate of the communication using the _-r_ argument. So, if we want to run a simulation that has
-a communication with a 75% success rate, we follow the example below:
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -s 30000 -r 0.75
-```
+| Name           | Argument                       | Description                                                                                                                                                                    |
+| -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Steps          | `-s <INT>`<br>`--steps <INT>`  | Number of SUMO steps to run the simulation.                                                                                                                                    |
+| Demand         | `-d <INT>`<br>`--demand <INT>` | Desired network demand.                                                                                                                                                        |
+| Average Window | `--aw <INT>`                   | Window size to average collected data.                                                                                                                                         |
+| GUI Usage      | `--gui`                        | Flag that indicates SUMO GUI usage.                                                                                                                                            |
+| Number of Runs | `-n <INT>`<br>`--nruns <INT>`  | Number of multiple simulation repeated runs.                                                                                                                                   |
+| Parallel Runs  | `--parallel`                   | Flag that indicates if multiple runs should run in parallel                                                                                                                    |
+| Observe List   | `--observe-list <LIST-OF-STR>` | List that indicate parameters to collect observe in data collection.<br>The possible parameters to use in list are described [here](#list-of-possible-observation-parameters). |
 
-At the current version, the only algorithm that supports communication is the base Q-Learning algorithm, so the communication
-will not work with multiobjective scenarios.
+## Common Learning Agent Arguments
 
-### Multiobjective Learning
+Below are described common arguments to every learning agent.
 
-To be able to test multiobjective learning, we need to prepare some settings. First, it is important to run normal Q-Learning
-with each objective separately in order to collect important data to normalize the multiobjective run. For example, if we want
-to optimize travel time and carbon monoxide emission in a multiobjective run, we first run the collect runs for each of them like
-the following:
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -a QL --objectives TravelTime CO
-```
+| Name                  | Argument                        | Description                                                                                                                                     |
+| --------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wait to Learn         | `--wait-learn <INT>`            | Number of steps to wait until the learning starts                                                                                               |
+| Right Arrival Bonus   | `-b <INT>`<br>`--bonus <INT>`   | Bonus to add in the agent's reward if it arrives at its right destination.                                                                      |
+| Wrong Arrival Penalty | `-p <INT>`<br>`--penalty <INT>` | Penalty to subtract in the agent's reward if it arrives at a wrong destination.                                                                 |
+| Normalize Rewards     | `--normalize-rewards`           | Flag that indicates if rewards should be normalized. <br>Note that this argument requires a previous run with rewards collected.                |
+| Collect Rewards       | `--collect-rewards`             | Flag that indicates if rewards should be collected in a collection file.<br>This file is necessary to run a simulation with normalized rewards. |
+| Toll Speed            | `--toll-speed <FLOAT>`          | Speed limit in links where the environment should impose a toll on emission.                                                                    |
+| Toll Value            | `--toll-value <INT>`            | Toll value to impose on emission.                                                                                                               |
 
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -a QL --objectives CO TravelTime
-```
+## Q-Learning Agent Specific Arguments
 
-The _-a_ argument sets the Q-Learning algorithm as the main learning algorithm the agents will use, the _--objectives_ argument
-sets the objectives to collect information of. Notice that the Q-Learning algorithm will only optimize the first objective stated
-in the informed list.
+Below are described arguments specific to Q-Learning agent.
 
-After collecting has been done, it is possible to use the multiobjective algorithm that aims at optimizing all objetives informed.
-Following the example aforementioned, to optimize travel time and carbon monoxide using Pareto Q-Learning, run the following:
-```bash
-python3 simulations/sumo_run.py -c scenario/5x5_allway_stop/5x5.sumocfg -a PQL --objectives TravelTime CO
-```
+| Name      | Argument                          | Description                                                                                                                                      |
+| --------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Alpha     | `--alpha <FLOAT>`                 | Agent's learning rate.                                                                                                                           |
+| Gamma     | `--gamma <FLOAT>`                 | Agent's discount factor for future actions.                                                                                                      |
+| Objective | `-o <STR>`<br>`--objective <STR>` | Agent's main objective to optimize. <br> List of possible objective to optimize are described [here](#list-of-possible-optimization-parameters). |
 
-### Additional Arguments
+## Pareto Q-Learning Specific Arguments
 
-Different arguments can be set in order to the simulation to behave differently. See which ones are available by running
-the command below:
+Below are described arguments specific to Pareto Q-Learning agent.
 
-```bash
-python3 simulations/sumo_run.py -h
-```
+| Name       | Argument                                           | Description                                                                                                                                      |
+| ---------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Gamma      | `--gamma <FLOAT>`                                  | Agent's discount factor for future actions.                                                                                                      |
+| Objectives | `-o <LIST-OF-STR>`<br>`--objectives <LIST-OF-STR>` | Agent's main objectives to optimize.<br> List of possible objective to optimize are described [here](#list-of-possible-optimization-parameters). |
 
-After running the experiments, results can be found in results folder generated.
+## Communication Specific Arguments
+
+Below are described arguments specific to Car-to-Infrastructure communication (C2I) usage.
+
+| Name         | Argument                 | Description                                                                                             |
+| ------------ | ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Success Rate | `--success-rate <FLOAT>` | Value between 0 and 1 indicating the rate of success in which cars communicate with the infrastructure. |
+| Queue Size   | `--queue-size <INT>`     | Queue size in which the infrastructure stores rewards collected from agents.                            |
+
+## Virtual Graph Specific Arguments
+
+Below are described arguments specific to virtual graph in communication usage.
+
+| Name                 | Argument                              | Description                                                                                                                                                           |
+| -------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Virtual Graph File   | `--vg-file <STR>`                     | Path and name to the file containing the data that is going to be used to create the virtual graph.                                                                   |
+| Attributes           | `--vg-attributes <LIST-OF-STR>`       | List of attributes used to create the virtual graph.<br>Attribute is given by the number of the column of the input file.                                             |
+| Labels               | `--vg-labels <LIST-OF-STR>`           | List of attributes that will compose the label of the virtual graph. <br>Attribute is given by the number of the column of the input file.                            |
+| Restriction          | `--vg-restriction <LIST-OF-STR>`      | List of attributes that the nodes cannot share in order to create an edge in the virtual graph. <br>Attribute is given by the number of the column of the input file. |
+| Threshold            | `--vg-threshold <FLOAT>`              | Threshold used to create an edge in the virtual graph.                                                                                                                |
+| Use OR logic         | `--use-or-logic`                      | Flag that indicates or logic instead of the and logic to create an edge between nodes given multiple attributes.                                                      |
+| Centrality Measures  | `--centrality-measures <LIST-OF-STR>` | List of centrality measures to be taken of the virtual graph.                                                                                                         |
+| No Image Flag        | `--no-image`                          | Flag to indicate to the script not to generate a graph image.                                                                                                         |
+| Raw Graph Flag       | `--raw-graph`                         | Flag to indicate not to remove nodes with degree zero (i.e. raw graph).                                                                                               |
+| Giant Component Flag | `--giant`                             | Flag to indicate that only the giant component of the graph should be presented in its image.                                                                         |
+| Normalize            | `--vg-normalize`                      | Flag to indicate if the input data to graph generation should be normalized.                                                                                          |
+| Minimum Degree       | `--min-degree <INT>`                  | Determines the minimum degree a node should have in order to be plotted.                                                                                              |
+| Maximum Degree       | `--max-degree <INT>`                  | Determines the maximum degree a node should have in order to be plotted.                                                                                              |
+| Minimum Step         | `--vg-min-step <INT>`                 | Determines the maximum step a node should have in order to be plotted.                                                                                                |
+| Graph Dictionary     | `--vg-dict-file <STR>`                | Path to file containing the python dictionary of the graph.                                                                                                           |
+| Interval             | `--interval <INT>`                    | Timestep interval of the neighbors dictionary.                                                                                                                        |
+
+## List of Possible Observation Parameters
+
+| Name                          | Argument Name        |
+| ----------------------------- | -------------------- |
+| Link Travel Time              | `TravelTime`         |
+| Link Halting Vehicles         | `'Halting Vehicles'` |
+| Link Carbon Monoxide Emission | `CO`                 |
+| Link Carbon Dioxide Emission  | `CO2`                |
+| Link Hidrocarbonets Emission  | `HC`                 |
+| Link NOx Emission             | `NOx`                |
+
+## List of Possible Optimization Parameters
+
+| Name                             | Argument Name |
+| -------------------------------- | ------------- |
+| Agent's Travel Time              | `TravelTime`  |
+| Agent's Carbon Monoxide Emission | `CO`          |
+| Agent's Carbon Dioxide Emission  | `CO2`         |
+| Agent's Hidrocarbonets Emission  | `HC`          |
+| Agent's NOx Emission             | `NOx`         |
+| Agent's Fuel Consumption         | `Fuel`        |
 
 ### Performance boost using Libsumo
+
 To increase performance, declare the following environment variable before running the simulation:
+
 ```bash
 export LIBSUMO_AS_TRACI=1
 ```
+
 This allows the simulation use Libsumo instead of Traci, which enhances the performance considerably. However, simulations using sumo-gui are not available using this method. See [Libsumo documentation](https://sumo.dlr.de/docs/Libsumo.html).
 
 ### Default values
-The default values are specified below:
-* **Demand:** 750 vehicles runnning at each step
-* **Max steps:** 60,000 steps
-* **Steps before learning behaviour starts:** 3,000 steps
-* **Learning agent:** Q-Learning
-* **Alpha:** 0.5
-* **Gamma:** 0.9
-* **Objectives to optimize:** Travel time
-* **Number of steps to sumarize data collected:** 1
-* **Success rate in communication:** 0
-* **CommDev Queue size in communication:** 30
-* **Correct arrival bonus:** 1000
-* **Wrong arrival penalty:** 1000
 
-Some more specific default values can be seen in the script's documentation.
+Default values for each argument can be seen by using the scripts help for each agent. As seen in the examples bellow:
+
+```
+python3 simulations/sumo_run.py nl -h
+```
+
+```
+python3 simulations/sumo_run.py ql -h
+```
+
+```
+python3 simulations/sumo_run.py ql -h
+```
 
 ## Documentation
+
 It is possible to see the module documentation using [pdoc](https://pdoc3.github.io/pdoc/).
 Just install pdoc using:
+
 ```bash
 python3 -m pip install pdoc
 ```
 
 Then run the following line to open a server with the documentation:
+
 ```bash
 pdoc --http : sumo_ql
 ```
