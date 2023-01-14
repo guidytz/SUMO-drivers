@@ -171,6 +171,7 @@ class SumoEnvironment(MultiAgentEnv):
         """Method that closes the traci run and saves collected data to csv files.
         """
         self.__link_collector.save()
+        self.__link_collector.save_aggr_junction()
         if self.__data_fit is not None:
             self.__data_fit.save()
         traci.close()
