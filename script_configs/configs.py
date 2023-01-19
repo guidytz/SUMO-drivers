@@ -104,7 +104,7 @@ class GraphConfig(EmptyConfig):
     labels: list[str | None] = field(default_factory=lambda: [None],
                                      metadata=describe("List of attributes that will compose the label of the virtual "
                                                        "graph. Attribute is given by the number of the column of the "
-                                                       "input file.", rename="vg-labels", group=main_group()))
+                                                       "input file.", rename="vg-label", group=main_group()))
 
     restriction: list[str] = field(default_factory=lambda: ["none"],
                                    metadata=describe("List of attributes that the nodes cannot share in order to create "
@@ -133,21 +133,17 @@ class GraphConfig(EmptyConfig):
                                                          "will be present in the virtual graph image.",
                                                          group=main_group()))
 
-    normalize: bool = field(default=False, metadata=describe("Determines if the input data will not be normalized.",
-                                                             rename="vg-normalize", group=main_group()))
+    not_normalize: bool = field(default=False, metadata=describe("Determines if the input data will not be normalized.",
+                                                             rename="vg-not-normalize", group=main_group()))
 
     min_degree: int = field(default=0, metadata=describe("Only vertices with a degree bigger than or equal to this "
                                                          "value will be plotted.", rename="min-degree",
                                                          group=main_group()))
 
-    max_degree: int = field(default=0, metadata=describe("Only vertices with a degree lower than or equal to this "
-                                                         "value will be plotted.", rename="max-degree",
-                                                         group=main_group()))
-
     min_step: int = field(default=0, metadata=describe("Only vertices with a step bigger or equal to this value will be"
                                                        " plotted.", rename="vg-min-step", group=main_group()))
 
-    vg_dict: str = field(default="", metadata=describe("Name of file containing python dictionary of virtual graph "
+    vg_dict: str | None = field(default=None, metadata=describe("Name of file containing python dictionary of virtual graph "
                                                        "neighbours", rename="vg-dict-file", group=main_group()))
 
     interval: int = field(default=250, metadata=describe("Amplitude of the timestep interval of the virtual graph "
@@ -159,6 +155,10 @@ class GraphConfig(EmptyConfig):
 
     @classmethod
     def create(cls, params: dict) -> None | GraphConfig:
+        dict_file = params.get("vg_dict")
+        if dict_file is not None:
+            return cls(**params)
+
         file = params.get("file")
         labels = params.get("labels")
 
