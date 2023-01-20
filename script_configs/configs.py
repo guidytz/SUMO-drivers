@@ -170,10 +170,10 @@ class GraphConfig(EmptyConfig):
                 raise ValueError("Graph file not informed!")
 
             case _, None:
-                raise ValueError("Labels is a necessary parameter for graphs!")
+                raise ValueError("Label is a necessary parameter for graphs!")
 
             case _, [None]:
-                raise ValueError("Labels is a necessary parameter for graphs!")
+                raise ValueError("Label is a necessary parameter for graphs!")
 
             case _:
                 return cls(**params)
