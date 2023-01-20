@@ -12,7 +12,7 @@ setup(
         'traci',
         'sumolib',
         'libsumo',
-        'sklearn',
+        'scikit-learn',
         'igraph',
         'matplotlib',
         'pymoo',
