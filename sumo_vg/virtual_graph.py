@@ -201,6 +201,8 @@ def gets_name_file(directory_file: str) -> str:
     path = Path(directory_file)
     if path.suffix == ".csv":
         return path.stem
+    else:
+        return directory_file
 
 
 def monta_nome(limiar: float, lista_atributos: list, directory_file: str) -> str:
