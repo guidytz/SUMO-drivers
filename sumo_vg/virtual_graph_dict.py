@@ -20,54 +20,67 @@ def main():
     parser = ap.ArgumentParser()
     parser.add_argument("-f", "--vg_file",
                         help="Path and name to the file containing the data that is going to be used to create the virtual graph.")
-    parser.add_argument("-atb", "--atributes", default=["ALL"], nargs="+",
-                        help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-id", "--labels", nargs="+",
+
+    parser.add_argument("-atb", "--vg_attributes", default=["ALL"], nargs="+",
+                        help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file. (default = ['ALL'])")
+
+    parser.add_argument("-id", "--vg_label", nargs="+",
                         help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-rst", "--restriction", default=["none"], nargs="+",
-                        help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file.")
-    parser.add_argument("-tsh", "--threshold", type=float, default=0,
+
+    parser.add_argument("-rst", "--vg_restrictions", default=["none"], nargs="+",
+                        help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file. (default = ['none'])")
+    
+    parser.add_argument("-tsh", "--vg_threshold", type=float, default=0,
                         help="Threshold used to create an edge in the virtual graph. (default = 0)")
-    parser.add_argument("-o", "--use_or", action="store_true", default=False,
+    
+    parser.add_argument("-o", "--use_or_logic", action="store_true", default=False,
                         help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
-    parser.add_argument("-ms", "--measures",  default=["none"], nargs="+",
+    
+    parser.add_argument("-ms", "--centrality_measures",  default=["none"], nargs="+",
                         help="List of centrality measures to be taken of the virtual graph. (default = none)")
-    parser.add_argument("-ni", "--no_graph_image", action="store_true", default=False,
+    
+    parser.add_argument("-ni", "--no_image", action="store_true", default=False,
                         help=f"Determines if an image of the virtual graph will not be generated. (default = false)")
+    
     parser.add_argument("-rgraph", "--raw_graph", action="store_true", default=False,
                         help="Determines if all nodes with degree zero will not be removed. (default = false)")
+    
     parser.add_argument("-giant", "--giant_component", action="store_true", default=False,
                         help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (default = false)")
-    parser.add_argument("-rdata", "--raw_data", action="store_true", default=False,
+    
+    parser.add_argument("-not-norm", "--vg_not_normalize", action="store_true", default=False,
                         help="Determines if the input data will not be normalized. (default = false)")
+    
     parser.add_argument("-mdeg", "--min_degree", type=int, default=0,
                         help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
-    parser.add_argument("-mstep", "--min_step", type=int, default=0,
+    
+    parser.add_argument("-mstep", "--vg_min_step", type=int, default=0,
                         help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
+    
     parser.add_argument("-int", "--interval", type=int, default=250,
                         help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
 
     args = parser.parse_args()
 
     nome_arquivo_csv = args.vg_file  # nome do arquivo csv a ser usado para gerar grafo
-    lista_atributos_numerico = args.atributes  # lista de atributos, passados como número da coluna
-    lista_ids_label_numerico = args.labels  # lista de ids usados no label, passados como número da coluna
-    lista_restricoes_numerico = args.restriction  # lista de restricoes para criar arestas, passadas como número da coluna
-    limiar = args.threshold  # limiar usado para criar arestas
-    usar_or = args.use_or  # lógica para criar arestas
-    lista_medidas = args.measures  # lista de medidas que serão tomadas do grafo
-    nao_gerar_imagem_grafo = args.no_graph_image  # define se será gerada uma imagem do grafo ou não
+    lista_atributos_numerico = args.vg_attributes  # lista de atributos, passados como número da coluna
+    lista_ids_label_numerico = args.vg_label  # lista de ids usados no label, passados como número da coluna
+    lista_restricoes_numerico = args.vg_restrictions  # lista de restricoes para criar arestas, passadas como número da coluna
+    limiar = args.vg_threshold  # limiar usado para criar arestas
+    usar_or = args.use_or_logic  # lógica para criar arestas
+    lista_medidas = args.centrality_measures  # lista de medidas que serão tomadas do grafo
+    nao_gerar_imagem_grafo = args.no_image  # define se será gerada uma imagem do grafo ou não
     # define se será usado o grafo sem processamento (remover vértices de grau zero) ou não
     usar_grafo_puro = args.raw_graph
     giant_component = args.giant_component  # define se apenas o giant component será mostrado na imagem
-    use_raw_data = args.raw_data  # define se os dados usados serão normalizados
+    use_raw_data = args.vg_not_normalize  # define se os dados usados serão normalizados
     min_degree = args.min_degree  # apenas serão mostrados vértices com grau a partir do especificado
-    min_step = args.min_step  # apenas serão considerados vértices cujo step é maior ou igual a este valor
+    min_step = args.vg_min_step  # apenas serão considerados vértices cujo step é maior ou igual a este valor
     interval_amplitude = args.interval  # amplitude of the virtual graph neighbours dictionary
 
     # == Verfica consistência de entrada ==
 
-    if args.labels == None:
+    if args.vg_label == None:
         print("Error! Labels parameter wasn't informed!")
         sys.exit("Exiting program")
 

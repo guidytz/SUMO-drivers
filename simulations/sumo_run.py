@@ -57,7 +57,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
             graph_neighbours_dict = generate_graph_neighbours_dict(config.virtual_graph.file,
                                                                    config.virtual_graph.attributes,
                                                                    config.virtual_graph.labels,
-                                                                   config.virtual_graph.restriction,
+                                                                   config.virtual_graph.restrictions,
                                                                    config.virtual_graph.threshold,
                                                                    config.virtual_graph.use_or,
                                                                    config.virtual_graph.measures,

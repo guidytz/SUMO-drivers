@@ -106,10 +106,10 @@ class GraphConfig(EmptyConfig):
                                                        "graph. Attribute is given by the number of the column of the "
                                                        "input file.", rename="vg-label", group=main_group()))
 
-    restriction: list[str] = field(default_factory=lambda: ["none"],
+    restrictions: list[str] = field(default_factory=lambda: ["none"],
                                    metadata=describe("List of attributes that the nodes cannot share in order to create "
                                                      "an edge in the virtual graph. Attribute is given by the number of "
-                                                     "the column of the input file.", rename="vg-restriction",
+                                                     "the column of the input file.", rename="vg-restrictions",
                                                      group=main_group()))
 
     threshold: float = field(default=0., metadata=describe("Threshold used to create an edge in the virtual graph.",
