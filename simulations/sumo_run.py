@@ -64,7 +64,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
                                                                    config.virtual_graph.no_image,
                                                                    config.virtual_graph.raw,
                                                                    config.virtual_graph.giant,
-                                                                   config.virtual_graph.normalize,
+                                                                   config.virtual_graph.not_normalize,
                                                                    config.virtual_graph.min_degree,
                                                                    config.virtual_graph.min_step,
                                                                    arestas_para_custoso=2000,
