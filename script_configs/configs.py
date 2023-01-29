@@ -106,7 +106,7 @@ class GraphConfig(EmptyConfig):
                                                        "graph. Attribute is given by the number of the column of the "
                                                        "input file.", rename="vg-label", group=main_group()))
 
-    restrictions: list[str] = field(default_factory=lambda: ["none"],
+    restrictions: list[str] | None = field(default_factory=lambda: None,
                                    metadata=describe("List of attributes that the nodes cannot share in order to create "
                                                      "an edge in the virtual graph. Attribute is given by the number of "
                                                      "the column of the input file.", rename="vg-restrictions",
@@ -119,7 +119,7 @@ class GraphConfig(EmptyConfig):
                                                           "between nodes given multiple attributes.",
                                                           rename="use-or-logic", group=main_group()))
 
-    measures: list[str] = field(default_factory=lambda: ["none"],
+    measures: list[str] | None = field(default_factory=lambda: None,
                                 metadata=describe("List of centrality measures to be taken of the virtual graph.",
                                                   rename="centrality-measures", group=main_group()))
 

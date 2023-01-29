@@ -54,7 +54,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
             # generates graph neighbours dict
             print("Generating graph neighbours dictionary...")
             network_name = str(config.sumocfg).split('/')[-2]
-            graph_neighbours_dict = generate_graph_neighbours_dict(config.virtual_graph.file,
+            vg_neighbours_dict = generate_graph_neighbours_dict(config.virtual_graph.file,
                                                                    config.virtual_graph.attributes,
                                                                    config.virtual_graph.labels,
                                                                    config.virtual_graph.restrictions,

@@ -41,11 +41,11 @@ def tem_atributo_vazio(linha: dict, keys: list) -> bool:
     return False
 
 
-def zero_occupancy_link(linha: dict) -> bool:
+def has_zero_occupancy(row: dict) -> bool:
     '''
-    Checks if link has occupancy of zero
+    Checks if row has occupancy of zero
     '''
-    if float(linha["Occupancy"]) == 0:
+    if float(row["Occupancy"]) == 0:
         return True
     else:
         return False
@@ -61,7 +61,29 @@ def is_border_link(link: str) -> bool:
         return False
 
 
-def importa_csv(caminho_csv: str) -> list:  # recebe o caminho e o nome do arquivo a ser lido
+def should_include_line(line: dict[str, list], keys: list, link_as_vertex: bool) -> bool:
+    '''
+    Checks if line should be considered or discarded. This line will become a vertex of the virtual graph.
+    Doesn't include line containing empty attribute, zero occupancy or border links (if graph will be composed of links).
+    '''
+    if (link_as_vertex):
+        if is_border_link(line["Link"]):
+            return False
+    if tem_atributo_vazio(line, keys) or has_zero_occupancy(line):
+        return False
+    return True
+
+def should_normalize(key_value: list) -> bool:
+    '''
+    Determines if an imported column of the input csv should be normalized or not. 
+    '''
+    if eh_numero(str(key_value)):
+        return True
+
+    return False
+
+
+def importa_csv(caminho_csv: str, link_as_vertex: bool) -> list:  # recebe o caminho e o nome do arquivo a ser lido
     '''
     Lê os dados do csv e retorna cada linha como um dicionário cujas keys são o header do csv e uma lista com as keys do dicionário
     '''
@@ -74,13 +96,10 @@ def importa_csv(caminho_csv: str) -> list:  # recebe o caminho e o nome do arqui
         id = 0  # identificador usado para criar arestas
         num_linha = 2
         for linha in leitura:
-            # não inclui na lista de dicionários algum dicionário que tiver atributo vazio, ocupação zero ou é um link de borda
-            if not tem_atributo_vazio(linha, keys) and not is_border_link(linha["Link"]) and not zero_occupancy_link(linha):
+            if should_include_line(linha, keys, link_as_vertex):
                 linhas.append(linha)  # grava cada linha (um dicionário próprio) em uma lista de linhas
                 linha["id"] = id
                 id += 1
-            else:
-                print(f"Line {num_linha} contains empty atribute, is border link or has zero occupancy and will not be considered")
             num_linha += 1
 
         # converte atributos do dicionário para seus tipos respectivos (inicialmente são strings)
@@ -116,12 +135,10 @@ def normaliza_lista_dict(lista_dicionarios: list, keys: list, lista_ids_label: l
     Normaliza os valores de uma lista de dicionários
     '''
     lista_dicionarios_norm = lista_dicionarios
-
     keys_norm = []
     for key in keys:
-        if key not in lista_ids_label:  # só os atributos que não compõem o label serão normalizados
+        if key not in lista_ids_label and should_normalize(lista_dicionarios[0][key]):  # só os atributos que são númericos e não compõem o label serão normalizados
             lista_atributos = []  # lista de atributos, usada para calcular fórmula da normalização
-
             for dicionario in lista_dicionarios_norm:
                 # guarda todos os valores de uma key do dicionário na lista
                 lista_atributos.append(dicionario[key])
@@ -243,7 +260,7 @@ def converte_intervalo(intervalo: str) -> list:
     return lista_intervalo
 
 
-def processa_int_ou_intervalo(entrada: str) -> list:
+def processa_int_ou_intervalo(entrada: list | str) -> list:
     '''
     Determina se a entrada é um intervalo numérico na forma "início-fim" ou uma lista de inteiros, retornando a lista de inteiros que corresponde ao intervalo ou a própria lista de inteiros
     '''
@@ -278,17 +295,16 @@ def verifica_aresta(lista_resultado: list, usar_or: bool) -> bool:
         return True
 
 
-def dentro_restricao(v1: dict, v2: dict, lista_restricoes: list) -> bool:
+def dentro_restricao(v1: dict, v2: dict, lista_restricoes: list | None) -> bool:
     '''
-    Dados dois vértices e uma lista de atributos usados como restrição, a função retorna -1 se a lista de restrições contiver "none",
+    Dados dois vértices e uma lista de atributos usados como restrição, a função retorna -1 se a lista de restrições contiver "None",
     False se os vértices possuírem os mesmos valores para os mesmos atributos restritivos ou True se possuírem todos os valores diferentes
     para os mesmos atributos restritivos
     '''
-    for restricao in lista_restricoes:
-        if restricao == "none":
-            return -1
-        if v1[restricao] == v2[restricao]:
-            return False
+    if lista_restricoes is not None:
+        for restricao in lista_restricoes:
+            if v1[restricao] == v2[restricao]:
+                return False
     return True
 
 
@@ -311,8 +327,7 @@ def monta_arestas(atributos: list, lista_dicionarios: list, lista_restricoes: li
     for v1, v2 in itertools.combinations(lista_dicionarios, 2):
         # indica se para cada atributo, deve haver uma aresta (1) ou não (0)
         lista_resultados = []
-        # não é usada nenhuma restrição
-        if dentro_restricao(v1, v2, lista_restricoes) == -1:
+        if dentro_restricao(v1, v2, lista_restricoes):
             for atributo in atributos:
                 # se a diferença absoluta do valor do atributo de dois nodos for menor ou igual ao limiar
                 if dentro_limiar(v1, v2, atributo, limiar, precisao):
@@ -326,19 +341,6 @@ def monta_arestas(atributos: list, lista_dicionarios: list, lista_restricoes: li
                 arestas.append((v1["id"], v2["id"]))
                 # como, para cada atributo, a lista contém 1 se há aresta e 0 se não há, a soma desses uns dará o número de atributos dentro do limiar entre o par de nodos
                 pesos_arestas.append(sum(lista_resultados))
-
-        else:  # considerando a restrição
-            # se os vértices estiverem dentro da restrição
-            if dentro_restricao(v1, v2, lista_restricoes):
-                for atributo in atributos:
-                    if dentro_limiar(v1, v2, atributo, limiar, precisao):
-                        lista_resultados.append(1)
-                    else:
-                        lista_resultados.append(0)
-
-                if verifica_aresta(lista_resultados, usar_or):
-                    arestas.append((v1["id"], v2["id"]))
-                    pesos_arestas.append(sum(lista_resultados))
 
     # retorna lista com arestas e lista com pesos das arestas
     return arestas, pesos_arestas
@@ -394,14 +396,14 @@ def calcula_medidas(grafo: ig.Graph, lista_medidas: list, lista_ids: list) -> di
     return dict_valores_medidas
 
 
-def calculate_frequency_keys(graph: ig.Graph, chosen_key: str) -> dict:
+def calculate_frequency_keys(graph: ig.Graph, attribute: str) -> dict:
     '''
     Input: graph representing network composed of nodes that are dictionaries
     Output: dictionary with the frequency that the specified key appears in the graph
     '''
     list_keys = []
     for v in graph.vs:
-        list_keys.append(v[chosen_key])
+        list_keys.append(v[attribute])
 
     dict_freq_keys = dict(Counter(key for key in list_keys))
 
@@ -409,7 +411,7 @@ def calculate_frequency_keys(graph: ig.Graph, chosen_key: str) -> dict:
     sorted_dict_freq_keys = {item[0]: item[1] for item in sorted(dict_freq_keys.items(), key=lambda x: (-x[1], x[0]))}
 
     processed_dict = dict()
-    processed_dict[chosen_key] = sorted_dict_freq_keys.keys()
+    processed_dict[attribute] = sorted_dict_freq_keys.keys()
 
     frequency_list = []
     for item in list(sorted_dict_freq_keys.items()):
@@ -581,54 +583,52 @@ def verifica_se_esta_no_intervalo(limite_inferior: int, limite_superior: int, va
             return False
 
 
-def retorna_vizinhos_link(lista_vertices_link: list, link: str, nome_link: str) -> list:
+def retorna_vizinhos(list_vertices: list, attribute: str, attribute_name: str) -> list:
     '''
-    Recebe uma lista de vértices com mesmo link e retorna uma lista contendo todos os vizinhos desse link
+    Recebe uma lista de vértices com mesmo atributo especificado e retorna uma lista contendo todos os vizinhos desse atributo
     '''
-    lista_vizinhos_link = []
-    for v_link in lista_vertices_link:
-        lista_vizinhos = v_link.neighbors()
-        for vizinho_link in lista_vizinhos:
-            if vizinho_link[nome_link] != link and vizinho_link not in lista_vizinhos_link:
-                lista_vizinhos_link.append(vizinho_link)
+    list_neighbours = []
+    for v in list_vertices:
+        list_neighbours = v.neighbors()
+        for neighbour_v in list_neighbours:
+            if neighbour_v[attribute_name] != attribute and neighbour_v not in list_neighbours:
+                list_neighbours.append(neighbour_v)
 
-    return lista_vizinhos_link
+    return list_neighbours
 
 
-def retorna_vizinhos_no_intervalo(lista_vizinhos_link: list, intervalo: tuple, ultimo_intervalo: bool, nome_step: str, nome_link: str) -> list:
+def retorna_vizinhos_no_intervalo(list_neighbours: list, intervalo: tuple, ultimo_intervalo: bool, nome_step: str, attribute_name: str) -> list:
     '''
-    Recebe uma lista de vizinhos do link e filtra os links vizinhos que estão no intervalo passado
+    Recebe uma lista de vizinhos do atributo especificado e filtra os vértices que estão no intervalo passado
     '''
     limite_inferior = intervalo[0]
     limite_superior = intervalo[1]
 
     # para cada vertice, verificar se esta no intervalo e adicionar à lista
     lista_vizinhos_no_intervalo = []
-    for vizinho in lista_vizinhos_link:
+    for vizinho in list_neighbours:
         if verifica_se_esta_no_intervalo(limite_inferior, limite_superior, vizinho[nome_step], ultimo_intervalo):
-            if vizinho[nome_link] not in lista_vizinhos_no_intervalo:
-                lista_vizinhos_no_intervalo.append(vizinho[nome_link])  # quantas informações dos vizinhos guardar
+            if vizinho[attribute_name] not in lista_vizinhos_no_intervalo:
+                lista_vizinhos_no_intervalo.append(vizinho[attribute_name])
 
     return lista_vizinhos_no_intervalo
 
 
-def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, max_step: int) -> dict:
+def cria_dicionario_vizinhos(grafo: ig.Graph, keys: list, attribute_name: str , intervalo: int, max_step: int) -> dict:
     '''
-    Cria um dicionário contendo todos os links do grafo e seus vizinhos em determinado intervalo de tempo
+    Cria um dicionário contendo todos os vizinhos em determinado intervalo de tempo do grafo agrupados por um atributo (ex. link ou junction).
     '''
     dict_vizinhos = dict()
-
-    nome_link = list(filter(lambda x: x == "Link" or x == "link", keys))[0]
     nome_step = list(filter(lambda x: x == "Step" or x == "step", keys))[0]
 
-    lista_links = []
+    list_attributes = []
     for v in grafo.vs:
-        lista_links.append(v[nome_link])
+        list_attributes.append(v[attribute_name])
 
-    lista_links_unica = []
-    for link in lista_links:
-        if link not in lista_links_unica:
-            lista_links_unica.append(link)
+    unique_attributes_list = []
+    for attribute in list_attributes:
+        if attribute not in unique_attributes_list:
+            unique_attributes_list.append(attribute)
 
     # constroi lista de intervalos (compostos por uma tupla) utilizando o último step e o tamanho do intervalo selecionado: ["[0-1)", "[1-2) ... [n-1, n]"]
     lista_intervalos = []
@@ -645,30 +645,37 @@ def cria_dicionario_vizinhos_links(grafo: ig.Graph, keys: list, intervalo: int, 
         limite_inferior += intervalo
         lista_intervalos.append(nome_intervalo)
 
-    for link in lista_links_unica:
-        dict_vizinhos[link] = dict()
+    for attribute in unique_attributes_list:
+        dict_vizinhos[attribute] = dict()
 
-        # lista de vértices do grafo com link especificado
-        lista_link = list(filter(lambda v: v[nome_link] == link, grafo.vs))  # type: ignore (igraph typing problem?)
-        lista_vizinhos_link = retorna_vizinhos_link(lista_link, link, nome_link)
+        # lista de vértices do grafo com atributo especificado
+        list_vertices = list(filter(lambda v: v[attribute_name] == attribute, grafo.vs)) 
+        list_neighbours = retorna_vizinhos(list_vertices, attribute, attribute_name)
 
         for i in range(len(lista_intervalos)):
             # se for o último intervalo, ele será fechado dos dois lados
             ultimo_intervalo = True if i == num_intervalos-1 else False
-            dict_vizinhos[link][lista_intervalos[i]] = retorna_vizinhos_no_intervalo(
-                lista_vizinhos_link, lista_intervalos[i], ultimo_intervalo, nome_step, nome_link)
+            dict_vizinhos[attribute][lista_intervalos[i]] = retorna_vizinhos_no_intervalo(
+                list_neighbours, lista_intervalos[i], ultimo_intervalo, nome_step, attribute_name)
 
     return dict_vizinhos
 
 
 def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numerico: list, lista_ids_label_numerico: list, lista_restricoes_numerico: list,
                                    limiar: float, usar_or: bool, lista_medidas: list, nao_gerar_imagem_grafo: bool, usar_grafo_puro: bool, giant_component: bool,
-                                   use_raw_data: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int,
-                                   network_name: str) -> dict:
+                                   not_normalize: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int,
+                                   network_name: str, vertex_attribute: str) -> dict:
     '''
     Main script to generate the virtual graph, its image, take centrality measurements of it and generate 
     finally the virtual graph neighbours dictionary
     '''
+
+    VERTEX_CONVERSION_DICT = {
+    "l": "Link",
+    "j": "Junction"
+    }
+    attribute_name = VERTEX_CONVERSION_DICT[vertex_attribute]
+    link_as_vertex = True if attribute_name == "Link" else False
 
     # == Processa listas numéricas ==
 
@@ -677,19 +684,19 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     lista_ids_label_numerico = processa_int_ou_intervalo(lista_ids_label_numerico)
 
-    if lista_restricoes_numerico != ["none"]:
+    if lista_restricoes_numerico is not None:
         lista_restricoes_numerico = processa_int_ou_intervalo(lista_restricoes_numerico)
 
     # == Lê csv, traduz entrada numérica dos ids para atributos e normaliza dados, se foi pedido ==
 
     print("Reading file...")
-    lista_dict, keys = importa_csv(nome_arquivo_csv)
+    lista_dict, keys = importa_csv(nome_arquivo_csv, link_as_vertex)
 
     lista_ids_label = []  # usada como label do grafo, indica também atributos que não serão normalizados
     for num_id in lista_ids_label_numerico:  # traduz os número passados como argumento correspondente às colunas
         lista_ids_label.append(keys[num_id-1])  # numeração das colunas começa em 1, por isso -1
 
-    if not use_raw_data:
+    if not not_normalize:
         lista_dict, keys = normaliza_lista_dict(lista_dict, keys, lista_ids_label)
     print("File read.")
 
@@ -698,20 +705,15 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print("Translating atributes...")
 
     atributos = []
-    todos = False
     if lista_atributos_numerico != ["ALL"]:
         for num_atb in lista_atributos_numerico:
             atributos.append(keys[num_atb-1])
-
-        if len(atributos) + len(lista_ids_label) == len(keys):
-            todos = True  # se forem usadas todas as colunas, será indicado
     else:
-        todos = True
         for atributo in keys:
             if atributo not in lista_ids_label:
                 atributos.append(atributo)  # atributos usados serão todos menos os que compõem o id
 
-    if lista_restricoes_numerico != ["none"]:
+    if lista_restricoes_numerico is not None:
         lista_restricoes = []
         for num_rest in lista_restricoes_numerico:
             lista_restricoes.append(keys[num_rest-1])
@@ -720,12 +722,11 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Prints para mostrar parâmetros selecionados ==
 
-    print("Atributes used:")
-    print(f"Atributes: {atributos}")
+    print(f"Attributes: {atributos}")
     print(f"Labels: {lista_ids_label}")
     print(f"Restrictions: {lista_restricoes}")
     print(f"Centrality measures: {lista_medidas}")
-    output_m = "True" if lista_medidas != ["none"] else "False"
+    output_m = "True" if lista_medidas is not None else "False"
     print(f"Take centrality measures: {output_m}")
     print(f"Limiar: {limiar}")
     print(f"Use or logic: {usar_or}")
@@ -733,7 +734,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print(f"No virtual graph image: {nao_gerar_imagem_grafo}")
     print(f"Use pure virtual graph: {usar_grafo_puro}")
     print(f"Only plot giant component: {giant_component}")
-    print(f"Don't normalize input: {use_raw_data}")
+    print(f"Don't normalize input: {not_normalize}")
     print(f"Plots vertices with a degree bigger or equal to: {min_degree}")
     print(f"Plots vertices with a step bigger or equal to: {min_step}")
     print(f"Amplitude of timestep of virtual graph neighbours dictionary: {intervalo_vizinhos} steps")
@@ -814,7 +815,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
         custo = 1
 
     # se o usuário optou por gerar uma imagem do grafo ou realizar alguma medida
-    if not nao_gerar_imagem_grafo or lista_medidas != ["none"]:
+    if not nao_gerar_imagem_grafo or lista_medidas is not None:
         if custo == 1:
             if possui_medida_custosa:
                 print(
@@ -891,7 +892,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Toma medidas de caracterização ==
 
-    if nova_lista_medidas != ["none"]:
+    if nova_lista_medidas is not None:
         print("Generating table...")
 
         if len(nova_lista_medidas) != 0:
@@ -902,14 +903,14 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                 monta_tabela(dados=calcula_medidas(g, nova_lista_medidas,
                              g.vs["label"]), nome=nome_tabela, tipo="centrality")
                 # tabela de frequências é gerada
-                monta_tabela(dados=calculate_frequency_keys(g, "Link"), nome=nome_tabela_freq, tipo="frequency")
+                monta_tabela(dados=calculate_frequency_keys(g, attribute=attribute_name), nome=nome_tabela_freq, tipo="frequency")
             else:
                 print("Empty graph, no table generated")
         else:
             print("Centrality measurements list is empty")
 
-    dict_vizinhos = cria_dicionario_vizinhos_links(
-        g, keys, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
+    dict_vizinhos = cria_dicionario_vizinhos(
+        g, keys, attribute_name, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
 
     print("")
 
