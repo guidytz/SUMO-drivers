@@ -349,13 +349,14 @@ def monta_arestas(atributos: list, lista_dicionarios: list, lista_restricoes: li
 # - Toma medidas sobre o grafo -
 
 
-def determina_possui_medida_custosa(lista_medidas: list, medidas_custosas: list) -> bool:
+def determina_possui_medida_custosa(lista_medidas: list | None, medidas_custosas: list) -> bool:
     '''
     Determina se lista de medidas possui alguma medida considerada custosa
     '''
-    for medida_custosa in medidas_custosas:
-        if medida_custosa in lista_medidas:
-            return True
+    if lista_medidas is not None:
+        for medida_custosa in medidas_custosas:
+            if medida_custosa in lista_medidas:
+                return True
     return False
 
 
@@ -670,13 +671,6 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     finally the virtual graph neighbours dictionary
     '''
 
-    VERTEX_CONVERSION_DICT = {
-    "l": "Link",
-    "j": "Junction"
-    }
-    attribute_name = VERTEX_CONVERSION_DICT[vertex_attribute]
-    link_as_vertex = True if attribute_name == "Link" else False
-
     # == Processa listas numéricas ==
 
     if lista_atributos_numerico != ["ALL"]:
@@ -689,12 +683,15 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Lê csv, traduz entrada numérica dos ids para atributos e normaliza dados, se foi pedido ==
 
-    print("Reading file...")
-    lista_dict, keys = importa_csv(nome_arquivo_csv, link_as_vertex)
-
     lista_ids_label = []  # usada como label do grafo, indica também atributos que não serão normalizados
     for num_id in lista_ids_label_numerico:  # traduz os número passados como argumento correspondente às colunas
         lista_ids_label.append(keys[num_id-1])  # numeração das colunas começa em 1, por isso -1
+
+    vertex_attribute_name = lista_ids_label[0]
+    link_as_vertex = True if vertex_attribute_name == "Link" else False
+
+    print("Reading file...")
+    lista_dict, keys = importa_csv(nome_arquivo_csv, link_as_vertex)
 
     if not not_normalize:
         lista_dict, keys = normaliza_lista_dict(lista_dict, keys, lista_ids_label)
@@ -738,6 +735,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print(f"Plots vertices with a degree bigger or equal to: {min_degree}")
     print(f"Plots vertices with a step bigger or equal to: {min_step}")
     print(f"Amplitude of timestep of virtual graph neighbours dictionary: {intervalo_vizinhos} steps")
+    print(f"Virtual graph's vertices: {vertex_attribute_name}")
 
     # == Cria ids ==
 
@@ -903,14 +901,14 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
                 monta_tabela(dados=calcula_medidas(g, nova_lista_medidas,
                              g.vs["label"]), nome=nome_tabela, tipo="centrality")
                 # tabela de frequências é gerada
-                monta_tabela(dados=calculate_frequency_keys(g, attribute=attribute_name), nome=nome_tabela_freq, tipo="frequency")
+                monta_tabela(dados=calculate_frequency_keys(g, attribute=vertex_attribute_name), nome=nome_tabela_freq, tipo="frequency")
             else:
                 print("Empty graph, no table generated")
         else:
             print("Centrality measurements list is empty")
 
     dict_vizinhos = cria_dicionario_vizinhos(
-        g, keys, attribute_name, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
+        g, keys, vertex_attribute_name, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
 
     print("")
 

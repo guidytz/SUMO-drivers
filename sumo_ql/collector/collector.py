@@ -281,13 +281,13 @@ class LinkCollector(DefaultCollector):
         super().__init__(aggregation_interval, path, own_params)
 
     def _aggregate(self, curr_value: int) -> None:
-        aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean').reset_index()
+        aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean', numeric_only=True).reset_index()
         aggregated_df[self._params[0]] = curr_value # adding step
         aggregated_df[self._params[2]] = self._collector_df[self._params[2]] # adding junction
         aggregated_df[self._params[3]] = self._collector_df[self._params[3]] # adding junction type
 
         aggregated_junction_df = self.filter_by_junction_type(aggregated_df, "priority") # traffic_light 
-        aggregated_junction_df = aggregated_junction_df.groupby(by=self._params[2]).agg('mean').reset_index() # aggregates by junction
+        aggregated_junction_df = aggregated_junction_df.groupby(by=self._params[2]).agg('mean', numeric_only=True).reset_index() # aggregates by junction
         aggregated_junction_df[self._params[0]] = curr_value # adding step
 
         self._update_main_dfs(aggregated_df, aggregated_junction_df)

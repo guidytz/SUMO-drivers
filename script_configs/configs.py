@@ -144,10 +144,13 @@ class GraphConfig(EmptyConfig):
                                                        " plotted.", rename="vg-min-step", group=main_group()))
 
     vg_dict: str | None = field(default=None, metadata=describe("Name of file containing python dictionary of virtual graph "
-                                                       "neighbours", rename="vg-dict-file", group=main_group()))
+                                                       "neighbours.", rename="vg-dict-file", group=main_group()))
 
     interval: int = field(default=250, metadata=describe("Amplitude of the timestep interval of the virtual graph "
                                                          "neighbors dictionary.", group=main_group()))
+
+    vertex_attribute: str = field(default="Link", metadata=describe("Attribute of the input csv used to compose the vertices of "
+                                                        "the virtual graph.", group=main_group()))
 
     @property
     def name(self) -> str:

@@ -70,7 +70,8 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
                                                                    arestas_para_custoso=2000,
                                                                    precisao=10,
                                                                    intervalo_vizinhos=config.virtual_graph.interval,
-                                                                   network_name=network_name)
+                                                                   network_name=network_name,
+                                                                   vertex_attribute=config.virtual_graph.vertex_attribute)
 
     def create_log(dirname: str, date: datetime) -> None:
         """Method that creates a log file that has information of beginning and end of simulations when making multiple

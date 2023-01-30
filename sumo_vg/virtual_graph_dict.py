@@ -60,8 +60,8 @@ def main():
     parser.add_argument("-int", "--interval", type=int, default=250,
                         help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
                         
-    parser.add_argument("-vatb", "--vertex_attribute", type=str, default="l",
-                        help="Attribute of the input csv used to compose the vertices of the virtual graph. (default = 'l')")
+    parser.add_argument("-vatb", "--vertex_attribute", type=str, default="Link",
+                        help="Attribute of the input csv used to compose the vertices of the virtual graph. (default = 'Link')")
 
     args = parser.parse_args()
 
