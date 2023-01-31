@@ -60,7 +60,7 @@ class EnvConfig:
     normalize_rewards: bool
     min_toll_speed: float
     toll_penalty: int
-    graph_neighbours: dict
+    graph_neighbors: dict
 
     @classmethod
     def from_sim_config(cls, config: NonLearnerConfig | QLConfig | PQLConfig, data_collector: LinkCollector) -> EnvConfig:
@@ -83,7 +83,7 @@ class EnvConfig:
                            normalize_rewards=False,
                            min_toll_speed=np.infty,
                            toll_penalty=0,
-                           graph_neighbours=dict())
+                           graph_neighbors=dict())
             case QLConfig(_):
                 print(f"Optimizing: {config.objective}")
                 return cls(sumocfg_file=config.sumocfg,
@@ -101,7 +101,7 @@ class EnvConfig:
                            normalize_rewards=config.normalize_rewards,
                            min_toll_speed=config.toll_speed,
                            toll_penalty=config.toll_value,
-                           graph_neighbours=dict())
+                           graph_neighbors=dict())
             case PQLConfig(_):
                 print(f"Optimizing: {config.objectives}")
                 return cls(sumocfg_file=config.sumocfg,
@@ -119,7 +119,7 @@ class EnvConfig:
                            normalize_rewards=config.normalize_rewards,
                            min_toll_speed=config.toll_speed,
                            toll_penalty=config.toll_value,
-                           graph_neighbours=dict())
+                           graph_neighbors=dict())
 
 
 class SumoEnvironment(MultiAgentEnv):
@@ -150,7 +150,7 @@ class SumoEnvironment(MultiAgentEnv):
 
     def __init__(self, config: EnvConfig) -> None:
         self.__sumocfg_file = config.sumocfg_file
-        self.__graph_neighbours = config.graph_neighbours
+        self.__graph_neighbors = config.graph_neighbors
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
         self.__network: sumolib.net.Net = sumolib.net.readNet(self.__network_file)
@@ -289,10 +289,10 @@ class SumoEnvironment(MultiAgentEnv):
         """
         return self.__network.getEdge(link_id).getToNode().getType()
 
-    def get_graph_neighbours(self):
-        """Method that returns dictionary of graph neighbours"""
+    def get_graph_neighbors(self):
+        """Method that returns dictionary of graph neighbors"""
 
-        return self.__graph_neighbours
+        return self.__graph_neighbors
 
     def is_border_node(self, node_id: str) -> bool:
         """Method that tests whether a given node is in the border of the network.

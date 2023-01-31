@@ -58,10 +58,8 @@ def main():
                         help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
     
     parser.add_argument("-int", "--interval", type=int, default=250,
-                        help="Amplitude of the timestep interval of the virtual graph neighbours dictionary. (default = 250)")
+                        help="Amplitude of the timestep interval of the virtual graph neighbors dictionary. (default = 250)")
                         
-    parser.add_argument("-vatb", "--vertex_attribute", type=str, default="Link",
-                        help="Attribute of the input csv used to compose the vertices of the virtual graph. (default = 'Link')")
 
     args = parser.parse_args()
 
@@ -79,8 +77,7 @@ def main():
     not_normalize = args.vg_not_normalize  # define se os dados usados serão normalizados
     min_degree = args.min_degree  # apenas serão mostrados vértices com grau a partir do especificado
     min_step = args.vg_min_step  # apenas serão considerados vértices cujo step é maior ou igual a este valor
-    interval_amplitude = args.interval  # amplitude of the virtual graph neighbours dictionary
-    vertex_attribute = args.vertex_attribute # attribute used to make vg's vertices
+    interval_amplitude = args.interval  # amplitude of the virtual graph neighbors dictionary
 
     # == Verfica consistência de entrada ==
 
@@ -94,7 +91,7 @@ def main():
 
     print("Parameters OK")  # se todos os parâmetros necessário foram informados
 
-    vg_neighbours_dict = generate_graph_neighbours_dict(nome_arquivo_csv=nome_arquivo_csv,
+    vg_neighbors_dict = generate_graph_neighbors_dict(nome_arquivo_csv=nome_arquivo_csv,
                                                                    lista_atributos_numerico=lista_atributos_numerico,
                                                                    lista_ids_label_numerico=lista_ids_label_numerico,
                                                                    lista_restricoes_numerico=lista_restricoes_numerico,
@@ -110,15 +107,14 @@ def main():
                                                                    arestas_para_custoso=2000,
                                                                    precisao=10,
                                                                    intervalo_vizinhos=interval_amplitude,
-                                                                   network_name=gets_name_file(nome_arquivo_csv),
-                                                                   vertex_attribute=vertex_attribute)
+                                                                   network_name=gets_name_file(nome_arquivo_csv))
 
     # Saves dictionary to pickle file
     dict_path = Path("results/dictionaries")
     dict_path.mkdir(exist_ok=True, parents=True)
     dict_pickle_file_name = Path(f"dict_{gets_name_file(nome_arquivo_csv)}.pkl")
     with open(dict_path/dict_pickle_file_name, "wb") as dict_pickle_file:
-        pickle.dump(vg_neighbours_dict, dict_pickle_file)
+        pickle.dump(vg_neighbors_dict, dict_pickle_file)
     print(f"Generated dict file '{str(dict_pickle_file_name)}' at {str(dict_path)}")
 
     t_total = time.time() - t_inicio  # Temporizador de saída

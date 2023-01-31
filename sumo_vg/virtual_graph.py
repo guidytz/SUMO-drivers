@@ -83,7 +83,7 @@ def should_normalize(key_value: list) -> bool:
     return False
 
 
-def importa_csv(caminho_csv: str, link_as_vertex: bool) -> list:  # recebe o caminho e o nome do arquivo a ser lido
+def importa_csv(caminho_csv: str, first_id: int) -> list:  # recebe o caminho e o nome do arquivo a ser lido
     '''
     Lê os dados do csv e retorna cada linha como um dicionário cujas keys são o header do csv e uma lista com as keys do dicionário
     '''
@@ -91,6 +91,9 @@ def importa_csv(caminho_csv: str, link_as_vertex: bool) -> list:  # recebe o cam
         # lê cada atributo como string, que será convertido posteriormente
         leitura = DictReader(arquivo)
         keys = list(leitura.fieldnames or [])  # guardas as keys do dicionário
+
+        attribute_name = keys[first_id-1]
+        link_as_vertex = True if attribute_name == "Link" else False
 
         linhas = []
         id = 0  # identificador usado para criar arestas
@@ -584,21 +587,21 @@ def verifica_se_esta_no_intervalo(limite_inferior: int, limite_superior: int, va
             return False
 
 
-def retorna_vizinhos(list_vertices: list, attribute: str, attribute_name: str) -> list:
+def retorna_vizinhos(list_attribute_vertices: list) -> list:
     '''
     Recebe uma lista de vértices com mesmo atributo especificado e retorna uma lista contendo todos os vizinhos desse atributo
     '''
-    list_neighbours = []
-    for v in list_vertices:
-        list_neighbours = v.neighbors()
-        for neighbour_v in list_neighbours:
-            if neighbour_v[attribute_name] != attribute and neighbour_v not in list_neighbours:
-                list_neighbours.append(neighbour_v)
+    list_attribute_neighbors = []
+    for attribute_v in list_attribute_vertices:
+        list_vertex_neighbors = attribute_v.neighbors()
+        for neighbor_v in list_vertex_neighbors:
+            if neighbor_v not in list_attribute_neighbors:
+                list_attribute_neighbors.append(neighbor_v)
 
-    return list_neighbours
+    return list_attribute_neighbors
 
 
-def retorna_vizinhos_no_intervalo(list_neighbours: list, intervalo: tuple, ultimo_intervalo: bool, nome_step: str, attribute_name: str) -> list:
+def retorna_vizinhos_no_intervalo(list_neighbors: list, intervalo: tuple, ultimo_intervalo: bool, nome_step: str, attribute_name: str) -> list:
     '''
     Recebe uma lista de vizinhos do atributo especificado e filtra os vértices que estão no intervalo passado
     '''
@@ -607,7 +610,7 @@ def retorna_vizinhos_no_intervalo(list_neighbours: list, intervalo: tuple, ultim
 
     # para cada vertice, verificar se esta no intervalo e adicionar à lista
     lista_vizinhos_no_intervalo = []
-    for vizinho in list_neighbours:
+    for vizinho in list_neighbors:
         if verifica_se_esta_no_intervalo(limite_inferior, limite_superior, vizinho[nome_step], ultimo_intervalo):
             if vizinho[attribute_name] not in lista_vizinhos_no_intervalo:
                 lista_vizinhos_no_intervalo.append(vizinho[attribute_name])
@@ -645,30 +648,39 @@ def cria_dicionario_vizinhos(grafo: ig.Graph, keys: list, attribute_name: str , 
         nome_intervalo = (limite_inferior, limite_superior)
         limite_inferior += intervalo
         lista_intervalos.append(nome_intervalo)
-
+    
     for attribute in unique_attributes_list:
         dict_vizinhos[attribute] = dict()
 
         # lista de vértices do grafo com atributo especificado
-        list_vertices = list(filter(lambda v: v[attribute_name] == attribute, grafo.vs)) 
-        list_neighbours = retorna_vizinhos(list_vertices, attribute, attribute_name)
+        list_attribute_vertices = list(filter(lambda v: v[attribute_name] == attribute, grafo.vs))
 
-        for i in range(len(lista_intervalos)):
+        for i in range(num_intervalos):
             # se for o último intervalo, ele será fechado dos dois lados
             ultimo_intervalo = True if i == num_intervalos-1 else False
-            dict_vizinhos[attribute][lista_intervalos[i]] = retorna_vizinhos_no_intervalo(
-                list_neighbours, lista_intervalos[i], ultimo_intervalo, nome_step, attribute_name)
+
+            lower_interval = lista_intervalos[i][0]
+            upper_interval = lista_intervalos[i][1]
+
+            dict_vizinhos[attribute][lista_intervalos[i]] = [] # empties list of neighbors for that interval
+            v_neighbors_at_interval = []
+            for v_attribute in list_attribute_vertices:
+                if verifica_se_esta_no_intervalo(lower_interval, upper_interval, v_attribute[nome_step], ultimo_intervalo):
+                    v_neighbors_at_interval = v_attribute.neighbors() # gets neighbors at interval
+                for v_neighbor in v_neighbors_at_interval:
+                    if v_neighbor[attribute_name] not in dict_vizinhos[attribute][lista_intervalos[i]]:
+                        dict_vizinhos[attribute][lista_intervalos[i]].append(v_neighbor[attribute_name]) # filters and appends list
 
     return dict_vizinhos
 
 
-def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numerico: list, lista_ids_label_numerico: list, lista_restricoes_numerico: list,
-                                   limiar: float, usar_or: bool, lista_medidas: list, nao_gerar_imagem_grafo: bool, usar_grafo_puro: bool, giant_component: bool,
+def generate_graph_neighbors_dict(nome_arquivo_csv: str, lista_atributos_numerico: list, lista_ids_label_numerico: list, lista_restricoes_numerico: list | None,
+                                   limiar: float, usar_or: bool, lista_medidas: list | None, nao_gerar_imagem_grafo: bool, usar_grafo_puro: bool, giant_component: bool,
                                    not_normalize: bool, min_degree: int, min_step: int, arestas_para_custoso: int, precisao: int, intervalo_vizinhos: int,
-                                   network_name: str, vertex_attribute: str) -> dict:
+                                   network_name: str) -> dict:
     '''
     Main script to generate the virtual graph, its image, take centrality measurements of it and generate 
-    finally the virtual graph neighbours dictionary
+    finally the virtual graph neighbors dictionary
     '''
 
     # == Processa listas numéricas ==
@@ -683,15 +695,12 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Lê csv, traduz entrada numérica dos ids para atributos e normaliza dados, se foi pedido ==
 
+    print("Reading file...")
+    lista_dict, keys = importa_csv(nome_arquivo_csv, lista_ids_label_numerico[0])
+
     lista_ids_label = []  # usada como label do grafo, indica também atributos que não serão normalizados
     for num_id in lista_ids_label_numerico:  # traduz os número passados como argumento correspondente às colunas
         lista_ids_label.append(keys[num_id-1])  # numeração das colunas começa em 1, por isso -1
-
-    vertex_attribute_name = lista_ids_label[0]
-    link_as_vertex = True if vertex_attribute_name == "Link" else False
-
-    print("Reading file...")
-    lista_dict, keys = importa_csv(nome_arquivo_csv, link_as_vertex)
 
     if not not_normalize:
         lista_dict, keys = normaliza_lista_dict(lista_dict, keys, lista_ids_label)
@@ -717,6 +726,8 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     else:
         lista_restricoes = lista_restricoes_numerico
 
+    vertex_attribute_name = keys[lista_ids_label_numerico[0]-1]
+
     # == Prints para mostrar parâmetros selecionados ==
 
     print(f"Attributes: {atributos}")
@@ -734,7 +745,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     print(f"Don't normalize input: {not_normalize}")
     print(f"Plots vertices with a degree bigger or equal to: {min_degree}")
     print(f"Plots vertices with a step bigger or equal to: {min_step}")
-    print(f"Amplitude of timestep of virtual graph neighbours dictionary: {intervalo_vizinhos} steps")
+    print(f"Amplitude of timestep of virtual graph neighbors dictionary: {intervalo_vizinhos} steps")
     print(f"Virtual graph's vertices: {vertex_attribute_name}")
 
     # == Cria ids ==
@@ -802,7 +813,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
     # lista de medidas que são custosas e não desejáveis de ser tomadas se o grafo for muito grande
     medidas_custosas = ["betweenness"]
     possui_medida_custosa = determina_possui_medida_custosa(lista_medidas, medidas_custosas)
-    nova_lista_medidas = lista_medidas.copy()  # usada para, se for escolhido, filtrar as medidas que são custosas
+    nova_lista_medidas = lista_medidas.copy() if lista_medidas is not None else [] # usada para, se for escolhido, filtrar as medidas que são custosas
     custo = 0  # define a intensidade do custo computacional: 0 para baixo, 1 para médio e 2 para alto
     opcao_grafo_grande = 0
     nome_dados = ""
@@ -890,7 +901,7 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
 
     # == Toma medidas de caracterização ==
 
-    if nova_lista_medidas is not None:
+    if len(nova_lista_medidas) > 0:
         print("Generating table...")
 
         if len(nova_lista_medidas) != 0:
@@ -911,5 +922,11 @@ def generate_graph_neighbours_dict(nome_arquivo_csv: str, lista_atributos_numeri
         g, keys, vertex_attribute_name, intervalo_vizinhos, max_step=calcula_max_step(lista_dict, keys))
 
     print("")
+
+    for link, intervals in dict_vizinhos.items():
+        print(link)
+        for interval, neighbors in intervals.items():
+            if len(neighbors) > 0:
+                print(f"{interval}: {neighbors}")
 
     return dict_vizinhos
