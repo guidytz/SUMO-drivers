@@ -286,7 +286,7 @@ class LinkCollector(DefaultCollector):
         aggregated_df[self._params[2]] = self._collector_df[self._params[2]] # adding junction
         aggregated_df[self._params[3]] = self._collector_df[self._params[3]] # adding junction type
 
-        aggregated_junction_df = self.filter_by_junction_type(aggregated_df, "priority") # traffic_light 
+        aggregated_junction_df = self.filter_by_junction_type(aggregated_df, "traffic_light") # traffic_light, priority, make this a parameter
         aggregated_junction_df = aggregated_junction_df.groupby(by=self._params[2]).agg('mean', numeric_only=True).reset_index() # aggregates by junction
         aggregated_junction_df[self._params[0]] = curr_value # adding step
 
