@@ -923,10 +923,4 @@ def generate_graph_neighbors_dict(nome_arquivo_csv: str, lista_atributos_numeric
 
     print("")
 
-    for link, intervals in dict_vizinhos.items():
-        print(link)
-        for interval, neighbors in intervals.items():
-            if len(neighbors) > 0:
-                print(f"{interval}: {neighbors}")
-
     return dict_vizinhos
