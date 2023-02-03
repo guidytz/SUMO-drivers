@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2023-02-03 12:47:59 by Eclipse SUMO sumo Version 1.15.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="scenario/arterial_grid/arterialGrid.net.xml"/>
+        <route-files value="scenario/arterial_grid/arterialGrid.rou.xml"/>
+        <additional-files value="scenario/arterial_grid/arterialGrid2Contexts.add.xml"/>
+    </input>
+
+    <output>
+        <summary-output value="scenario/arterial_grid/output_sumo.xml"/>
+    </output>
+
+    <time>
+        <begin value="0"/>
+        <end value="100000"/>
+    </time>
+
+    <processing>
+        <max-num-vehicles value="850"/>
+    </processing>
+
+    <report>
+        <verbose value="true"/>
+    </report>
+
+    <traci_server>
+        <remote-port value="36427"/>
+    </traci_server>
+
+    <random_number>
+        <random value="true"/>
+    </random_number>
+
+</configuration>
+-->
+
+<summary xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/summary_file.xsd">
+    <step time="0.00" loaded="200" inserted="1" running="1" waiting="199" ended="0" arrived="0" collisions="0" teleports="0" halting="1" stopped="0" meanWaitingTime="0.00" meanTravelTime="-1.00" meanSpeed="0.00" meanSpeedRelative="0.00" duration="1675439279632"/>
+</summary>
