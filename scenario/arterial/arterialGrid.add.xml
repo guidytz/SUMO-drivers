@@ -1,0 +1,38 @@
+<additionals>
+     <routes> 
+    <!-- Routes -->
+    <route id="r_0" edges="A1A2 A2B2 B2B1 B1A1 A1A2" color="255,193,37,255"/> <!-- small loop -->
+    <route id="r_1" edges="A1A2 A2A3 A3B3 B3B2 B2B1 B1A1 A1A2" color="cyan"/> <!-- left loop -->
+    <route id="r_2" edges="A1A2 A2A3 A3B3 B3C3 C3D3 D3D2 D2D1 D1C1 C1B1 B1A1 A1A2" color="magenta"/> <!-- external loop -->
+    <route id="r_3" edges="A1A2 A2B2 B2C2 C2D2 D2D1 D1C1 C1B1 B1A1 A1A2" color="white"/> <!-- mid arterial -->
+    <route id="r_4" edges="A1A2 A2B2 B2C2 C2C3 C3D3 D3D2 D2D1 D1C1 C1C2 C2D2 D2D1 D1C1 C1B1 B1A1 A1A2" color="0,255,0,255"/>  <!-- weird trip -->
+
+	<!--A1A2-->
+    <rerouter id="rerouterA1A2" edges="A1A2">
+		<interval begin="0" end="1e9">
+		   <routeProbReroute id="r_0" probability="0.1"/>
+		   <routeProbReroute id="r_1" probability="0.1"/>
+		   <routeProbReroute id="r_2" probability="0.3"/>
+		   <routeProbReroute id="r_3"  probability="0.4"/>
+			<routeProbReroute id="r_4" probability="0.1"/>
+		</interval>
+    </rerouter>
+
+    <!-- A3B3 -->
+ <!--   <rerouter id="rerouterA3B3" edges="A3B3">
+		<interval begin="0" end="1e9">
+		   <routeProbReroute id="r_1" probability="0.1"/>
+		   <routeProbReroute id="r_2" probability="0.3"/>
+		</interval>
+    </rerouter>-->
+	
+    <!--C2D2-->
+ <!--   <rerouter id="rerouterC2D2" edges="C2D2">
+		<interval begin="0" end="1e9">
+			<routeProbReroute id="r_4" probability="0.9"/>
+			<routeProbReroute id="r_5" probability="0.1"/>
+		</interval>
+    </rerouter>-->
+
+</routes>
+</additionals>
