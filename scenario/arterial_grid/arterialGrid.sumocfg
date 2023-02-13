@@ -1,16 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
 <configuration>
     <input>
         <net-file value="arterialGrid.net.xml"/>
-        <route-files value="arterialGrid.rou.xml"/>
-		<additional-files value="arterialGrid2Contexts.add.xml" />
+	<route-files value="arterialGrid.rou.xml"/>
     </input>
     <time>
         <begin value="0"/>
         <end value="100000"/>
     </time>
- <output>
-        <summary-output value="output_sumo.xml"/>
- </output>
-
+    <time-to-teleport value="200"/> 
 </configuration>
-

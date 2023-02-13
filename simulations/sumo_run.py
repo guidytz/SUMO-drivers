@@ -221,7 +221,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
         while not done['__all__']:
             actions: dict[str, int] = dict()
             for vehicle_id, vehicle in observations.items():
-                if vehicle['reinserted'] and vehicle_id not in agents:
+                if vehicle['reinserted'] and vehicle_id not in agents and not isinstance(config, NonLearnerConfig):
                     create_agent(vehicle_id)
 
             chosen_sum = [0 for _ in range(len(config.objectives))] if isinstance(config, PQLConfig) else []
