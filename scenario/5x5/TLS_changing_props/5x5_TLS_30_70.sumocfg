@@ -3,7 +3,7 @@
 <configuration>
     <input>
         <net-file value="5x5_TLS.net.xml"/>
-        <route-files value="5x5.rou.xml"/>
+        <route-files value="TLS_changing_props/routes/5x5_TLS_30_70.rou.xml"/>
     </input>
     <time>
         <begin value="0"/>
