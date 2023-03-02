@@ -93,15 +93,6 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
                             filename=f'log/{dirname}/mult_sims_{date.strftime("%d-%m-%y_%H-%M-%S")}.log',
                             level=logging.INFO)
 
-    def run_nonlearner(config: NonLearnerConfig, date: datetime, iteration: int):
-        pass
-
-    def run_ql(config: QLConfig, date: datetime, iteration: int):
-        pass
-
-    def run_pql(config: PQLConfig, date: datetime, iteration: int):
-        pass
-
     def generate_data_collector(cfgfile: str,
                                 sim_steps: int,
                                 pop_steps: int,
