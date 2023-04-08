@@ -90,8 +90,8 @@ class DefaultCollector:
         Return:
             pd.DataFrame: filtered dataframe
         """
-
-        dataframe_mask = dataframe["Junction Type"] == junction_type
+        
+        dataframe_mask = dataframe["Junction Type"].str.contains(junction_type) # checks if type contains the junction type name (there can be variations of the name that are the same type)
         filtered_dataframe = dataframe[dataframe_mask]
 
         return filtered_dataframe
