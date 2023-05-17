@@ -78,15 +78,15 @@ python3 simulations/sumo_run.py pql --sumocfg <path-to-sumocfg-file>
 
 Creating the virtual graph at the start of the simulation using the virtual graph specific arguments or loading it from a [pickle](https://docs.python.org/3/library/pickle.html) file:
 
-## Creating the Virtual Graph:
+### Creating the Virtual Graph:
 
-## Loading from file:
+### Loading from file:
 
-## Taking measurements from the Virtual Graph:
+### Taking measurements from the Virtual Graph:
 
-## Utility tools for the Virtual Graph:
+### Utility tools for the Virtual Graph:
 
-## Common Arguments
+### Common Arguments
 
 Below are described common arguments to every agent.
 
