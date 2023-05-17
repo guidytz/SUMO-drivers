@@ -74,6 +74,18 @@ Using the positional argument `pql`:
 python3 simulations/sumo_run.py pql --sumocfg <path-to-sumocfg-file>
 ```
 
+### Communication with Virtual Graph
+
+Creating the virtual graph at the start of the simulation using the virtual graph specific arguments or loading it from a [pickle](https://docs.python.org/3/library/pickle.html) file:
+
+## Creating the Virtual Graph:
+
+## Loading from file:
+
+## Taking measurements from the Virtual Graph:
+
+## Utility tools for the Virtual Graph:
+
 ## Common Arguments
 
 Below are described common arguments to every agent.
@@ -136,21 +148,21 @@ Below are described arguments specific to virtual graph in communication usage.
 
 | Name                 | Argument                              | Description                                                                                                                                                           |
 | -------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Virtual Graph File   | `--vg-file <STR>`                     | Path and name to the file containing the data that is going to be used to create the virtual graph.                                                                   |
-| Attributes           | `--vg-attributes <LIST-OF-STR>`       | List of attributes used to create the virtual graph.<br>Attribute is given by the number of the column of the input file.                                             |
-| Labels               | `--vg-labels <LIST-OF-STR>`           | List of attributes that will compose the label of the virtual graph. <br>Attribute is given by the number of the column of the input file.                            |
-| Restriction          | `--vg-restriction <LIST-OF-STR>`      | List of attributes that the nodes cannot share in order to create an edge in the virtual graph. <br>Attribute is given by the number of the column of the input file. |
-| Threshold            | `--vg-threshold <FLOAT>`              | Threshold used to create an edge in the virtual graph.                                                                                                                |
-| Use OR logic         | `--use-or-logic`                      | Flag that indicates or logic instead of the and logic to create an edge between nodes given multiple attributes.                                                      |
-| Centrality Measures  | `--centrality-measures <LIST-OF-STR>` | List of centrality measures to be taken of the virtual graph.                                                                                                         |
-| No Image Flag        | `--no-image`                          | Flag to indicate to the script not to generate a graph image.                                                                                                         |
-| Raw Graph Flag       | `--raw-graph`                         | Flag to indicate not to remove nodes with degree zero (i.e. raw graph).                                                                                               |
+| Virtual Graph File   | `--vg_file <STR>`                     | Path and name to the file containing the data that is going to be used to create the virtual graph.                                                                   |
+| Attributes           | `--vg_attributes <LIST-OF-STR>`       | List of attributes used to create the virtual graph.<br>Attribute is given by the number of the column of the input file.                                             |
+| Labels               | `--vg_labels <LIST-OF-STR>`           | List of attributes that will compose the label of the virtual graph. <br>Attribute is given by the number of the column of the input file.                            |
+| Restriction          | `--vg_restriction <LIST-OF-STR>`      | List of attributes that the nodes cannot share in order to create an edge in the virtual graph. <br>Attribute is given by the number of the column of the input file. |
+| Threshold            | `--vg_threshold <FLOAT>`              | Threshold used to create an edge in the virtual graph.                                                                                                                |
+| Use OR logic         | `--use_or_logic`                      | Flag that indicates or logic instead of the and logic to create an edge between nodes given multiple attributes.                                                      |
+| Centrality Measures  | `--centrality_measures <LIST-OF-STR>` | List of centrality measures to be taken of the virtual graph.                                                                                                         |
+| No Image Flag        | `--no_image`                          | Flag to indicate to the script not to generate a graph image.                                                                                                         |
+| Raw Graph Flag       | `--raw_graph`                         | Flag to indicate not to remove nodes with degree zero (i.e. raw graph).                                                                                               |
 | Giant Component Flag | `--giant`                             | Flag to indicate that only the giant component of the graph should be presented in its image.                                                                         |
-| Normalize            | `--vg-normalize`                      | Flag to indicate if the input data to graph generation should be normalized.                                                                                          |
-| Minimum Degree       | `--min-degree <INT>`                  | Determines the minimum degree a node should have in order to be plotted.                                                                                              |
-| Maximum Degree       | `--max-degree <INT>`                  | Determines the maximum degree a node should have in order to be plotted.                                                                                              |
-| Minimum Step         | `--vg-min-step <INT>`                 | Determines the maximum step a node should have in order to be plotted.                                                                                                |
-| Graph Dictionary     | `--vg-dict-file <STR>`                | Path to file containing the python dictionary of the graph.                                                                                                           |
+| Normalize            | `--vg_normalize`                      | Flag to indicate if the input data to graph generation should be normalized.                                                                                          |
+| Minimum Degree       | `--min_degree <INT>`                  | Determines the minimum degree a node should have in order to be plotted.                                                                                              |
+| Maximum Degree       | `--max_degree <INT>`                  | Determines the maximum degree a node should have in order to be plotted.                                                                                              |
+| Minimum Step         | `--vg_min_step <INT>`                 | Determines the maximum step a node should have in order to be plotted.                                                                                                |
+| Graph Dictionary     | `--vg_dict_file <STR>`                | Path to file containing the python dictionary of the graph.                                                                                                           |
 | Interval             | `--interval <INT>`                    | Timestep interval of the neighbors dictionary.                                                                                                                        |
 
 ## List of Possible Observation Parameters
