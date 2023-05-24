@@ -88,10 +88,11 @@ The first step is to generate the input file of the virtual graph. This can be d
 python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file> --observe-list <attributes-to-gather-data-from>
 ```
 
-This will generate a csv file with information about the network in the results folder. Next, running the virtual graph script using the virtual graph specific arguments:
+This will generate a csv file with information about the network in the results folder. The next step is to run the virtual graph script using the 
+virtual graph specific arguments:
 
 ```
-python3 sumo_vg/run_virtual_graph --vg-file <path-to->
+python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attributes <> --vg-label <> 
 ```
 
 - falar do atributo que sera usado para comaprar, q eh pego do primeiro passado no id (link ou junction)

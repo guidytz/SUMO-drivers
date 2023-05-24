@@ -18,25 +18,25 @@ def main():
     # == Argparse e argumentos do usuário ==
 
     parser = ap.ArgumentParser()
-    parser.add_argument("-f", "--vg_file",
+    parser.add_argument("-f", "--vg_file", metavar="--vg-file",
                         help="Path and name to the file containing the data that is going to be used to create the virtual graph.")
 
-    parser.add_argument("-atb", "--vg_attributes", default=["ALL"], nargs="+",
+    parser.add_argument("-atb", "--vg_attributes", default=["ALL"], nargs="+", metavar="--vg-attributes",
                         help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file. (default = ['ALL'])")
 
-    parser.add_argument("-id", "--vg_label", nargs="+",
+    parser.add_argument("-id", "--vg_label", nargs="+", metavar="--vg-label",
                         help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
 
-    parser.add_argument("-rst", "--vg_restrictions", default=None, nargs="+",
+    parser.add_argument("-rst", "--vg_restrictions", default=None, nargs="+", metavar="--vg-restrictions",
                         help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file. (default = None)")
     
-    parser.add_argument("-tsh", "--vg_threshold", type=float, default=0,
+    parser.add_argument("-tsh", "--vg_threshold", type=float, default=0, metavar="--vg-threshold",
                         help="Threshold used to create an edge in the virtual graph. (default = 0)")
     
     parser.add_argument("-or", "--use_or_logic", action="store_true", default=False,
                         help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
     
-    parser.add_argument("-ms", "--centrality_measures",  default=None, nargs="+",
+    parser.add_argument("-ms", "--centrality_measures",  default=None, nargs="+", metavar="--centrality-measures",
                         help="List of centrality measures to be taken of the virtual graph. (default = None)")
     
     parser.add_argument("-ni", "--no_image", action="store_true", default=False,
@@ -51,13 +51,13 @@ def main():
     parser.add_argument("-not-norm", "--vg_not_normalize", action="store_true", default=False,
                         help="Determines if the input data will not be normalized. (default = false)")
     
-    parser.add_argument("-mdeg", "--min_degree", type=int, default=0,
+    parser.add_argument("-mdeg", "--min_degree", type=int, default=0, metavar="--min-degree",
                         help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
     
-    parser.add_argument("-mstep", "--vg_min_step", type=int, default=0,
+    parser.add_argument("-mstep", "--vg_min_step", type=int, default=0, metavar="--vg-min-step",
                         help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
     
-    parser.add_argument("-int", "--interval", type=int, default=250,
+    parser.add_argument("-int", "--interval", type=int, default=250, metavar="--interval",
                         help="Amplitude of the timestep interval of the virtual graph neighbors dictionary. (default = 250)")
                         
 
