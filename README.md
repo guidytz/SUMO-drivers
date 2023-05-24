@@ -76,17 +76,33 @@ python3 simulations/sumo_run.py pql --sumocfg <path-to-sumocfg-file>
 
 ## Virtual Graph
 
-This tool receives data from a traffic simulation and creates a graph that links different elements of the network that have similar patterns. This virtual graph can be used to enhance the exchange of information between CommDevs during the simulation. It is also possible to use it to study the network itself, taking different centrality measures of this graph.
+This tool receives data from a traffic simulation and creates a graph that links different elements of the network that have similar 
+patterns. This virtual graph can be used to enhance the exchange of information between CommDevs during the simulation. It is also 
+possible to use it to study the network itself, taking different centrality measures of this graph.
+
+### Creating the Virtual Graph:
+
+The first step is to generate the input file of the virtual graph. This can be done by running a simulation using the NON-LEARNING AGENT:
+
+```
+python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file> --observe-list <attributes-to-gather-data-from>
+```
+
+This will generate a csv file with information about the network in the results folder. Next, running the virtual graph script using the virtual graph specific arguments:
+
+```
+python3 sumo_vg/run_virtual_graph --vg-file <path-to->
+```
+
+- falar do atributo que sera usado para comaprar, q eh pego do primeiro passado no id (link ou junction)
 
 ### Communication with Virtual Graph
 
 Creating the virtual graph at the start of the simulation using the virtual graph specific arguments or loading it from a [pickle](https://docs.python.org/3/library/pickle.html) file:
 
-### Creating the Virtual Graph:
-
-I
-
 ### Loading from file:
+
+### Example of Use:
 
 ### Taking measurements from the Virtual Graph:
 

@@ -33,7 +33,7 @@ def main():
     parser.add_argument("-tsh", "--vg_threshold", type=float, default=0,
                         help="Threshold used to create an edge in the virtual graph. (default = 0)")
     
-    parser.add_argument("-o", "--use_or_logic", action="store_true", default=False,
+    parser.add_argument("-or", "--use_or_logic", action="store_true", default=False,
                         help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
     
     parser.add_argument("-ms", "--centrality_measures",  default=None, nargs="+",
