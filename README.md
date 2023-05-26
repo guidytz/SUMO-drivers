@@ -98,9 +98,9 @@ python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attribu
 ```
 
 The program will compare every line of the input csv with every other line, checking if the difference between the chosen attributes is within a defined threshold. Every attribute is normalized between $0$ and $1$ using the formula:
-$$
+```math
 x_{normalized} = \frac{x - x_{min}}{x_{max} - x_{min}}
-$$
+```
 
 Every argument that refers to the attributes in the input csv file, such as the list of attributes or the list of labels, is passed using its
 respective column number in the input csv. They can be passed as a list of integers or as an interval in the form `initial_column-final_column` 
