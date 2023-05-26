@@ -174,7 +174,20 @@ python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attribu
 This command will generate the usual virtual graph dictionary file and its image and also two more pdf files: a list of every vertex of the graph and its centrality measures and
 also a list of every graph vertex attribute and how many times it appears in the virtual graph, i.e. the frequency of each specific link or junction in the virtual graph. 
 
-The names of the centrality measures can be found 
+Here's a table with the most commons centrality measures that can be taken and their respective keyword argument:
+
+| Name            | Keyword Argument         |
+|-----------------|--------------------------|
+| Degree          | `degree`                 |
+| Betwenness      | `betweenness`            |
+| Eigenvector     | `eigenvector_centrality` |
+| Pagerank        | `pagerank`               |
+| Diversity       | `diversity`              |
+| Constraint      | `constraint`             |
+| Eccentricity    | `eccentricity`           |
+| Strength        | `strength`               |
+
+Other centrality measures can be found [here](https://python.igraph.org/en/stable/analysis.html#vertex-properties). It is necessary to pass the name of the method only.
 
 ### Utility Tools for the Virtual Graph
 
