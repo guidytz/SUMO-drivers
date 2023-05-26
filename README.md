@@ -95,7 +95,7 @@ virtual graph specific arguments:
 python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attributes <> --vg-label <> 
 ```
 
-- falar do atributo que sera usado para comaprar, q eh pego do primeiro passado no id (link ou junction)
+- falar do atributo que sera usado para comaprar, q eh pego do primeiro passado no id (link ou junction) e q coluna do csv é número
 
 ### Communication with Virtual Graph
 
