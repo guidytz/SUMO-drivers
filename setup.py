@@ -17,7 +17,7 @@ setup(
         'matplotlib',
         'pymoo',
         'seaborn',
-        'pycairo'
+        'cairocffi'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',
