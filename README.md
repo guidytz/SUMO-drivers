@@ -80,9 +80,13 @@ This tool receives data from a traffic simulation and creates a graph that links
 patterns. This virtual graph can be used to enhance the exchange of information between CommDevs during the simulation. It is also 
 possible to use it to study the network itself, taking different centrality measures of this graph.
 
+### Communication with Virtual Graph
+
+Enhancing the C2I communication is done by [creating the virtual graph at the start of the simulation](#creating-virtual-graph-alongside-simulation)  using the [virtual graph specific arguments](#virtual-graph-specific-arguments) or [loading it](#loading-from-file) from a [pickle](https://docs.python.org/3/library/pickle.html) file.
+
 ### Creating the Virtual Graph
 
-The first step is to generate the input file of the virtual graph. This can be done by running a simulation using the **Non-Learning Agent**:
+The first step is to generate the input file for the virtual graph. This can be done by running a simulation using the **Non-Learning Agent**:
 
 ```
 python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file> --observe-list <attributes-to-gather-data-from>
@@ -120,13 +124,17 @@ will be used to aggregate the neighbors of the virtual graph, i. e. aggregate by
 Using the csv with data from the links and passing the link as first attribute in `vg-label` will generate a virtual graph with links as vertices. Using the csv with data from
 the junctions and passing the junction as first attribute in `vg-label` will generate a virtual graph with junctions as vertices.
 
-### Communication with Virtual Graph
+### Creating Virtual Graph Alongside Simulation
 
-[Creating the virtual graph](#creating-the-virtual-graph) at the start of the simulation using the [virtual graph specific arguments](#virtual-graph-specific-arguments) or [loading it](#loading-from-file) from a [pickle](https://docs.python.org/3/library/pickle.html) file:
+In order to create the virtual graph at the start of the simulation, it is necessary to pass the [virtual graph specific arguments](#virtual-graph-specific-arguments) alongside the simulation arguments:
 
-### Loading from File
+```
+python3 simulations/sumo_run.py ql --sumocfg <path-to-sumocfg-file> --vg-file <path-to-vg-input-file> --vg-attributes <list-of-attributes> --vg-label <list-of-labels> --vg_threshold <threshold-of-the-virtual-graph>
+```
 
-Using the `vg-dict-file` argument:
+### Loading Virtual Graph from File
+
+After [creating the virtual graph](#creating-the-virtual-graph), it is possible to load it using the `vg-dict-file` argument:
 
 ```
 python3 simulations/sumo_run.py ql --sumocfg <path-to-sumocfg-file> --vg-dict-file <path-to-vg-dict-file>
@@ -153,7 +161,7 @@ python3 sumo_vg/run_virtual_graph.py --vg-file <path-to-vg-input-file> --vg-attr
 ```
 In the `vg-file` argument, it is chosen whether to use the link data or the junction data generated in the previous step. The `vg-attributes` argument determines that two
 attributes from the input csv will be used: the third and fourth column attributes. The `vg-label` argument determines that the label for each vertex of the virtual graph
-will be composed by the second and first columns in the input csv, and also that the output dictionary file will be aggregated by the second column. The `vg-threshold`
+will be composed by the second and first columns of the input csv, and also that the output dictionary file will be aggregated by the second column. The `vg-threshold`
 determines the maximum absolute difference each attribute, defined by `vg-attributes`, of each vertex in the virtual graph can have. Finally, the `vg-restrictions` argument set
 as the graph vertex attribute is important because it prevents the program from creating an edge between two vertices that have the same graph vertex attribute, i.e. two 
 vertices that originate from the same link or junction. This is a good practice, so as to the output dictionary file doesn't have a link or junction as neighbor of itself.
@@ -165,7 +173,7 @@ python3 simulations/sumo_run.py ql --sumocfg scenario/diamond/diamond.sumocfg --
 This will run a simulation using the virtual graph to enhance the communication, generating two csv files, one with link information and another with traffic light junction
 information of the simulation. 
 
-It is also possible to skip the second step and generate the virtual graph at the start of the simulation using the [virtual graph specific arguments](#virtual-graph-specific-arguments) alongside the simulation arguments. This will also run a simulation using the virtual graph to ehnace the communication.
+It is also possible to skip the second step and generate the virtual graph at the start of the simulation using the [virtual graph specific arguments](#virtual-graph-specific-arguments) alongside the simulation arguments.
 
 ### Taking Measurements from the Virtual Graph
 
@@ -176,7 +184,9 @@ python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attribu
 ```
 
 This command will generate the usual virtual graph dictionary file and its image and also two more pdf files: a list of every vertex of the graph and its centrality measures and
-also a list of every graph vertex attribute and how many times it appears in the virtual graph, i.e. the frequency of each specific link or junction in the virtual graph. 
+also a list of every graph vertex attribute and how many times it appears in the virtual graph, i.e. the frequency of each specific link or junction in the virtual graph.
+
+It is also possible to take these measures when [creating the virtual graph alonside the simulation](#creating-virtual-graph-alongside-simulation).
 
 The list of the most commons centrality measures that can be taken and their respective keyword argument can be found [here](#list-of-centrality-measures).
 
@@ -257,9 +267,9 @@ Below are described arguments specific to virtual graph in communication usage.
 | Name                 | Argument                              | Description                                                                                                                                                           |
 | -------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Virtual Graph File   | `--vg_file <STR>`                     | Path to csv file that will be used as input for the virtual graph.                                                                |
-| Attributes           | `--vg_attributes <LIST-OF-STR>`       | List of attributes used to create the virtual graph.<br>Attribute is given by the number of the column of the input csv.                                             |
-| Labels               | `--vg_labels <LIST-OF-STR>`           | List of attributes that will compose the label of each vertex in the virtual graph. <br>Attribute is given by the number of the column of the input csv.                            |
-| Restriction          | `--vg_restriction <LIST-OF-STR>`      | List of attributes that the vertices cannot share in order to create an edge in the virtual graph. <br>Attribute is given by the number of the column of the input csv. |
+| Attributes           | `--vg_attributes <LIST-OF-INT>`       | List of attributes used to create the virtual graph.<br>Attribute is given by the number of the column of the input csv.                                             |
+| Labels               | `--vg_labels <LIST-OF-INT>`           | List of attributes that will compose the label of each vertex in the virtual graph. <br>Attribute is given by the number of the column of the input csv.                            |
+| Restriction          | `--vg_restriction <LIST-OF-INT>`      | List of attributes that the vertices cannot share in order to create an edge in the virtual graph. <br>Attribute is given by the number of the column of the input csv. |
 | Threshold            | `--vg_threshold <FLOAT>`              | Threshold used to create an edge in the virtual graph.                                                                                                                |
 | Use OR logic         | `--use_or_logic`                      | Flag that indicates or logic instead of the and logic to create an edge between vertices given multiple attributes.                                                      |
 | Centrality Measures  | `--centrality_measures <LIST-OF-STR>` | List of centrality measures to be taken of the virtual graph.                                                                                                         |
