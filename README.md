@@ -192,6 +192,18 @@ Other centrality measures can be found [here](https://python.igraph.org/en/stabl
 
 ### Utility Tools for the Virtual Graph
 
+1. Printing column numbers alongside column names:
+```
+python3 utilities/show_column_headers.py --file <path-to-csv-file>
+```
+Prints the column numbers of the input csv with their respective names to help select the virtual graph attributes when writing the command.
+
+2. Reducing csv input file's number of lines:
+```
+python3 utilities/generate_smaller_csv.py --file <path-to-csv-file> --nlines <number-of-lines>
+```
+Takes random lines from the input csv to generate a new csv containing the number of lines specified. Used for testing with smaller datasets.
+
 ### Common Arguments
 
 Below are described common arguments to every agent.
