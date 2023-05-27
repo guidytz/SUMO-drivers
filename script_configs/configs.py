@@ -107,7 +107,7 @@ class GraphConfig(EmptyConfig):
                                                     "passed will determine which attribute is used to aggregate the virtual graph neighbors, "
                                                     "i.e. aggregate by link or junction.", rename="vg-label", group=main_group()))
 
-    restrictions: list[str] | None = field(default_factory=lambda: None,
+    restrictions: list[str] = field(default_factory=lambda: [],
                                    metadata=describe("List of attributes that the vertices cannot share in order to create an edge in the virtual "
                                                      "graph. Attribute is given by the number of the column of the input csv.", rename="vg-restrictions",
                                                      group=main_group()))
@@ -119,7 +119,7 @@ class GraphConfig(EmptyConfig):
                                                           "multiple attributes.",
                                                           rename="use-or-logic", group=main_group()))
 
-    measures: list[str] | None = field(default_factory=lambda: None,
+    measures: list[str] = field(default_factory=lambda: [],
                                 metadata=describe("List of centrality measures to be taken of the virtual graph.",
                                                   rename="centrality-measures", group=main_group()))
 

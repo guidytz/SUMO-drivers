@@ -84,9 +84,9 @@ possible to use it to study the network itself, taking different centrality meas
 
 Enhancing the C2I communication is done by [creating the virtual graph at the start of the simulation](#creating-virtual-graph-alongside-simulation)  using the [virtual graph specific arguments](#virtual-graph-specific-arguments) or [loading it](#loading-virtual-graph-from-file) from a [pickle](https://docs.python.org/3/library/pickle.html) file.
 
-### Creating the Virtual Graph
+### Creating the Virtual Graph Input File
 
-The first step is to generate the input file for the virtual graph. This can be done by running a simulation using the **Non-Learning Agent**:
+The first step to generate the virtual graph is to create its input file. This can be done by running a simulation using the **Non-Learning Agent**:
 
 ```
 python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file> --observe-list <attributes-to-gather-data-from>
@@ -95,8 +95,11 @@ python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file> --observe-li
 The `observe-list` argument contains the names of the attributes of the simulation that will be present in the output csv file.
 
 This will generate two csv files with information about the network in the results folder. One contains data of each link at a timestep interval and the other
-contains this same data aggregated by traffic light junction at each timestep interval. The next step is to run the virtual graph script using the 
-[virtual graph specific arguments](#virtual-graph-specific-arguments):
+contains this same data aggregated by traffic light junction at each timestep interval. 
+
+### Creating the Virtual Graph
+
+The next step after [generating the input file](#creating-the-virtual-graph-input-file) is to run the virtual graph script using the [virtual graph specific arguments](#virtual-graph-specific-arguments):
 
 ```
 python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attributes <list-of-attributes> --vg-label <list-of-labels> --vg_threshold <threshold-of-the-virtual-graph>
@@ -114,7 +117,8 @@ where `initial_column` is the first column of the interval and `final_column` is
 ### Output of the Virtual Graph
 
 The script will generate an image of the virtual graph in the results/graphs folder. Most importantly, it will also generate a [pickle](https://docs.python.org/3/library/pickle.html) 
-file containing a python dictionary with every link or junction and their respective neighbors in the virtual graph at each timestep interval.
+file containing a python dictionary with every link or junction and their respective neighbors in the virtual graph at each timestep interval in the
+results/dictionaries folder.
 
 ### Using Link or Junction as Graph Vertex
 
@@ -131,6 +135,9 @@ In order to create the virtual graph at the start of the simulation, it is neces
 ```
 python3 simulations/sumo_run.py ql --sumocfg <path-to-sumocfg-file> --vg-file <path-to-vg-input-file> --vg-attributes <list-of-attributes> --vg-label <list-of-labels> --vg_threshold <threshold-of-the-virtual-graph>
 ```
+
+This will also generate an image of the virtual graph and the files containing the centrality measures if they were taken. It will not, however,
+generate the virtual graph dictionary file. This is done by [creating the virtual graph](#creating-the-virtual-graph) outside of the simulation.
 
 ### Loading Virtual Graph from File
 
@@ -177,7 +184,7 @@ It is also possible to skip the second step and generate the virtual graph at th
 
 ### Taking Measurements from the Virtual Graph
 
-While [creating the virtual graph](#creating-the-virtual-graph), using the `centrality-measures` specific virtual graph argument:
+While [creating the virtual graph](#creating-the-virtual-graph) or [creating the virtual graph alongside simulation](#creating-virtual-graph-alongside-simulation), using the `centrality-measures` specific virtual graph argument:
 
 ```
 python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attributes <list-of-attributes> --vg-label <list-of-labels> --vg_threshold <threshold-of-the-virtual-graph> --centrality-measures <list-of-centrality-measures>
@@ -185,8 +192,6 @@ python3 sumo_vg/run_virtual_graph --vg-file <path-to-vg-input-file> --vg-attribu
 
 This command will generate the usual virtual graph dictionary file and its image and also two more pdf files: a list of every vertex of the graph and its centrality measures and
 also a list of every graph vertex attribute and how many times it appears in the virtual graph, i.e. the frequency of each specific link or junction in the virtual graph.
-
-It is also possible to take these measures when [creating the virtual graph alonside the simulation](#creating-virtual-graph-alongside-simulation).
 
 The list of the most commons centrality measures that can be taken and their respective keyword argument can be found [here](#list-of-centrality-measures).
 

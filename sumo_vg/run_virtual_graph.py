@@ -36,9 +36,9 @@ def main():
                         "by the number of the column of the input csv. The first attribute passed will determine which attribute is used "
                         "to aggregate the virtual graph neighbors, i.e. aggregate by link or junction.")
 
-    vg_args_creation.add_argument("-rst", "--vg-restrictions", dest="vg_restrictions", default=None, nargs="+",
+    vg_args_creation.add_argument("-rst", "--vg-restrictions", dest="vg_restrictions", default=[], nargs="+",
                         help="List of attributes that the vertices cannot share in order to create an edge in the virtual graph. Attribute"
-                        " is given by the number of the column of the input csv. (default = None)")
+                        " is given by the number of the column of the input csv. (default = [])")
     
     vg_args_creation.add_argument("-tsh", "--vg-threshold", dest="vg_threshold", type=float, default=0,
                         help="Threshold used to create an edge in the virtual graph. (default = 0)")
@@ -47,8 +47,8 @@ def main():
                         help="Flag that indicates or logic instead of the and logic to create an edge between vertices given multiple "
                         "attributes. (default = false)")
     
-    vg_args_measuring.add_argument("-ms", "--centrality-measures", dest="centrality_measures", default=None, nargs="+",
-                        help="List of centrality measures to be taken of the virtual graph. (default = None)")
+    vg_args_measuring.add_argument("-ms", "--centrality-measures", dest="centrality_measures", default=[], nargs="+",
+                        help="List of centrality measures to be taken of the virtual graph. (default = [])")
     
     vg_args_plotting.add_argument("-ni", "--no-image", dest="no_image", action="store_true", default=False,
                         help="Flag to indicate to the script not to generate the virtual graph image. (default = false)")
