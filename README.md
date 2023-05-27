@@ -178,13 +178,14 @@ Here's a table with the most commons centrality measures that can be taken and t
 
 | Name            | Keyword Argument         |
 |-----------------|--------------------------|
-| Degree          | `degree`                 |
 | Betwenness      | `betweenness`            |
-| Eigenvector     | `eigenvector_centrality` |
-| Pagerank        | `pagerank`               |
-| Diversity       | `diversity`              |
+| Closeness       | `closeness`              |
 | Constraint      | `constraint`             |
+| Degree          | `degree`                 |
+| Diversity       | `diversity`              |
+| Eigenvector     | `eigenvector_centrality` |
 | Eccentricity    | `eccentricity`           |
+| Pagerank        | `pagerank`               |
 | Strength        | `strength`               |
 
 Other centrality measures can be found [here](https://python.igraph.org/en/stable/analysis.html#vertex-properties). It is necessary to pass the name of the method only.

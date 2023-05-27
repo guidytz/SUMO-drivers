@@ -363,40 +363,16 @@ def determina_possui_medida_custosa(lista_medidas: list | None, medidas_custosas
     return False
 
 
-def calcula_medidas(grafo: ig.Graph, lista_medidas: list, lista_ids: list) -> dict:
+def calcula_medidas(grafo: ig.Graph, lista_medidas: list) -> dict:
     '''
     Calcula medidas de centralidade do grafo, retornando um dicionário com as medidas
     '''
-    dict_valores_medidas: dict[str, list] = {}
+    dict_valores_medidas: dict[str, list] = {"label": grafo.vs["label"]}
+
     for medida in lista_medidas:
-        lista_medida_calculada = getattr(grafo, medida)()
-
-        lista_ids_num_ordenada = []
-        if medida == lista_medidas[0]:
-            lista_medida = lista_medida_calculada.copy()  # usada para ordenar tabela
-            lista_medida.sort(reverse=True)
-
-            for m_ord in lista_medida:
-                for i in range(grafo.vcount()):
-                    if m_ord == lista_medida_calculada[i] and i not in lista_ids_num_ordenada:
-                        lista_ids_num_ordenada.append(i)
-
-            lista_ids_ordenada = []
-            for id in lista_ids_num_ordenada:  # traduz o id numérico para o id do label do grafo
-                lista_ids_ordenada.append(lista_ids[id])
-
-            # mostra as medidas em ordem decrescente de degree
-            dict_valores_medidas = {"id": lista_ids_ordenada}
-
-        lista_medida_calculada = list(
-            map(lambda x: round(x, 4), lista_medida_calculada))
-
-        lista_medida_calculada_ordenada = []
-        for i in lista_ids_num_ordenada:
-            lista_medida_calculada_ordenada.append(lista_medida_calculada[i])
-
-        dict_valores_medidas[medida] = lista_medida_calculada_ordenada
-
+        dict_valores_medidas[medida] = list(
+            map(lambda x: round(x, 4), getattr(grafo, medida)()))
+        
     return dict_valores_medidas
 
 
@@ -441,6 +417,8 @@ def monta_tabela(dados: list, nome: str, tipo: str) -> None:
 
     colunas = dados
     df = DataFrame(colunas, columns=colunas)
+    df_headers = df.columns.tolist()
+    df = df.sort_values(df_headers[1], ascending=False)
 
     ax.table(cellText=df.values, colLabels=list(df.columns), cellLoc="center", loc="upper center")
 
@@ -907,10 +885,9 @@ def generate_graph_neighbors_dict(nome_arquivo_csv: str, lista_atributos_numeric
         if len(nova_lista_medidas) != 0:
             if g.vcount() != 0:
                 nome_tabela = f"table_{nome_dados}.pdf"
-                nome_tabela_freq = f"freq_table_{nome_dados}.pdf"
+                nome_tabela_freq = f"freq_table_{nome_dados}.pdf"       
                 # tabela com as medidas de caracterização selecionadas é gerada
-                monta_tabela(dados=calcula_medidas(g, nova_lista_medidas,
-                             g.vs["label"]), nome=nome_tabela, tipo="centrality")
+                monta_tabela(dados=calcula_medidas(g, nova_lista_medidas), nome=nome_tabela, tipo="centrality")
                 # tabela de frequências é gerada
                 monta_tabela(dados=calculate_frequency_keys(g, attribute=vertex_attribute_name), nome=nome_tabela_freq, tipo="frequency")
             else:
