@@ -93,58 +93,57 @@ class GraphConfig(EmptyConfig):
         return _Group(name="Graph Params (Used with communication)", description="Params used virtual graph")
 
     file: str | None = field(default=None,
-                             metadata=describe("Path and name to the file containing the data that is going to be used "
-                                               "to create the virtual graph.", rename="vg-file", group=main_group()))
+                             metadata=describe("Path to csv file that will be used as input for the virtual graph.", 
+                                               rename="vg-file", group=main_group()))
 
     attributes: list[str] = field(default_factory=lambda: ["ALL"],
-                                  metadata=describe("List of atrributes used to create the virtual graph. Atrribute is "
-                                                    "given by the number of the column of the input file.",
+                                  metadata=describe("List of attributes used to create the virtual graph. "
+                                                    "Attribute is given by the number of the column of the input csv.",
                                                     rename="vg-attributes", group=main_group()))
 
     labels: list[str | None] = field(default_factory=lambda: [None],
-                                     metadata=describe("List of attributes that will compose the label of the virtual "
-                                                       "graph. Attribute is given by the number of the column of the "
-                                                       "input file.", rename="vg-label", group=main_group()))
+                                    metadata=describe("List of attributes that will compose the label of each vertex in the virtual graph. "
+                                                    "Attribute is given by the number of the column of the input csv. The first attribute "
+                                                    "passed will determine which attribute is used to aggregate the virtual graph neighbors, "
+                                                    "i.e. aggregate by link or junction.", rename="vg-label", group=main_group()))
 
     restrictions: list[str] | None = field(default_factory=lambda: None,
-                                   metadata=describe("List of attributes that the nodes cannot share in order to create "
-                                                     "an edge in the virtual graph. Attribute is given by the number of "
-                                                     "the column of the input file.", rename="vg-restrictions",
+                                   metadata=describe("List of attributes that the vertices cannot share in order to create an edge in the virtual "
+                                                     "graph. Attribute is given by the number of the column of the input csv.", rename="vg-restrictions",
                                                      group=main_group()))
 
     threshold: float = field(default=0., metadata=describe("Threshold used to create an edge in the virtual graph.",
                                                            rename="vg-threshold", group=main_group()))
 
-    use_or: bool = field(default=False, metadata=describe("Use or logic instead of the and logic to create an edge "
-                                                          "between nodes given multiple attributes.",
+    use_or: bool = field(default=False, metadata=describe("Flag that indicates or logic instead of the and logic to create an edge between vertices given "
+                                                          "multiple attributes.",
                                                           rename="use-or-logic", group=main_group()))
 
     measures: list[str] | None = field(default_factory=lambda: None,
                                 metadata=describe("List of centrality measures to be taken of the virtual graph.",
                                                   rename="centrality-measures", group=main_group()))
 
-    no_image: bool = field(default=False, metadata=describe("Determines if an image of the virtual graph will not be "
-                                                            "generated.", rename="no-image", group=main_group()))
+    no_image: bool = field(default=False, metadata=describe("Flag to indicate to the script not to generate the virtual graph image.", 
+                                                            rename="no-image", group=main_group()))
 
-    raw: bool = field(default=False, metadata=describe("Determines if all nodes with degree zero will not be removed.",
+    raw: bool = field(default=False, metadata=describe("Flag to indicate not to remove vertices with degree zero.",
                                                        rename="raw-graph", group=main_group()))
 
-    giant: bool = field(default=False, metadata=describe("Determines if only the giant component of the virtual graph "
-                                                         "will be present in the virtual graph image.",
-                                                         group=main_group()))
+    giant: bool = field(default=False, metadata=describe("Flag to indicate that only the giant component of the virtual graph should be "
+                                                         "presented in its image.", group=main_group()))
 
-    not_normalize: bool = field(default=False, metadata=describe("Determines if the input data will not be normalized.",
-                                                             rename="vg-not-normalize", group=main_group()))
+    not_normalize: bool = field(default=False, metadata=describe("Flag to indicate to the script not to normalize the input csv data to generate "
+                                                                 "the virtual graph.", rename="vg-not-normalize", group=main_group()))
 
-    min_degree: int = field(default=0, metadata=describe("Only vertices with a degree bigger than or equal to this "
-                                                         "value will be plotted.", rename="min-degree",
-                                                         group=main_group()))
+    min_degree: int = field(default=0, metadata=describe("Determines the minimum degree a vertex should have in order to be plotted in the virtual "
+                                                         "graph image.", rename="min-degree", group=main_group()))
 
-    min_step: int = field(default=0, metadata=describe("Only vertices with a step bigger or equal to this value will be"
-                                                       " plotted.", rename="vg-min-step", group=main_group()))
+    min_step: int = field(default=0, metadata=describe("Determines the minimum step a vertex should have in order to be plotted in the graph image.", 
+                                                       rename="vg-min-step", group=main_group()))
 
     vg_dict: str | None = field(default=None, metadata=describe("Name of file containing python dictionary of virtual graph "
-                                                       "neighbors.", rename="vg-dict-file", group=main_group()))
+                                                       "neighbors. Only used to load virtual graph into simulation", 
+                                                       rename="vg-dict-file", group=main_group()))
 
     interval: int = field(default=250, metadata=describe("Amplitude of the timestep interval of the virtual graph "
                                                          "neighbors dictionary.", group=main_group()))

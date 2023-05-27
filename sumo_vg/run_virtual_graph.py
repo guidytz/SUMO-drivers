@@ -18,46 +18,61 @@ def main():
     # == Argparse e argumentos do usuário ==
 
     parser = ap.ArgumentParser()
-    parser.add_argument("-f", "--vg-file", dest="vg_file",
-                        help="Path and name to the file containing the data that is going to be used to create the virtual graph.")
 
-    parser.add_argument("-atb", "--vg-attributes", dest="vg_attributes", default=["ALL"], nargs="+",
-                        help="List of atributes used to create the virtual graph. Atribute is given by the number of the column of the input file. (default = ['ALL'])")
+    vg_args_creation = parser.add_argument_group('Creating Virtual Graph')
+    vg_args_adjusting = parser.add_argument_group('Adjusting Virtual Graph')
+    vg_args_plotting = parser.add_argument_group('Plotting Virtual Graph')
+    vg_args_measuring = parser.add_argument_group('Measuring Virtual Graph')
 
-    parser.add_argument("-id", "--vg-label", dest="vg_label", nargs="+",
-                        help="List of atributes that will compose the label of the virtual graph. Atribute is given by the number of the column of the input file.")
+    vg_args_creation.add_argument("-f", "--vg-file", dest="vg_file",
+                        help="Path to csv file that will be used as input for the virtual graph.")
 
-    parser.add_argument("-rst", "--vg-restrictions", dest="vg_restrictions", default=None, nargs="+",
-                        help="List of atributes that the nodes cannot share in order to create an edge in the virtual graph. Atribute is given by the number of the column of the input file. (default = None)")
+    vg_args_creation.add_argument("-atb", "--vg-attributes", dest="vg_attributes", default=["ALL"], nargs="+",
+                        help="List of attributes used to create the virtual graph. Attribute is given by the number of the column "
+                        "of the input csv. (default = ['ALL'])")
+
+    vg_args_creation.add_argument("-id", "--vg-label", dest="vg_label", nargs="+",
+                        help="List of attributes that will compose the label of each vertex in the virtual graph. Attribute is given "
+                        "by the number of the column of the input csv. The first attribute passed will determine which attribute is used "
+                        "to aggregate the virtual graph neighbors, i.e. aggregate by link or junction.")
+
+    vg_args_creation.add_argument("-rst", "--vg-restrictions", dest="vg_restrictions", default=None, nargs="+",
+                        help="List of attributes that the vertices cannot share in order to create an edge in the virtual graph. Attribute"
+                        " is given by the number of the column of the input csv. (default = None)")
     
-    parser.add_argument("-tsh", "--vg-threshold", dest="vg_threshold", type=float, default=0,
+    vg_args_creation.add_argument("-tsh", "--vg-threshold", dest="vg_threshold", type=float, default=0,
                         help="Threshold used to create an edge in the virtual graph. (default = 0)")
     
-    parser.add_argument("-or", "--use-or-logic", dest="use_or_logic", action="store_true", default=False,
-                        help="Use or logic instead of the and logic to create an edge between nodes given multiple atributes. (default = false)")
+    vg_args_adjusting.add_argument("-or", "--use-or-logic", dest="use_or_logic", action="store_true", default=False,
+                        help="Flag that indicates or logic instead of the and logic to create an edge between vertices given multiple "
+                        "attributes. (default = false)")
     
-    parser.add_argument("-ms", "--centrality-measures", dest="centrality_measures", default=None, nargs="+",
+    vg_args_measuring.add_argument("-ms", "--centrality-measures", dest="centrality_measures", default=None, nargs="+",
                         help="List of centrality measures to be taken of the virtual graph. (default = None)")
     
-    parser.add_argument("-ni", "--no-image", dest="no_image", action="store_true", default=False,
-                        help=f"Determines if an image of the virtual graph will not be generated. (default = false)")
+    vg_args_plotting.add_argument("-ni", "--no-image", dest="no_image", action="store_true", default=False,
+                        help="Flag to indicate to the script not to generate the virtual graph image. (default = false)")
     
-    parser.add_argument("-rgraph", "--raw-graph", dest="raw_graph", action="store_true", default=False,
-                        help="Determines if all nodes with degree zero will not be removed. (default = false)")
+    vg_args_adjusting.add_argument("-rgraph", "--raw-graph", dest="raw_graph", action="store_true", default=False,
+                        help="Flag to indicate not to remove vertices with degree zero. (default = false)")
     
-    parser.add_argument("-giant", "--giant-component", dest="giant_component", action="store_true", default=False,
-                        help="Determines if only the giant component of the virtual graph will be present in the virtual graph image. (default = false)")
+    vg_args_plotting.add_argument("-giant", "--giant-component", dest="giant_component", action="store_true", default=False,
+                        help="Flag to indicate that only the giant component of the virtual graph should be presented in "
+                        "its image. (default = false)")
     
-    parser.add_argument("-not-norm", "--vg-not-normalize", dest="vg_not_normalize", action="store_true", default=False,
-                        help="Determines if the input data will not be normalized. (default = false)")
+    vg_args_adjusting.add_argument("-not-norm", "--vg-not-normalize", dest="vg_not_normalize", action="store_true", default=False,
+                        help="Flag to indicate to the script not to normalize the input csv data to generate the virtual"
+                        " graph. (default = false)")
     
-    parser.add_argument("-mdeg", "--min-degree", dest="min_degree", type=int, default=0,
-                        help="Only vertices with a degree bigger or equal to this value will be ploted. (default = 0)")
+    vg_args_plotting.add_argument("-mdeg", "--min-degree", dest="min_degree", type=int, default=0,
+                        help="Determines the minimum degree a vertex should have in order to be plotted in the virtual graph "
+                        "image. (default = 0)")
     
-    parser.add_argument("-mstep", "--vg-min-step", dest="vg_min_step", type=int, default=0,
-                        help="Only vertices with a step bigger or equal to this value will be ploted. (default = 0)")
+    vg_args_plotting.add_argument("-mstep", "--vg-min-step", dest="vg_min_step", type=int, default=0,
+                        help="Determines the minimum step a vertex should have in order to be plotted in the graph image. "
+                        "(default = 0)")
     
-    parser.add_argument("-int", "--interval", type=int, default=250,
+    vg_args_adjusting.add_argument("-int", "--interval", type=int, default=250,
                         help="Amplitude of the timestep interval of the virtual graph neighbors dictionary. (default = 250)")
                         
     args = parser.parse_args()
