@@ -138,7 +138,7 @@ class GraphConfig(EmptyConfig):
     min_degree: int = field(default=0, metadata=describe("Determines the minimum degree a vertex should have in order to be plotted in the virtual "
                                                          "graph image.", rename="min-degree", group=main_group()))
 
-    min_step: int = field(default=0, metadata=describe("Determines the minimum step a vertex should have in order to be plotted in the graph image.", 
+    min_step: int = field(default=0, metadata=describe("Determines the minimum step a vertex should have in order to be plotted in the virtual graph image.", 
                                                        rename="vg-min-step", group=main_group()))
 
     vg_dict: str | None = field(default=None, metadata=describe("Name of file containing python dictionary of virtual graph "

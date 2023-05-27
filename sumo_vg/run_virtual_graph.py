@@ -69,7 +69,7 @@ def main():
                         "image. (default = 0)")
     
     vg_args_plotting.add_argument("-mstep", "--vg-min-step", dest="vg_min_step", type=int, default=0,
-                        help="Determines the minimum step a vertex should have in order to be plotted in the graph image. "
+                        help="Determines the minimum step a vertex should have in order to be plotted in the virtual graph image. "
                         "(default = 0)")
     
     vg_args_adjusting.add_argument("-int", "--interval", type=int, default=250,

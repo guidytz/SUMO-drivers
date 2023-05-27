@@ -82,7 +82,7 @@ possible to use it to study the network itself, taking different centrality meas
 
 ### Communication with Virtual Graph
 
-Enhancing the C2I communication is done by [creating the virtual graph at the start of the simulation](#creating-virtual-graph-alongside-simulation)  using the [virtual graph specific arguments](#virtual-graph-specific-arguments) or [loading it](#loading-from-file) from a [pickle](https://docs.python.org/3/library/pickle.html) file.
+Enhancing the C2I communication is done by [creating the virtual graph at the start of the simulation](#creating-virtual-graph-alongside-simulation)  using the [virtual graph specific arguments](#virtual-graph-specific-arguments) or [loading it](#loading-virtual-graph-from-file) from a [pickle](https://docs.python.org/3/library/pickle.html) file.
 
 ### Creating the Virtual Graph
 
@@ -267,9 +267,9 @@ Below are described arguments specific to virtual graph in communication usage.
 | Name                 | Argument                              | Description                                                                                                                                                           |
 | -------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Virtual Graph File   | `--vg_file <STR>`                     | Path to csv file that will be used as input for the virtual graph.                                                                |
-| Attributes           | `--vg_attributes <LIST-OF-INT>`       | List of attributes used to create the virtual graph.<br>Attribute is given by the number of the column of the input csv.                                             |
-| Labels               | `--vg_labels <LIST-OF-INT>`           | List of attributes that will compose the label of each vertex in the virtual graph. <br>Attribute is given by the number of the column of the input csv.                            |
-| Restriction          | `--vg_restriction <LIST-OF-INT>`      | List of attributes that the vertices cannot share in order to create an edge in the virtual graph. <br>Attribute is given by the number of the column of the input csv. |
+| Attributes           | `--vg_attributes <LIST-OF-INT>`       | List of attributes used to create the virtual graph.                                            |
+| Labels               | `--vg_labels <LIST-OF-INT>`           | List of attributes that will compose the label of each vertex in the virtual graph.                       |
+| Restriction          | `--vg_restriction <LIST-OF-INT>`      | List of attributes that the vertices cannot share in order to create an edge in the virtual graph. |
 | Threshold            | `--vg_threshold <FLOAT>`              | Threshold used to create an edge in the virtual graph.                                                                                                                |
 | Use OR logic         | `--use_or_logic`                      | Flag that indicates or logic instead of the and logic to create an edge between vertices given multiple attributes.                                                      |
 | Centrality Measures  | `--centrality_measures <LIST-OF-STR>` | List of centrality measures to be taken of the virtual graph.                                                                                                         |
