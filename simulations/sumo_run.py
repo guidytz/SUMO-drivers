@@ -14,7 +14,7 @@ from sumo_ql.agent.q_learning import PQLAgent, QLAgent
 from sumo_ql.collector.collector import DefaultCollector, LinkCollector
 from sumo_ql.environment.sumo_environment import EnvConfig, SumoEnvironment
 from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_vg.virtual_graph import generate_graph_neighbours_dict
+from sumo_vg.virtual_graph import generate_graph_neighbors_dict
 
 SAVE_OBJ_CHOSEN = False
 
@@ -41,20 +41,20 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
     if isinstance(config, NonLearnerConfig) or config.virtual_graph is None:
         uses_virtual_graph = False
         print("Not using virtual graph")
-        graph_neighbours_dict = {}
+        vg_neighbors_dict = {}
     else:
         print("Using virtual graph")
         uses_virtual_graph = True
         if config.virtual_graph.file is None:
-            # reads pickle file containing virtual graph neighbours dictionary
-            print("Reading graph neighbours dictionary from pickle file...")
+            # reads pickle file containing virtual graph neighbors dictionary
+            print("Reading graph neighbors dictionary from pickle file...")
             with open(f"{config.virtual_graph.vg_dict}", "rb") as vg_dict_pickle:
-                graph_neighbours_dict = pickle.load(vg_dict_pickle, encoding="bytes")
+                vg_neighbors_dict = pickle.load(vg_dict_pickle, encoding="bytes")
         else:
-            # generates graph neighbours dict
-            print("Generating graph neighbours dictionary...")
+            # generates graph neighbors dict
+            print("Generating graph neighbors dictionary...")
             network_name = str(config.sumocfg).split('/')[-2]
-            graph_neighbours_dict = generate_graph_neighbours_dict(config.virtual_graph.file,
+            vg_neighbors_dict = generate_graph_neighbors_dict(config.virtual_graph.file,
                                                                    config.virtual_graph.attributes,
                                                                    config.virtual_graph.labels,
                                                                    config.virtual_graph.restrictions,
@@ -151,7 +151,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
                              params=observe_list,
                              date=date)
 
-    def create_environment(config: NonLearnerConfig | QLConfig | PQLConfig, graph_neighbours_dict: dict) -> SumoEnvironment:
+    def create_environment(config: NonLearnerConfig | QLConfig | PQLConfig, vg_neighbors_dict: dict) -> SumoEnvironment:
         """Method that creates a SUMO environment given the arguments necessary to it.
 
         Args:
@@ -212,7 +212,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
         while not done['__all__']:
             actions: dict[str, int] = dict()
             for vehicle_id, vehicle in observations.items():
-                if vehicle['reinserted'] and vehicle_id not in agents:
+                if vehicle['reinserted'] and vehicle_id not in agents and not isinstance(config, NonLearnerConfig):
                     create_agent(vehicle_id)
 
             chosen_sum = [0 for _ in range(len(config.objectives))] if isinstance(config, PQLConfig) else []
@@ -322,7 +322,7 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
                 handle_learning(vehicle_id, origin, destination, expected_reward)
 
     # Run the simulation
-    env = create_environment(config, graph_neighbours_dict)
+    env = create_environment(config, vg_neighbors_dict)
     run(iteration)
 
 
