@@ -16,7 +16,8 @@ setup(
         'igraph',
         'matplotlib',
         'pymoo',
-        'seaborn'
+        'seaborn',
+        'cairocffi'
     ],
     author='guidytz',
     author_email='guidytz@gmail.com',

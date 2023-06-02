@@ -84,16 +84,16 @@ class CommunicationDevice:
 
         return np.zeros(shape=nobj)
 
-    def get_graph_neighbours_interval(self, graph_neighbours_link: dict, current_step: int) -> list:
-        number_of_intervals = len(graph_neighbours_link)
+    def get_graph_neighbors_interval(self, graph_neighbors_link: dict, current_step: int) -> list:
+        number_of_intervals = len(graph_neighbors_link)
         i = 0
-        for interval in graph_neighbours_link:
+        for interval in graph_neighbors_link:
             if i == number_of_intervals-1:
                 if interval[0] <= current_step <= interval[1]:
-                    return graph_neighbours_link[interval]
+                    return graph_neighbors_link[interval]
             else:
                 if interval[0] < current_step <= interval[1]:
-                    return graph_neighbours_link[interval]
+                    return graph_neighbors_link[interval]
             i += 1
         #print("Interval not found, returning empty list")
         return []
@@ -109,21 +109,21 @@ class CommunicationDevice:
         for link in self.__node.getOutgoing():
             link_id = link.getID()
 
-            # gets data of neighbouring commdev
+            # gets data of neighboring commdev
             neighboring_comm_dev = self.__environment.get_comm_dev(link.getToNode().getID())
             links_data[link_id] = neighboring_comm_dev.get_expected_reward(link_id)
 
-            # gets data of commdev of graph neighbour link
-            graph_neighbours = self.__environment.get_graph_neighbours()
-            if link_id in list(graph_neighbours.keys()):
+            # gets data of commdev of graph neighbor link
+            graph_neighbors = self.__environment.get_graph_neighbors()
+            if link_id in list(graph_neighbors.keys()):
                 current_step = self.__environment.current_step
-                graph_neighbours_link_interval = self.get_graph_neighbours_interval(
-                    graph_neighbours[link_id], current_step)
+                graph_neighbors_link_interval = self.get_graph_neighbors_interval(
+                    graph_neighbors[link_id], current_step)
 
-                for link_graph_neighbour in graph_neighbours_link_interval:
-                    node_id = self.__environment.get_link_destination(link_graph_neighbour)
+                for link_graph_neighbor in graph_neighbors_link_interval:
+                    node_id = self.__environment.get_link_destination(link_graph_neighbor)
                     graph_comm_dev = self.__environment.get_comm_dev(node_id)
 
-                    links_data[link_graph_neighbour] = graph_comm_dev.get_expected_reward(link_graph_neighbour)
+                    links_data[link_graph_neighbor] = graph_comm_dev.get_expected_reward(link_graph_neighbor)
 
         return links_data

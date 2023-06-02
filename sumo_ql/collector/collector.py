@@ -28,6 +28,9 @@ class DefaultCollector:
         self._aggr_df = self._empty_df
         self._random = SystemRandom()
         self._name_addon = ""
+        self._aggr_junction_df = self._empty_df
+        self._junction_params_remove = [params[1], params[3]]
+        self._junction_params = list(filter(lambda param: param not in self._junction_params_remove, params)) # removes Link and Junction Type
 
     def append(self, data_dict: dict[str, list[int]]) -> None:
         """Method the appends data present in the dictionary to the collector dataframe.
@@ -50,6 +53,17 @@ class DefaultCollector:
         csv_filename = self._path / signature
         self._aggr_df.to_csv(str(csv_filename), index=False)  # compression="xz"
 
+    def save_aggr_junction(self) -> None:
+        """Method that aggregates data by junction and saves it to csv
+        """
+        junction_data_path = Path(self._path / "junction_data")
+        junction_data_path.mkdir(exist_ok=True, parents=True)
+        signature = Path(f"sim_junction_{self._start_time.strftime('%H-%M-%S')}_{self._random.randint(0, 1000):03}.csv")
+        csv_filename = junction_data_path / signature
+
+        self._aggr_junction_df.to_csv(str(csv_filename), index=False)  # compression="xz"
+
+
     def reset(self) -> None:
         """Method that resets the collector data to make a new run.
         """
@@ -66,6 +80,40 @@ class DefaultCollector:
         """
         return self._params
 
+    def filter_by_junction_type(self, dataframe: pd.DataFrame, junction_type: str) -> pd.DataFrame:
+        """Method that filters a dataframe by junction type
+
+        Args:
+            dataframe(pd.DataFrame): dataframe to be filtered
+            junction_type(str): type of junction to be filtered
+        
+        Return:
+            pd.DataFrame: filtered dataframe
+        """
+        
+        dataframe_mask = dataframe["Junction Type"].str.contains(junction_type) # checks if type contains the junction type name (there can be variations of the name that are the same type)
+        filtered_dataframe = dataframe[dataframe_mask]
+
+        return filtered_dataframe
+
+    def aggregate_by_column(self, dataframe: pd.DataFrame, column: str) -> pd.DataFrame:
+        """Method that aggregates the values of the dataframe by a column
+
+        Args:
+            dataframe(pd.DataFrame): 
+            column(str): column to be used to aggregate
+
+        Return:
+            pd.DataFrame: aggregated dataframe
+        """
+
+        not_to_aggregate = ["Step"]
+        to_be_aggregated = list(filter(lambda aggr_column: aggr_column not in not_to_aggregate, self._params))
+        
+        aggregated_dataframe = dataframe.groupby(column, as_index=False)[to_be_aggregated].mean()
+
+        return aggregated_dataframe
+
     def _aggregate(self, curr_value: int) -> None:
         """Method that aggregates the values of the collector dataframe into the main dataframe.
         Currently using the mean to aggregate.
@@ -77,7 +125,7 @@ class DefaultCollector:
         aggregated_df[self._params[0]] = [curr_value]
         self._update_main_dfs(aggregated_df)
 
-    def _update_main_dfs(self, aggregated_df):
+    def _update_main_dfs(self, aggregated_df, aggregated_junction_df):
         """Method that updates main dfs when aggregation is done.
 
         Args:
@@ -85,6 +133,11 @@ class DefaultCollector:
         """
         self._aggr_df = pd.concat([self._aggr_df, aggregated_df[self._params]], ignore_index=True)
         self._collector_df = self._empty_df[self._params[1:]]
+
+        self._aggr_junction_df = pd.concat([self._aggr_junction_df, aggregated_junction_df[self._junction_params]], ignore_index=True)
+        for param in self._junction_params_remove:
+            self._aggr_junction_df[param] = np.nan
+        self._aggr_junction_df.dropna(how="all", axis=1, inplace=True)
 
     def _should_aggregate(self, curr_value: int) -> bool:
         """Method that determines if the data collected should be aggregated in the main dataframe.
@@ -224,10 +277,17 @@ class LinkCollector(DefaultCollector):
             own_params.remove("TravelTime")
             own_params.append("Speed")
 
-        own_params = ["Step", "Link", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
+        own_params = ["Step", "Link", "Junction", "Junction Type", "Running Vehicles", "Occupancy", "Travel Time"] + own_params
         super().__init__(aggregation_interval, path, own_params)
 
     def _aggregate(self, curr_value: int) -> None:
-        aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean').reset_index()
-        aggregated_df[self._params[0]] = curr_value
-        self._update_main_dfs(aggregated_df)
+        aggregated_df = self._collector_df.groupby(by=self._params[1]).agg('mean', numeric_only=True).reset_index()
+        aggregated_df[self._params[0]] = curr_value # adding step
+        aggregated_df[self._params[2]] = self._collector_df[self._params[2]] # adding junction
+        aggregated_df[self._params[3]] = self._collector_df[self._params[3]] # adding junction type
+
+        aggregated_junction_df = self.filter_by_junction_type(aggregated_df, "traffic_light") # traffic_light, priority, make this a parameter
+        aggregated_junction_df = aggregated_junction_df.groupby(by=self._params[2]).agg('mean', numeric_only=True).reset_index() # aggregates by junction
+        aggregated_junction_df[self._params[0]] = curr_value # adding step
+
+        self._update_main_dfs(aggregated_df, aggregated_junction_df)

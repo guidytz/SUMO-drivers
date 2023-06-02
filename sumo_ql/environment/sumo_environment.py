@@ -26,6 +26,8 @@ MAX_VEHICLE_MARGIN = 100
 CONVERSION_DICT = {
     "Step": "Step",
     "Link": "Link",
+    "Junction": "Junction", 
+    "Junction Type": "JunctionType",
     "Travel Time": tc.VAR_CURRENT_TRAVELTIME,
     "Speed": tc.LAST_STEP_MEAN_SPEED,
     "Occupancy": tc.LAST_STEP_OCCUPANCY,
@@ -58,7 +60,7 @@ class EnvConfig:
     normalize_rewards: bool
     min_toll_speed: float
     toll_penalty: int
-    graph_neighbours: dict
+    graph_neighbors: dict
 
     @classmethod
     def from_sim_config(cls, config: NonLearnerConfig | QLConfig | PQLConfig, data_collector: LinkCollector) -> EnvConfig:
@@ -81,7 +83,7 @@ class EnvConfig:
                            normalize_rewards=False,
                            min_toll_speed=np.infty,
                            toll_penalty=0,
-                           graph_neighbours=dict())
+                           graph_neighbors=dict())
             case QLConfig(_):
                 print(f"Optimizing: {config.objective}")
                 return cls(sumocfg_file=config.sumocfg,
@@ -99,7 +101,7 @@ class EnvConfig:
                            normalize_rewards=config.normalize_rewards,
                            min_toll_speed=config.toll_speed,
                            toll_penalty=config.toll_value,
-                           graph_neighbours=dict())
+                           graph_neighbors=dict())
             case PQLConfig(_):
                 print(f"Optimizing: {config.objectives}")
                 return cls(sumocfg_file=config.sumocfg,
@@ -117,7 +119,7 @@ class EnvConfig:
                            normalize_rewards=config.normalize_rewards,
                            min_toll_speed=config.toll_speed,
                            toll_penalty=config.toll_value,
-                           graph_neighbours=dict())
+                           graph_neighbors=dict())
 
 
 class SumoEnvironment(MultiAgentEnv):
@@ -148,7 +150,7 @@ class SumoEnvironment(MultiAgentEnv):
 
     def __init__(self, config: EnvConfig) -> None:
         self.__sumocfg_file = config.sumocfg_file
-        self.__graph_neighbours = config.graph_neighbours
+        self.__graph_neighbors = config.graph_neighbors
         self.__network_file = self.__get_xml_filename('net-file')
         self.__route_file = self.__get_xml_filename('route-files')
         self.__network: sumolib.net.Net = sumolib.net.readNet(self.__network_file)
@@ -214,7 +216,7 @@ class SumoEnvironment(MultiAgentEnv):
             traci.route.add(route_id, vehicle.original_route)
             self.__od_pairs[vehicle.od_pair].increase_load(vehicle_id)
 
-        subs_params = [CONVERSION_DICT[param] for param in self.__link_collector.watched_params[2:]]
+        subs_params = [CONVERSION_DICT[param] for param in self.__link_collector.watched_params[4:]]
         for edge in self.__network.getEdges():
             traci.edge.subscribe(edge.getID(), subs_params)
 
@@ -238,6 +240,7 @@ class SumoEnvironment(MultiAgentEnv):
         """Method that closes the traci run and saves collected data to csv files.
         """
         self.__link_collector.save()
+        self.__link_collector.save_aggr_junction()
         if self.__data_fit is not None:
             self.__data_fit.save()
         traci.close()
@@ -275,10 +278,21 @@ class SumoEnvironment(MultiAgentEnv):
         """
         return self.__network.getEdge(link_id).getToNode().getID()
 
-    def get_graph_neighbours(self):
-        """Method that returns dictionary of graph neighbours"""
+    def get_link_destination_type(self, link_id: str) -> str:
+        """Method that returns the destination node type given the link ID.
 
-        return self.__graph_neighbours
+        Args:
+            link_id (str): Link ID to retrieve the destination node
+
+        Returns:
+            str: Type of node that is the destination of the link.
+        """
+        return self.__network.getEdge(link_id).getToNode().getType()
+
+    def get_graph_neighbors(self):
+        """Method that returns dictionary of graph neighbors"""
+
+        return self.__graph_neighbors
 
     def is_border_node(self, node_id: str) -> bool:
         """Method that tests whether a given node is in the border of the network.
@@ -711,6 +725,8 @@ class SumoEnvironment(MultiAgentEnv):
             link_id = edge.getID()
             link_data = traci.edge.getSubscriptionResults(link_id)
             step_data["Link"].append(link_id)
+            step_data["Junction"].append(self.get_link_destination(link_id))
+            step_data["Junction Type"].append(self.get_link_destination_type(link_id))
             for key, value in link_data.items():
                 conv_key = key_list[value_list.index(key)]
                 if key == tc.VAR_CURRENT_TRAVELTIME:
