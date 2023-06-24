@@ -1,8 +1,8 @@
 import unittest
 import unittest.mock as mock
 
-from sumo_ql.environment.vehicle import Vehicle
-from sumo_ql.environment.sumo_environment import SumoEnvironment
+from sumo_drivers.environment.sumo_environment import SumoEnvironment
+from sumo_drivers.environment.vehicle import Vehicle
 
 
 class VehicleTest(unittest.TestCase):

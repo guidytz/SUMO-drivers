@@ -8,7 +8,7 @@ import numpy as np
 from sumolib.net.node import Node
 
 if TYPE_CHECKING:
-    from sumo_ql.environment.sumo_environment import SumoEnvironment
+    from sumo_drivers.environment.sumo_environment import SumoEnvironment
 
 
 class CommunicationDevice:
@@ -95,7 +95,7 @@ class CommunicationDevice:
                 if interval[0] < current_step <= interval[1]:
                     return graph_neighbors_link[interval]
             i += 1
-        #print("Interval not found, returning empty list")
+        # print("Interval not found, returning empty list")
         return []
 
     def get_outgoing_links_expected_rewards(self) -> dict[str, np.ndarray]:

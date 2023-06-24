@@ -11,7 +11,7 @@ from sklearn.preprocessing import MaxAbsScaler as scaler
 from traci.exceptions import TraCIException
 
 if TYPE_CHECKING:
-    from sumo_ql.environment.sumo_environment import SumoEnvironment
+    from sumo_drivers.environment.sumo_environment import SumoEnvironment
 
 
 class Vehicle:

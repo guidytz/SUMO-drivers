@@ -1,7 +1,9 @@
 import unittest
+
 from gym import spaces
-from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
-from sumo_ql.agent.q_learning import QLAgent
+
+from sumo_drivers.agent.q_learning import QLAgent
+from sumo_drivers.exploration.epsilon_greedy import EpsilonGreedy
 
 
 class QLAgentTest(unittest.TestCase):

@@ -1,6 +1,8 @@
 import unittest
+
 from gym import spaces
-from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
+
+from sumo_drivers.exploration.epsilon_greedy import EpsilonGreedy
 
 
 class EpsilonGreedyTest(unittest.TestCase):

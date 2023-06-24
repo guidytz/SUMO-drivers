@@ -10,10 +10,11 @@ import numpy as np
 
 from script_configs import create_parser
 from script_configs.configs import NonLearnerConfig, PQLConfig, QLConfig
-from sumo_ql.agent.q_learning import PQLAgent, QLAgent
-from sumo_ql.collector.collector import DefaultCollector, LinkCollector
-from sumo_ql.environment.sumo_environment import EnvConfig, SumoEnvironment
-from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
+from sumo_drivers.agent.q_learning import PQLAgent, QLAgent
+from sumo_drivers.collector.collector import DefaultCollector, LinkCollector
+from sumo_drivers.environment.sumo_environment import (EnvConfig,
+                                                       SumoEnvironment)
+from sumo_drivers.exploration.epsilon_greedy import EpsilonGreedy
 from sumo_vg.virtual_graph import generate_graph_neighbors_dict
 
 SAVE_OBJ_CHOSEN = False
@@ -55,22 +56,22 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
             print("Generating graph neighbors dictionary...")
             network_name = str(config.sumocfg).split('/')[-2]
             vg_neighbors_dict = generate_graph_neighbors_dict(config.virtual_graph.file,
-                                                                   config.virtual_graph.attributes,
-                                                                   config.virtual_graph.labels,
-                                                                   config.virtual_graph.restrictions,
-                                                                   config.virtual_graph.threshold,
-                                                                   config.virtual_graph.use_or,
-                                                                   config.virtual_graph.measures,
-                                                                   config.virtual_graph.no_image,
-                                                                   config.virtual_graph.raw,
-                                                                   config.virtual_graph.giant,
-                                                                   config.virtual_graph.not_normalize,
-                                                                   config.virtual_graph.min_degree,
-                                                                   config.virtual_graph.min_step,
-                                                                   arestas_para_custoso=2000,
-                                                                   precisao=10,
-                                                                   intervalo_vizinhos=config.virtual_graph.interval,
-                                                                   network_name=network_name)
+                                                              config.virtual_graph.attributes,
+                                                              config.virtual_graph.labels,
+                                                              config.virtual_graph.restrictions,
+                                                              config.virtual_graph.threshold,
+                                                              config.virtual_graph.use_or,
+                                                              config.virtual_graph.measures,
+                                                              config.virtual_graph.no_image,
+                                                              config.virtual_graph.raw,
+                                                              config.virtual_graph.giant,
+                                                              config.virtual_graph.not_normalize,
+                                                              config.virtual_graph.min_degree,
+                                                              config.virtual_graph.min_step,
+                                                              arestas_para_custoso=2000,
+                                                              precisao=10,
+                                                              intervalo_vizinhos=config.virtual_graph.interval,
+                                                              network_name=network_name)
 
     def create_log(dirname: str, date: datetime) -> None:
         """Method that creates a log file that has information of beginning and end of simulations when making multiple
@@ -221,12 +222,13 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
                     handle_communication(vehicle_id, vehicle['current_state'])
                     current_state = vehicle['current_state']
                     available_actions = vehicle['available_actions']
-                    match agents:
-                        case dict(QLAgent(_)):
-                            actions[vehicle_id] = agents[vehicle_id].act(current_state, available_actions)
-                        case dict(PQLAgent(_)):
-                            actions[vehicle_id], chosen_obj = agents[vehicle_id].act(current_state,
-                                                                                     available_actions)
+                    match agents[vehicle_id]:
+                        case QLAgent(_) as agent:
+                            actions[vehicle_id] = agent.act(current_state, available_actions)
+                            agents[vehicle_id] = agent
+                        case PQLAgent(_) as agent:
+                            actions[vehicle_id], chosen_obj = agent.act(current_state, available_actions)
+                            agents[vehicle_id] = agent
                             if chosen_obj != -1:
                                 chosen_sum[chosen_obj] += 1
 
@@ -291,13 +293,15 @@ def run_sim(config: NonLearnerConfig | QLConfig | PQLConfig, date: datetime = da
         """
         try:
             action = env.get_action(origin_node, destination_node)
-            match agents:
-                case dict(QLAgent(_)):
+            match agents[vehicle_id]:
+                case QLAgent(_) as agent:
                     assert isinstance(config, QLConfig)
                     obj = 0 if config.objective == "TravelTime" else 1
-                    agents[vehicle_id].learn(action, origin_node, destination_node, reward[obj])
-                case dict(PQLAgent(_)):
-                    agents[vehicle_id].learn(action, origin_node, destination_node, reward)
+                    agent.learn(action, origin_node, destination_node, reward[obj])
+                    agents[vehicle_id] = agent
+                case PQLAgent(_) as agent:
+                    agent.learn(action, origin_node, destination_node, reward)
+                    agents[vehicle_id] = agent
 
         except Exception as exception:
             print(f"{vehicle_id = }")

@@ -3,7 +3,8 @@ from typing import Dict, Union
 
 import numpy as np
 from gym import spaces
-from sumo_ql.exploration.epsilon_greedy import EpsilonGreedy
+
+from sumo_drivers.exploration.epsilon_greedy import EpsilonGreedy
 
 
 class Agent(ABC):

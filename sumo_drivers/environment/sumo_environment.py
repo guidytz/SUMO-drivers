@@ -15,10 +15,10 @@ from gym import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from script_configs.configs import NonLearnerConfig, PQLConfig, QLConfig
-from sumo_ql.collector.collector import LinkCollector, ObjectiveCollector
-from sumo_ql.environment.communication_device import CommunicationDevice
-from sumo_ql.environment.od_pair import ODPair
-from sumo_ql.environment.vehicle import Objectives, Vehicle
+from sumo_drivers.collector.collector import LinkCollector, ObjectiveCollector
+from sumo_drivers.environment.communication_device import CommunicationDevice
+from sumo_drivers.environment.od_pair import ODPair
+from sumo_drivers.environment.vehicle import Objectives, Vehicle
 
 MAX_COMPUTABLE_OD_PAIRS = 30
 MAX_VEHICLE_MARGIN = 100
@@ -26,7 +26,7 @@ MAX_VEHICLE_MARGIN = 100
 CONVERSION_DICT = {
     "Step": "Step",
     "Link": "Link",
-    "Junction": "Junction", 
+    "Junction": "Junction",
     "Junction Type": "JunctionType",
     "Travel Time": tc.VAR_CURRENT_TRAVELTIME,
     "Speed": tc.LAST_STEP_MEAN_SPEED,
