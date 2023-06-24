@@ -1,4 +1,4 @@
-# SUMO-QL
+# SUMO-drivers
 
 A python code to handle Multi-agent Reinforcement Learning using [SUMO](https://github.com/eclipse/sumo) as a microscopic
 traffic simulation.
@@ -32,8 +32,8 @@ Other options for installing SUMO in different systems can be found in [SUMO's d
 To install the package, run:
 
 ```bash
-git clone https://github.com/guidytz/SUMO-QL
-cd SUMO-QL
+git clone https://github.com/guidytz/SUMO-drivers
+cd SUMO-drivers
 python3 -m pip install -e .
 ```
 
@@ -76,8 +76,8 @@ python3 simulations/sumo_run.py pql --sumocfg <path-to-sumocfg-file>
 
 ## Virtual Graph
 
-This tool receives data from a traffic simulation and creates a graph that links different elements of the network that have similar 
-patterns. This virtual graph can be used to enhance the exchange of information between CommDevs during the simulation. It is also 
+This tool receives data from a traffic simulation and creates a graph that links different elements of the network that have similar
+patterns. This virtual graph can be used to enhance the exchange of information between CommDevs during the simulation. It is also
 possible to use it to study the network itself, taking different centrality measures of this graph.
 
 ### Communication with Virtual Graph
@@ -95,7 +95,7 @@ python3 simulations/sumo_run.py nl --sumocfg <path-to-sumocfg-file> --observe-li
 The `observe-list` argument contains the names of the attributes of the simulation that will be present in the output csv file.
 
 This will generate two csv files with information about the network in the results folder. One contains data of each link at a timestep interval and the other
-contains this same data aggregated by traffic light junction at each timestep interval. 
+contains this same data aggregated by traffic light junction at each timestep interval.
 
 ### Creating the Virtual Graph
 
@@ -111,12 +111,12 @@ x_{normalized} = \frac{x - x_{min}}{x_{max} - x_{min}}
 ```
 
 Every argument that refers to the attributes in the input csv file, such as the list of attributes or the list of labels, is passed using its
-respective column number in the input csv. They can be passed as a list of integers or as an interval in the form `initial_column-final_column` 
+respective column number in the input csv. They can be passed as a list of integers or as an interval in the form `initial_column-final_column`
 where `initial_column` is the first column of the interval and `final_column` is the last.
 
 ### Output of the Virtual Graph
 
-The script will generate an image of the virtual graph in the results/graphs folder. Most importantly, it will also generate a [pickle](https://docs.python.org/3/library/pickle.html) 
+The script will generate an image of the virtual graph in the results/graphs folder. Most importantly, it will also generate a [pickle](https://docs.python.org/3/library/pickle.html)
 file containing a python dictionary with every link or junction and their respective neighbors in the virtual graph at each timestep interval in the
 results/dictionaries folder.
 
@@ -148,7 +148,7 @@ python3 simulations/sumo_run.py ql --sumocfg <path-to-sumocfg-file> --vg-dict-fi
 ```
 
 With this argument, the communication between CommDevs in the network will be enhanced by the information in the virtual graph dictionary file. It is important to note
-that this works with q-learning agents as well as with pareto q-learning agents. Also, it is necessary to set a value different than zero for the `success-rate` argument in 
+that this works with q-learning agents as well as with pareto q-learning agents. Also, it is necessary to set a value different than zero for the `success-rate` argument in
 order to have a working communication during the simulation.
 
 ### Example of Use
@@ -170,7 +170,7 @@ In the `vg-file` argument, it is chosen whether to use the link data or the junc
 attributes from the input csv will be used: the third and fourth column attributes. The `vg-label` argument determines that the label for each vertex of the virtual graph
 will be composed by the second and first columns of the input csv, and also that the output dictionary file will be aggregated by the second column. The `vg-threshold`
 determines the maximum absolute difference each attribute, defined by `vg-attributes`, of each vertex in the virtual graph can have. Finally, the `vg-restrictions` argument set
-as the graph vertex attribute is important because it prevents the program from creating an edge between two vertices that have the same graph vertex attribute, i.e. two 
+as the graph vertex attribute is important because it prevents the program from creating an edge between two vertices that have the same graph vertex attribute, i.e. two
 vertices that originate from the same link or junction. This is a good practice, so as to the output dictionary file doesn't have a link or junction as neighbor of itself.
 
 3. Run the simulation with ql-learning agent and the virtual graph enhanced communication:
@@ -178,7 +178,7 @@ vertices that originate from the same link or junction. This is a good practice,
 python3 simulations/sumo_run.py ql --sumocfg scenario/diamond/diamond.sumocfg --observe-list TravelTime CO --success-rate 1 -o TravelTime --vg-dict-file <path_to_dictionary_file>
 ```
 This will run a simulation using the virtual graph to enhance the communication, generating two csv files, one with link information and another with traffic light junction
-information of the simulation. 
+information of the simulation.
 
 It is also possible to skip the second step and generate the virtual graph at the start of the simulation using the [virtual graph specific arguments](#virtual-graph-specific-arguments) alongside the simulation arguments.
 
